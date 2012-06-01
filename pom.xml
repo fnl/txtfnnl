@@ -1,0 +1,29 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>txtfnnl</groupId>
+  <artifactId>txtfnnl</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>txtfnnl</name>
+  <description>Text Mining based on Tika, UIMA, Mahout, and Hadoop.</description>
+  <packaging>pom</packaging>
+  <modules>
+  	<module>txtfnnl-tika</module>
+  </modules>
+  <dependencyManagement>
+  	<dependencies>
+  		<dependency>
+  			<groupId>org.apache.tika</groupId>
+  			<artifactId>tika-parent</artifactId>
+  			<version>1.1</version>
+  		</dependency>
+  	</dependencies>
+  </dependencyManagement>
+  <dependencies>
+  	<dependency>
+  		<groupId>org.easymock</groupId>
+  		<artifactId>easymock</artifactId>
+  		<version>3.1</version>
+  		<scope>test</scope>
+  	</dependency>
+  </dependencies>
+</project>

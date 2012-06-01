@@ -1,0 +1,40 @@
+<PubmedArticle>
+<MedlineCitation Owner="NLM" Status="MEDLINE"><PMID Version="1">12602495</PMID>
+<DateCreated><Year>2003</Year><Month>02</Month><Day>26</Day></DateCreated>
+        <Article PubModel="Print">
+            <Journal>
+                <Title>Drug development and industrial pharmacy</Title>
+            </Journal>
+            <ArticleTitle>Effects of manufacturing process ... </ArticleTitle>
+            <Abstract>
+                <AbstractText>  cut 	 </AbstractText>
+            </Abstract>
+            <AuthorList CompleteYN="N">
+                <Author ValidYN="Y">
+                    <LastName>Huang</LastName>
+                    <ForeName>Ye</ForeName>
+                    <Initials>Y</Initials>
+                </Author>
+            </AuthorList>
+        </Article>
+        <ChemicalList>
+            <Chemical>
+                <RegistryNumber>0</RegistryNumber>
+                <NameOfSubstance>Delayed-Action Preparations</NameOfSubstance>
+            </Chemical>
+        </ChemicalList>
+        <MeshHeadingList>
+            <MeshHeading>
+   <DescriptorName MajorTopicYN="N">Chemistry, Pharmaceutical</DescriptorName>
+            </MeshHeading>
+<MeshHeading>
+<DescriptorName MajorTopicYN="N">Data Interpretation, Statistical</DescriptorName>
+            </MeshHeading>
+        </MeshHeadingList>
+    </MedlineCitation>
+<PubmedData><PublicationStatus>ppublish</PublicationStatus>
+<ArticleIdList><ArticleId IdType="pubmed">12602495</ArticleId>
+<ArticleId IdType="doi">10.1081/DDC-120016686</ArticleId></ArticleIdList>
+    </PubmedData>
+</PubmedArticle>
+
