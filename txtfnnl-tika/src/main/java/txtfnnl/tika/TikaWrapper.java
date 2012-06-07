@@ -163,7 +163,7 @@ public class TikaWrapper {
 	                  Metadata metadata, ParseContext context)
 	        throws IOException, TikaException {
 		String mediaType = detect(stream, metadata).getBaseType().toString();
-		Parser parser = this.parser;
+		Parser p = this.parser;
 		context.set(HtmlMapper.class, CleanHtmlMapper.INSTANCE);
 
 		if ("text/html".equals(mediaType) ||
@@ -173,13 +173,13 @@ public class TikaWrapper {
 		} else if ("text/xml".equals(mediaType) ||
 		           mediaType.startsWith("application/xml")) {
 			handler = new XMLContentHandler(handler);
-			parser = new UnembeddedXMLParser();
+			p = new UnembeddedXMLParser();
 		} else {
 			handler = new CleanBodyContentHandler(handler);
 		}
 
 		try {
-			parser.parse(stream, handler, metadata, context);
+			p.parse(stream, handler, metadata, context);
 		} catch (SAXException e) {
 			throw new TikaException("SAX processing failure", e);
 		} finally {

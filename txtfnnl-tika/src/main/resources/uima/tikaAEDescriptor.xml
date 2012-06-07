@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<analysisEngineDescription xmlns="http://uima.apache.org/resourceSpecifier">
+  <frameworkImplementation>org.apache.uima.java</frameworkImplementation>
+  <primitive>true</primitive>
+  <annotatorImplementationName>txtfnnl.tika.uima.TikaAnnotator</annotatorImplementationName>
+  <analysisEngineMetaData>
+    <name>TikaAnnotator</name>
+    <description/>
+    <version>1.0</version>
+    <vendor>txtfnnl</vendor>
+    <configurationParameters/>
+    <configurationParameterSettings/>
+    <typeSystemDescription>
+      <imports>
+        <import location="../../../../../txtfnnl-uima/src/main/resources/uima/typeSystemDescriptor.xml"/>
+      </imports>
+    </typeSystemDescription>
+    <typePriorities/>
+    <fsIndexCollection/>
+    <capabilities>
+      <capability>
+        <inputs/>
+        <outputs>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.TextAnnotation</type>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.cas.Property</type>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.DocumentAnnotation</type>
+        </outputs>
+        <inputSofas>
+          <sofaName>contentRaw</sofaName>
+        </inputSofas>
+        <outputSofas>
+          <sofaName>contentText</sofaName>
+        </outputSofas>
+        <languagesSupported/>
+      </capability>
+    </capabilities>
+    <operationalProperties>
+      <modifiesCas>false</modifiesCas>
+      <multipleDeploymentAllowed>false</multipleDeploymentAllowed>
+      <outputsNewCASes>true</outputsNewCASes>
+    </operationalProperties>
+  </analysisEngineMetaData>
+  <resourceManagerConfiguration/>
+</analysisEngineDescription>
