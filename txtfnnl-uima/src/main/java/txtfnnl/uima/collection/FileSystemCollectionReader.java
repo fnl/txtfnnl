@@ -21,13 +21,13 @@ public class FileSystemCollectionReader extends CollectionReader_ImplBase {
 
 	public static final String PARAM_DIRECTORY = "InputDirectory";
 	public static final String PARAM_RECURSIVE = "Recursive";
-	public static final String PARAM_LANGUAGE = "Language";
+	public static final String PARAM_LANGUAGE = "Language"; // TODO
 	public static final String PARAM_MIME_TYPE = "MimeType";
 
 	private String language;
 	private String mimeType;
 	private List<File> files;
-	private Iterator<File> iter;
+	private Iterator<File> fileIter;
 	private int counter = 0;
 	private Tika tika = new Tika();
 
@@ -53,10 +53,10 @@ public class FileSystemCollectionReader extends CollectionReader_ImplBase {
 		}
 
 		files = addFilesFromDir(directory, recursive);
-		iter = files.iterator();
+		fileIter = files.iterator();
 		counter = 0;
 
-		// TODO: create a tika language identifier and some profiles
+		// TODO: instantiate a Tika language identifier and some profiles
 	}
 
 	private List<File> addFilesFromDir(File dir, boolean recurse) {
@@ -84,7 +84,7 @@ public class FileSystemCollectionReader extends CollectionReader_ImplBase {
 		}
 
 		// set the new SOFA's data URI and MIME type
-		File file = iter.next();
+		File file = fileIter.next();
 		String uri = file.getAbsoluteFile().toURI().toString();
 		String fileMime = mimeType;
 
@@ -105,7 +105,7 @@ public class FileSystemCollectionReader extends CollectionReader_ImplBase {
 	}
 
 	public boolean hasNext() throws IOException, CollectionException {
-		return iter.hasNext();
+		return fileIter.hasNext();
 	}
 
 	public Progress[] getProgress() {

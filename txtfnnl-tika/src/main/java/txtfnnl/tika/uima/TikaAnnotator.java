@@ -59,7 +59,7 @@ public class TikaAnnotator extends JCasAnnotator_ImplBase {
 
 		if (stream == null) {
 			logger.log(Level.SEVERE,
-			    "no data stream from " + aJCas.getViewName());
+			    "no data stream for view '" + aJCas.getViewName() + "'");
 			throw new AnalysisEngineProcessException(new AssertionError(
 			    "no SOFA data stream"));
 		} else {

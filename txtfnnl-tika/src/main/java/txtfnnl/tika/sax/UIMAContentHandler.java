@@ -32,7 +32,7 @@ import txtfnnl.uima.tcas.TextAnnotation;
 public class UIMAContentHandler extends ContentHandlerDecorator {
 
 	/** The CAS view that will be populated by the handler. */
-	private JCas view;
+	private JCas view = null;
 
 	/** The characters received from the parser. */
 	private StringBuffer textBuffer;
