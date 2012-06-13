@@ -3,13 +3,13 @@
     <collectionReader>
         <collectionIterator>
             <descriptor>
-                <import location="../../../../../txtfnnl-uima/src/main/resources/uima/fileSystemCollectionReaderDescriptor.xml"/>
+                <import location="../../../../../../txtfnnl-uima/src/main/resources/txtfnnl/uima/fileSystemCollectionReaderDescriptor.xml"/>
             </descriptor>
             <configurationParameterSettings>
                 <nameValuePair>
                     <name>InputDirectory</name>
                     <value>
-                        <string>/Users/fleitner/Workspace/txtfnnl/txtfnnl-tika/src/test/resources</string>
+                        <string>txtfnnl-tika/src/test/resources</string>
                     </value>
                 </nameValuePair>
             </configurationParameterSettings>
@@ -30,7 +30,7 @@
         </casProcessor>
         <casProcessor deployment="integrated" name="FileSystemXmiConsumer">
             <descriptor>
-                <import location="../../../../../txtfnnl-uima/src/main/resources/uima/fileSystemXmiConsumerDescriptor.xml"/>
+                <import location="../../../../../../txtfnnl-uima/src/main/resources/txtfnnl/uima/fileSystemXmiConsumerDescriptor.xml"/>
             </descriptor>
             <deploymentParameters/>
             <errorHandling>

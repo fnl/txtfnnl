@@ -23,15 +23,6 @@
         <mandatory>false</mandatory>
       </configurationParameter>
       <configurationParameter>
-        <name>Language</name>
-        <description>Language used in the input files (auto-detected if not set).
-
-The value should the the two letter language code, optionally followed by a dash an a two letter country code</description>
-        <type>String</type>
-        <multiValued>false</multiValued>
-        <mandatory>false</mandatory>
-      </configurationParameter>
-      <configurationParameter>
         <name>MimeType</name>
         <description>The MIME type of the input files (auto-detected if not set).</description>
         <type>String</type>

@@ -12,7 +12,7 @@
     <configurationParameterSettings/>
     <typeSystemDescription>
       <imports>
-        <import location="../../../../../txtfnnl-uima/src/main/resources/uima/typeSystemDescriptor.xml"/>
+        <import location="../../../../../../txtfnnl-uima/src/main/resources/txtfnnl/uima/typeSystemDescriptor.xml"/>
       </imports>
     </typeSystemDescription>
     <typePriorities/>
