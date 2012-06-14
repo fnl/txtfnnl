@@ -26,10 +26,10 @@
           <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.DocumentAnnotation</type>
         </outputs>
         <inputSofas>
-          <sofaName>contentRaw</sofaName>
+          <sofaName>CONTENT_RAW</sofaName>
         </inputSofas>
         <outputSofas>
-          <sofaName>contentText</sofaName>
+          <sofaName>CONTENT_TEXT</sofaName>
         </outputSofas>
         <languagesSupported/>
       </capability>

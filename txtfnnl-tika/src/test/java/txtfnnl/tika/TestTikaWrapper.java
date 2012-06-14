@@ -1,14 +1,5 @@
 package txtfnnl.tika;
 
-import org.apache.tika.Tika;
-import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.TikaInputStream;
-import org.apache.tika.metadata.Metadata;
-import org.junit.Assert;
-import org.junit.Test;
-
-import txtfnnl.utils.IOUtils;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -17,6 +8,16 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+
+import org.junit.Assert;
+import org.junit.Test;
+
+import org.apache.tika.Tika;
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.metadata.Metadata;
+
+import txtfnnl.utils.IOUtils;
 
 /**
  * @author Florian Leitner
@@ -185,7 +186,7 @@ public class TestTikaWrapper {
 	}
 
 	/**
-	 * Ensure real HTML file extraction by the Wrapper is not more than twice
+	 * Ensure real HTML file extraction by the Wrapper is not more than thrice
 	 * as slow as Tika's natural mechanism.
 	 * 
 	 * @throws IOException if the test resource file cannot be read.
@@ -210,7 +211,7 @@ public class TestTikaWrapper {
 		long tikaTime = System.nanoTime() / 1000L / 1000L - start;
 		Assert.assertTrue("Time Tika: " + tikaTime + " ms" +
 		                  "; Time Wrapper: " + wrapperTime + " ms",
-		    (float) wrapperTime / (float) tikaTime < 2.0);
+		    (float) wrapperTime / (float) tikaTime < 3.0);
 	}
 
 }

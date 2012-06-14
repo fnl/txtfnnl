@@ -32,8 +32,8 @@
         <inputs/>
         <outputs/>
         <inputSofas>
-          <sofaName>contentRaw</sofaName>
-          <sofaName>contentText</sofaName>
+          <sofaName>CONTENT_RAW</sofaName>
+          <sofaName>CONTENT_TEXT</sofaName>
         </inputSofas>
         <languagesSupported/>
       </capability>

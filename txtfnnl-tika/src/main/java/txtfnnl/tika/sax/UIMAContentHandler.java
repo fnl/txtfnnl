@@ -1,5 +1,5 @@
 /**
- * 
+ * A content handler that bridges SAX, Tika, and UIMA.
  */
 package txtfnnl.tika.sax;
 
@@ -17,15 +17,15 @@ import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 
 import txtfnnl.tika.uima.TikaAnnotator;
-
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.tcas.DocumentAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
 
 /**
- * An event handler that ...
+ * An event handler that specifically "works" with the UIMA AE philosophy.
  * 
- * TODO
+ * This special SAX handler is intended to be used by the
+ * {@link txtfnnl.tika.uima.TikaAnnotator} to extract content for UIMA.
  * 
  * @author Florian Leitner
  */
@@ -125,18 +125,18 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	}
 
 	/**
-	 * Create a new Element starting at the current offset in the text being
-	 * extracted by the Tika parser, and add the namespace, name, and
-	 * attribute annotations.
+	 * Create a new Element starting at the current offset.
 	 * 
-	 * Stores the started Element on an internal element stack until it can be
-	 * closed (by endElement()).
+	 * The element offset is placed at the currently extracted text by the
+	 * Tika parser, and the method adds the relevant namespace, identifier,
+	 * annotator and property annotations. The confidence of the annotations
+	 * will always be 1.
 	 */
 	@Override
 	public void startElement(String uri, String lName, String qName,
 	                         Attributes atts) {
-		int num_atts = atts.getLength();
-		String name = (lName != null && lName.length() > 0) ? lName : qName;
+		int num_atts = (atts == null) ? 0 : atts.getLength();
+		String name = chooseName(lName, qName);;
 		TextAnnotation ann = new TextAnnotation(view);
 
 		ann.setBegin(textBuffer.length());
@@ -150,12 +150,9 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 
 			for (int idx = 0; idx < num_atts; ++idx) {
 				Property prop = new Property(view);
-				String propName = atts.getLocalName(idx);
-
-				if (propName == null || propName.length() < 0)
-					propName = atts.getQName(idx);
-
-				prop.setName(propName);
+				String pName = chooseName(atts.getLocalName(idx),
+				    atts.getQName(idx));
+				prop.setName(pName);
 				prop.setValue(atts.getValue(idx));
 				attributes.set(idx, prop);
 			}
@@ -167,7 +164,7 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	}
 
 	/**
-	 * Store characters extracted by the Tika parser in the text buffer.
+	 * Store characters extracted by the Tika parser in a text buffer.
 	 */
 	@Override
 	public void characters(char ch[], int offset, int len) {
@@ -176,14 +173,16 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	}
 
 	/**
-	 * Set the end of the first matching started Element on the stack of open
-	 * elements to offset in the text being extracted and add the Element to
+	 * Set the end of the first matching, started element to offset in the
+	 * text being extracted (into a buffer) and add the finished annotation to
 	 * the indexes of the CAS view.
+	 * 
+	 * @throws AssertionError if no matching, started element is found
 	 */
 	@Override
 	public void endElement(String uri, String lName, String qName) {
 		TextAnnotation ann = annotationStack.pop();
-		String name = (lName != null && lName.length() > 0) ? lName : qName;
+		String name = chooseName(lName, qName);
 
 		if (!matchesElement(ann, uri, name)) {
 			while (!annotationStack.empty()) {
@@ -204,8 +203,9 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	}
 
 	/**
-	 * End a document, setting the document text on the handler's SOFA to the
-	 * content extracted by the Tika parser.
+	 * End a document, setting the SOFA's document text from the text buffer.
+	 * 
+	 * @throws AssertionError if any unclosed elements remain
 	 */
 	@Override
 	public void endDocument() {
@@ -220,6 +220,23 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	}
 
 	/**
+	 * Return the second string (qName) if the first (lName) is
+	 * <code>null</code> or if lName has zero length and qName is not
+	 * <code>null</code>.
+	 * 
+	 * @param lName the first string
+	 * @param qName the second string
+	 * @return lName if defined and non-empty or if qName is undefined, qName
+	 *         otherwise
+	 */
+	static private String chooseName(String lName, String qName) {
+		if (lName == null || (lName.length() == 0 && qName != null))
+			return qName;
+
+		return lName;
+	}
+
+	/**
 	 * Return true if the TextAnnotation has the given URI and name.
 	 * 
 	 * @param e the annotation to be matched
@@ -228,7 +245,8 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	 * 
 	 * @return true if the strings match the ones set on the annotation
 	 */
-	private boolean matchesElement(TextAnnotation e, String uri, String name) {
+	static private boolean matchesElement(TextAnnotation e, String uri,
+	                                      String name) {
 		return e.getNamespace().equals(uri) && e.getIdentifier().equals(name);
 	}
 

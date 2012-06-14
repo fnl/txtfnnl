@@ -1,5 +1,5 @@
 /**
- * 
+ * A Tika-based AE for (plain) text extraction from "binary" SOFAs.
  */
 package txtfnnl.tika.uima;
 
@@ -19,38 +19,49 @@ import org.apache.uima.util.Logger;
 
 import txtfnnl.tika.TikaWrapper;
 import txtfnnl.tika.sax.UIMAContentHandler;
+import txtfnnl.uima.Views;
 
 /**
- * @author fleitner
+ * This Tika-based AE extracts text content from an input view of the CAS and
+ * sets this text content in a new output view.
  * 
+ * Any markup that Tika extracts during the process is added to as
+ * {@link txtfnnl.uima.tcas.TextAnnotation} to the text content. If Tika
+ * detects {@link org.apache.tika.metadata.Metadata}, it is added as
+ * {@link txtfnnl.uima.tcas.DocumentAnnotation}. As Tika takes care of
+ * "everything" there is nothing to configure for this AE.
+ * 
+ * @author Florian Leitner
  */
 public class TikaAnnotator extends JCasAnnotator_ImplBase {
 
-	/** The annotator URI of this AE. */
+	/** The annotator's URI (for the annotations) set by this AE. */
 	public static final String URI = "http://tika.apache.org/";
 
-	/** The actual annotator class for this AE. */
+	/** The actual "annotator" for this AE. */
 	private TikaWrapper annotator = new TikaWrapper();
 
-	/** The view name/SOFA produced by this AE. */
-	private String viewName = "contentText";
+	/** The input view name/SOFA expected by this AE. */
+	private String inputView = Views.CONTENT_RAW.toString();
+
+	/** The output view name/SOFA produced by this AE. */
+	private String outputView = Views.CONTENT_TEXT.toString();
 
 	/** A logger for this annotator. */
 	private Logger logger = UIMAFramework.getLogger(TikaAnnotator.class);
 
 	/**
-	 * This AE takes a SOFA named "contentRaw" and uses Tika to produce a new
-	 * plain-text SOFA named "contentText". It preserves all metadata
-	 * annotations on the raw content that Tika itself preserves.
-	 * 
-	 * @see org.apache.uima.analysis_component.JCasAnnotator_ImplBase#process(org.apache.uima.jcas.JCas)
+	 * The AE process expects a SOFA with a {@link View.CONTENT_RAW} and uses
+	 * Tika to produce a new plain-text SOFA with a {@link View.CONTENT_TEXT}.
+	 * It preserves all metadata annotations on the raw content that Tika was
+	 * able to detect.
 	 */
 	@Override
 	public void process(JCas aJCas) throws AnalysisEngineProcessException {
 		JCas newJCas;
 
 		try {
-			aJCas = aJCas.getView("contentRaw"); // input view
+			aJCas = aJCas.getView(inputView);
 		} catch (CASException e) {
 			throw new AnalysisEngineProcessException(e);
 		}
@@ -70,7 +81,7 @@ public class TikaAnnotator extends JCasAnnotator_ImplBase {
 		Metadata metadata = new Metadata();
 
 		try {
-			newJCas = aJCas.createView(viewName);
+			newJCas = aJCas.createView(outputView);
 		} catch (CASException e) {
 			throw new AnalysisEngineProcessException(e);
 		}

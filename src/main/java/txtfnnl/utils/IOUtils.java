@@ -5,11 +5,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 
-
 /**
- * A simple version of the Apache Commons IOUtils.
+ * A compact version of the Apache Commons IOUtils.
  * 
- * Might be removed if we need more Commons tools.
+ * Might be removed if more IOUtils methods are needed.
  * 
  * @author Florian Leitner
  *

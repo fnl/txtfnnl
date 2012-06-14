@@ -39,7 +39,7 @@
         <inputs/>
         <outputs/>
         <outputSofas>
-          <sofaName>contentRaw</sofaName>
+          <sofaName>CONTENT_RAW</sofaName>
         </outputSofas>
         <languagesSupported/>
       </capability>

@@ -4,6 +4,7 @@ import java.io.OutputStream;
 import java.io.Writer;
 
 import org.apache.tika.sax.BodyContentHandler;
+
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 

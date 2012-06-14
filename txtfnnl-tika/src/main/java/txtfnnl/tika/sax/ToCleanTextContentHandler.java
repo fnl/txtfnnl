@@ -7,6 +7,7 @@ import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 
 import org.apache.tika.sax.ToTextContentHandler;
+
 import org.xml.sax.SAXException;
 
 /**

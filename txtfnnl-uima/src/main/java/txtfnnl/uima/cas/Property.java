@@ -1,14 +1,10 @@
-
-
 /* First created by JCasGen Wed Jun 06 13:10:16 CEST 2012 */
 package txtfnnl.uima.cas;
 
-import org.apache.uima.jcas.JCas; 
+import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.JCasRegistry;
-import org.apache.uima.jcas.cas.TOP_Type;
-
 import org.apache.uima.jcas.cas.TOP;
-
+import org.apache.uima.jcas.cas.TOP_Type;
 
 /** A free-form property structure for annotations.
  * Updated by JCasGen Wed Jun 06 14:49:53 CEST 2012

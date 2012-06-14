@@ -1,6 +1,7 @@
 package txtfnnl.tika.sax;
 
 import org.apache.tika.sax.ContentHandlerDecorator;
+
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;

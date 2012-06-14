@@ -24,6 +24,7 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.sax.TeeContentHandler;
+
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 

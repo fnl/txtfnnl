@@ -13,6 +13,8 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.ResourceProcessException;
 import org.apache.uima.util.CasToInlineXml;
 
+import txtfnnl.uima.Views;
+
 /**
  * A simple CAS consumer that serializes to XMI and writes the XML data to a
  * file using UTF-8 encoding by default.
@@ -20,17 +22,28 @@ import org.apache.uima.util.CasToInlineXml;
  * This CAS Consumer takes two parameters:
  * <ul>
  * <li><code>OutputDirectory</code> - path to directory into which the XMI
- * output files will be written</li>
+ * output files will be written; if the directory does not exist, it will be
+ * created first</li>
  * <li><code>Encoding</code> - the encoding to use for the output files
- * (default: UTF-8)</li>
+ * (default: the platform's encoding)</li>
  * </ul>
  * 
- * 
+ * @author Florian Leitner
  */
 public class FileSystemXmiConsumer extends CasConsumer_ImplBase {
 
+	/**
+	 * Name of configuration parameter that must be set to the path of a
+	 * directory where the output files will be written to.
+	 */
 	public static final String PARAM_OUTPUT_DIRECTORY = "OutputDirectory";
 
+	/**
+	 * Name of optional configuration parameter that indicates the encoding to
+	 * use for the output files.
+	 * 
+	 * Defaults to the platform's encoding.
+	 */
 	public static final String PARAM_ENCODING = "Encoding";
 
 	private File outputDir;
@@ -49,15 +62,17 @@ public class FileSystemXmiConsumer extends CasConsumer_ImplBase {
 
 		if (!outputDir.exists())
 			outputDir.mkdirs();
-		
-		if (encoding == null)
-			encoding = "UTF-8";
+
+		if (!(outputDir.isDirectory() && outputDir.canWrite()))
+			throw new ResourceInitializationException(new IOException(
+			    PARAM_OUTPUT_DIRECTORY + "='" + outputDir +
+			            "' not a writeable directory"));
 
 		cas2xml = new CasToInlineXml();
 	}
 
 	public void processCas(CAS aCAS) throws ResourceProcessException {
-		String uri = aCAS.getView("contentRaw").getSofaDataURI();
+		String uri = aCAS.getView(Views.CONTENT_RAW.toString()).getSofaDataURI();
 		File outFile;
 
 		try {
@@ -74,10 +89,15 @@ public class FileSystemXmiConsumer extends CasConsumer_ImplBase {
 		try {
 			// serialize CAS to XML Metadata Interchange (XMI) format
 			String xmlAnnotations = cas2xml.generateXML(aCAS
-			    .getView("contentText"));
+			    .getView(Views.CONTENT_TEXT.toString()));
 			FileOutputStream outStream = new FileOutputStream(outFile);
-			// and write to output file in UTF-8
-			outStream.write(xmlAnnotations.getBytes(encoding));
+
+			// and write to output file
+			if (encoding == null)
+				outStream.write(xmlAnnotations.getBytes());
+			else
+				outStream.write(xmlAnnotations.getBytes(encoding));
+
 			outStream.close();
 		} catch (CASException e) {
 			throw new ResourceProcessException(e);

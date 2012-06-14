@@ -1,26 +1,39 @@
 package txtfnnl.tika.sax;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+
+import java.util.logging.Level;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import org.apache.tika.metadata.Metadata;
 import org.apache.uima.analysis_engine.AnalysisEngine;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.metadata.TypeSystemDescription;
+
+import org.xml.sax.ContentHandler;
+import org.xml.sax.helpers.AttributesImpl;
+
 import org.easymock.EasyMock;
-import org.junit.Before;
-import org.junit.Test;
 import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.factory.TypeSystemDescriptionFactory;
+import org.uimafit.testing.util.DisableLogging;
 import org.uimafit.util.JCasUtil;
-import org.xml.sax.ContentHandler;
 
 import txtfnnl.tika.uima.TikaAnnotator;
+import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.tcas.DocumentAnnotation;
+import txtfnnl.uima.tcas.TextAnnotation;
 
 public class TestUIMAContentHandler {
 
 	UIMAContentHandler handler;
 	ContentHandler mock;
+	Level loglevel;
 
 	/**
 	 * Set up the test environment by attaching a mocked content handler to
@@ -37,6 +50,12 @@ public class TestUIMAContentHandler {
 		    TikaAnnotator.class, typeSystemDescription);
 		handler.setView(tikaAnnotator.newJCas());
 		handler.startDocument();
+		loglevel = DisableLogging.disableLogging();
+	}
+
+	@After
+	public void tearDown() {
+		DisableLogging.enableLogging(loglevel);
 	}
 
 	@Test
@@ -57,6 +76,52 @@ public class TestUIMAContentHandler {
 		}
 
 		assertEquals(1, count);
+	}
+
+	@Test
+	public void testAddingElement() {
+		String uri = "test_uri";
+		String lName = "";
+		String qName = "test_qname";
+		AttributesImpl atts = new AttributesImpl();
+		int count = 0;
+
+		atts.addAttribute(uri, lName, qName, "test_type", "test_value");
+		handler.characters("in".toCharArray(), 0, 2);
+		handler.startElement(uri, lName, qName, atts);
+		handler.characters("stuff".toCharArray(), 0, 5);
+		handler.endElement(uri, lName, qName);
+		handler.characters("out".toCharArray(), 0, 3);
+
+		for (TextAnnotation ann : JCasUtil.select(handler.getView(),
+		    TextAnnotation.class)) {
+			assertEquals(2, ann.getBegin());
+			assertEquals(7, ann.getEnd());
+			assertEquals("http://tika.apache.org/", ann.getAnnotator());
+			assertEquals("test_uri", ann.getNamespace());
+			assertEquals("test_qname", ann.getIdentifier());
+			assertEquals(1.0, ann.getConfidence(), 0.0000001);
+			assertNotNull(ann.getProperties());
+			assertEquals(1, ann.getProperties().size());
+			Property p = ann.getProperties(0);
+			assertEquals("test_qname", p.getName());
+			assertEquals("test_value", p.getValue());
+			count++;
+		}
+
+		assertEquals(1, count);
+	}
+
+	@Test(expected = AssertionError.class)
+	public void testUnconsumedElement() {
+		handler.startElement("uri", "lName", "qName", null);
+		handler.endDocument();
+	}
+
+	@Test(expected = AssertionError.class)
+	public void testUnmatchedElement() {
+		handler.startElement("uri", "e1", "e1", null);
+		handler.endElement("uri", "e2", "e2");
 	}
 
 }
