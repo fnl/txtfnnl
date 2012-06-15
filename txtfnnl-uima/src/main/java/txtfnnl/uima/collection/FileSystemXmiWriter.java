@@ -57,9 +57,10 @@ public class FileSystemXmiWriter extends CasAnnotator_ImplBase {
 
 	private int counter; // to create "unique" output file names
 
-	public void initialize(UimaContext ctx) throws ResourceInitializationException {
+	public void initialize(UimaContext ctx)
+	        throws ResourceInitializationException {
 		super.initialize(ctx);
-		
+
 		counter = 0;
 		outputDir = new File(
 		    (String) ctx.getConfigParameterValue(PARAM_OUTPUT_DIRECTORY));
@@ -124,9 +125,9 @@ public class FileSystemXmiWriter extends CasAnnotator_ImplBase {
 
 		try {
 			out = new FileOutputStream(file);
-			XmiCasSerializer ser = new XmiCasSerializer(aCas.getTypeSystem());
-			XMLSerializer xmlSer = new XMLSerializer(out, formatXMI);
-			ser.serialize(aCas, xmlSer.getContentHandler());
+			XmiCasSerializer trafo = new XmiCasSerializer(aCas.getTypeSystem());
+			XMLSerializer xml = new XMLSerializer(out, formatXMI);
+			trafo.serialize(aCas, xml.getContentHandler());
 		} finally {
 			if (out != null)
 				out.close();
