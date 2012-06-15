@@ -28,9 +28,9 @@
             </errorHandling>
             <checkpoint batch="10000" time="1000ms"/>
         </casProcessor>
-        <casProcessor deployment="integrated" name="FileSystemXmiConsumer">
+        <casProcessor deployment="integrated" name="FileSystemXmiWriter">
             <descriptor>
-                <import location="../../../../../../txtfnnl-uima/src/main/resources/txtfnnl/uima/fileSystemXmiConsumerDescriptor.xml"/>
+                <import location="../../../../../../txtfnnl-uima/src/main/resources/txtfnnl/uima/fileSystemXmiWriterDescriptor.xml"/>
             </descriptor>
             <deploymentParameters/>
             <errorHandling>

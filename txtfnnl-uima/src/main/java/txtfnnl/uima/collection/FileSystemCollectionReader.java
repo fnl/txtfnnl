@@ -135,7 +135,7 @@ public class FileSystemCollectionReader extends CollectionReader_ImplBase {
 		String fileMime = mimeType;
 
 		if (mimeType == null)
-			mimeType = tika.detect(file);
+			fileMime = tika.detect(file);
 
 		jcas.setSofaDataURI(uri, fileMime);
 

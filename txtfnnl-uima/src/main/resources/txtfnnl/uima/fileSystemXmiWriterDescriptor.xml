@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<casConsumerDescription xmlns="http://uima.apache.org/resourceSpecifier">
+<analysisEngineDescription xmlns="http://uima.apache.org/resourceSpecifier">
   <frameworkImplementation>org.apache.uima.java</frameworkImplementation>
-  <implementationName>txtfnnl.uima.collection.FileSystemXmiConsumer</implementationName>
-  <processingResourceMetaData>
-    <name>FileSystemXmiConsumer</name>
+  <primitive>true</primitive>
+  <annotatorImplementationName>txtfnnl.uima.collection.FileSystemXmiWriter</annotatorImplementationName>
+  <analysisEngineMetaData>
+    <name>FileSystemXmiWriter</name>
     <description/>
     <version>1.0</version>
     <vendor>txtfnnl</vendor>
@@ -16,9 +17,9 @@
         <mandatory>true</mandatory>
       </configurationParameter>
       <configurationParameter>
-        <name>Encoding</name>
-        <description>Name of the encoding to use for the output files (default: UTF-8).</description>
-        <type>String</type>
+        <name>Format</name>
+        <description>Use XMI format (UTF-8 encoded, indented XML; default: platform-specific encoding, no indention of the XML).</description>
+        <type>Boolean</type>
         <multiValued>false</multiValued>
         <mandatory>false</mandatory>
       </configurationParameter>
@@ -43,6 +44,6 @@
       <multipleDeploymentAllowed>false</multipleDeploymentAllowed>
       <outputsNewCASes>false</outputsNewCASes>
     </operationalProperties>
-  </processingResourceMetaData>
+  </analysisEngineMetaData>
   <resourceManagerConfiguration/>
-</casConsumerDescription>
+</analysisEngineDescription>

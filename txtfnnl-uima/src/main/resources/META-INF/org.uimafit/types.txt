@@ -1,0 +1,1 @@
+classpath*:txtfnnl/uima/typeSystemDescriptor.xml
