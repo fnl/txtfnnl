@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<analysisEngineDescription xmlns="http://uima.apache.org/resourceSpecifier">
+  <frameworkImplementation>org.apache.uima.java</frameworkImplementation>
+  <primitive>true</primitive>
+  <annotatorImplementationName>txtfnnl.opennlp.uima.sentdetect.SentenceAnnotator</annotatorImplementationName>
+  <analysisEngineMetaData>
+    <name>OpenNLPSentenceAnnotator</name>
+    <description>Apache OpenNLP-based sentence annotator.</description>
+    <version>1.0</version>
+    <vendor>txtfnnl</vendor>
+    <configurationParameters searchStrategy="language_fallback">
+      <configurationParameter>
+        <name>opennlp.uima.SentenceType</name>
+        <description>The name of the sentence annotation type to be created (default is TextAnnotation).
+
+Note that the chosen type must provide the following features:
+
+String annotator
+Double confidence
+String identifier
+String namespace</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>true</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>opennlp.uima.ContainerType</name>
+        <description>The name of the annotation type that contains the text to be annotated with sentences in the CASes.</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>opennlp.uima.IsRemoveExistingAnnotations</name>
+        <description>Remove all existing annotations within the text container.</description>
+        <type>Boolean</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>opennlp.uima.ModelName</name>
+        <description>blah</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>true</mandatory>
+      </configurationParameter>
+    </configurationParameters>
+    <configurationParameterSettings>
+      <nameValuePair>
+        <name>opennlp.uima.SentenceType</name>
+        <value>
+          <string>txtfnnl.uima.tcas.TextAnnotation</string>
+        </value>
+      </nameValuePair>
+      <nameValuePair>
+        <name>opennlp.uima.ModelName</name>
+        <value>
+          <string>EnglishSentenceModelResource</string>
+        </value>
+      </nameValuePair>
+    </configurationParameterSettings>
+    <typeSystemDescription>
+      <imports>
+        <import name="txtfnnl.uima.typeSystemDescriptor"/>
+      </imports>
+    </typeSystemDescription>
+    <typePriorities/>
+    <fsIndexCollection/>
+    <capabilities>
+      <capability>
+        <inputs/>
+        <outputs>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.TextAnnotation</type>
+        </outputs>
+        <inputSofas>
+          <sofaName>CONTENT_TEXT</sofaName>
+        </inputSofas>
+        <languagesSupported/>
+      </capability>
+    </capabilities>
+    <operationalProperties>
+      <modifiesCas>true</modifiesCas>
+      <multipleDeploymentAllowed>true</multipleDeploymentAllowed>
+      <outputsNewCASes>false</outputsNewCASes>
+    </operationalProperties>
+  </analysisEngineMetaData>
+  <externalResourceDependencies>
+    <externalResourceDependency>
+      <key>EnglishSentenceModelResource</key>
+      <description>An OpenNLP sentence detector model for the English language.</description>
+      <interfaceName>opennlp.uima.sentdetect.SentenceModelResource</interfaceName>
+      <optional>false</optional>
+    </externalResourceDependency>
+  </externalResourceDependencies>
+  <resourceManagerConfiguration>
+    <externalResources>
+      <externalResource>
+        <name>EnglishSentenceModelFile</name>
+        <description>A file containing an OpenNLP sentence detector model for the English language.</description>
+        <fileResourceSpecifier>
+          <fileUrl>file:txtfnnl/opennlp/en_sent.bin</fileUrl>
+        </fileResourceSpecifier>
+        <implementationName>opennlp.uima.sentdetect.SentenceModelResourceImpl</implementationName>
+      </externalResource>
+    </externalResources>
+    <externalResourceBindings>
+      <externalResourceBinding>
+        <key>EnglishSentenceModelResource</key>
+        <resourceName>EnglishSentenceModelFile</resourceName>
+      </externalResourceBinding>
+    </externalResourceBindings>
+  </resourceManagerConfiguration>
+</analysisEngineDescription>
