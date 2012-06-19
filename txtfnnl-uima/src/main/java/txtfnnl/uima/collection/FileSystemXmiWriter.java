@@ -22,13 +22,15 @@ import txtfnnl.uima.Views;
  * A simple CAS consumer that serializes to XMI and writes the XML data to a
  * file using UTF-8 encoding by default.
  * 
- * This CAS Consumer takes two parameters:
+ * This CAS consumer has two parameters:
  * <ul>
  * <li><code>OutputDirectory</code> - path to directory into which the XMI
  * output files will be written; if the directory does not exist, it will be
  * created first</li>
- * <li><code>Format</code> - format XMI (indent XML, use UTF-8; default: no
- * indent, use the platform's encoding)</li>
+ * <li><code>FormatXMI</code> - let the
+ * {@link org.apache.uima.util.XMLSerializer XMLSerializer} format the XMI
+ * (indent/line-break the XML, use UTF-8; default: compact text using the platform's
+ * encoding)</li>
  * </ul>
  * 
  * @author Florian Leitner
