@@ -4,21 +4,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
 import java.util.logging.Level;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.uima.UIMAException;
 import org.apache.uima.analysis_engine.AnalysisEngine;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.CASRuntimeException;
 import org.apache.uima.jcas.JCas;
-import org.apache.uima.resource.ResourceInitializationException;
-import org.apache.uima.resource.metadata.TypeSystemDescription;
 
 import org.uimafit.factory.AnalysisEngineFactory;
-import org.uimafit.factory.TypeSystemDescriptionFactory;
 import org.uimafit.testing.util.DisableLogging;
 import org.uimafit.util.JCasUtil;
 
@@ -32,13 +31,9 @@ public class TestTikaAnnotator {
 	JCas baseJCas;
 
 	@Before
-	public void setUp() throws ResourceInitializationException {
-		// tikaAnnotator =
-		// AnalysisEngineFactory.createAnalysisEngine("uima.tikaAEDescriptor");
-		TypeSystemDescription typeSystemDescription = TypeSystemDescriptionFactory
-		    .createTypeSystemDescription("txtfnnl.uima.typeSystemDescriptor");
-		tikaAnnotator = AnalysisEngineFactory.createPrimitive(
-		    TikaAnnotator.class, typeSystemDescription);
+	public void setUp() throws UIMAException, IOException {
+		tikaAnnotator = AnalysisEngineFactory
+		    .createAnalysisEngine("txtfnnl.uima.tikaAEDescriptor");
 		baseJCas = tikaAnnotator.newJCas();
 		DisableLogging.enableLogging(Level.WARNING);
 
@@ -74,7 +69,8 @@ public class TestTikaAnnotator {
 		jCas.setSofaDataString("text", "text/plain");
 		tikaAnnotator.process(baseJCas);
 		assertNotNull(baseJCas.getView(Views.CONTENT_TEXT.toString()));
-		assertEquals("text", baseJCas.getView(Views.CONTENT_TEXT.toString()).getDocumentText());
+		assertEquals("text", baseJCas.getView(Views.CONTENT_TEXT.toString())
+		    .getDocumentText());
 	}
 
 	@Test
@@ -90,8 +86,8 @@ public class TestTikaAnnotator {
 		for (TextAnnotation ann : JCasUtil.select(jCas, TextAnnotation.class)) {
 			assertEquals(0, ann.getBegin());
 			assertEquals(4, ann.getEnd());
-			assertEquals("http://tika.apache.org/", ann.getAnnotator());
-			assertEquals("http://www.w3.org/1999/xhtml", ann.getNamespace());
+			assertEquals(TikaAnnotator.URI, ann.getAnnotator());
+			assertEquals("http://www.w3.org/1999/xhtml#", ann.getNamespace());
 			assertEquals("p", ann.getIdentifier());
 			assertEquals(1.0, ann.getConfidence(), 0.0000001);
 			assertNotNull(ann.getProperties());

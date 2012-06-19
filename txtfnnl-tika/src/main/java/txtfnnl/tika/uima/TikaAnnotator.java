@@ -36,7 +36,7 @@ import txtfnnl.uima.Views;
 public class TikaAnnotator extends JCasAnnotator_ImplBase {
 
 	/** The annotator's URI (for the annotations) set by this AE. */
-	public static final String URI = "http://tika.apache.org/";
+	public static final String URI = "http://tika.apache.org";
 
 	/** The actual "annotator" for this AE. */
 	private TikaWrapper annotator = new TikaWrapper();
@@ -99,5 +99,4 @@ public class TikaAnnotator extends JCasAnnotator_ImplBase {
 		handler.addMetadata(metadata);
 		newJCas.setDocumentLanguage(aJCas.getDocumentLanguage());
 	}
-
 }

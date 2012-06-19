@@ -139,6 +139,9 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 		String name = chooseName(lName, qName);;
 		TextAnnotation ann = new TextAnnotation(view);
 
+		if (!(uri.endsWith("#") || uri.endsWith("/")))
+			uri += "#";
+
 		ann.setBegin(textBuffer.length());
 		ann.setNamespace(uri);
 		ann.setIdentifier(name);
@@ -183,6 +186,9 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	public void endElement(String uri, String lName, String qName) {
 		TextAnnotation ann = annotationStack.pop();
 		String name = chooseName(lName, qName);
+		
+		if (!(uri.endsWith("#") || uri.endsWith("/")))
+			uri += "#";
 
 		if (!matchesElement(ann, uri, name)) {
 			while (!annotationStack.empty()) {
