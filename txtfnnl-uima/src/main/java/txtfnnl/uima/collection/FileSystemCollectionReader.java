@@ -47,14 +47,17 @@ public class FileSystemCollectionReader extends CollectionReader_ImplBase {
 	 * Name of optional configuration parameter that determines the MIME type
 	 * all input files should use.
 	 * 
+	 * If not given, the MIME type is detected by Tika.
+	 * 
 	 * @see http://www.iana.org/assignments/media-types/index.html
 	 */
 	public static final String PARAM_MIME_TYPE = "MimeType";
 
 	/**
-	 * Name of optional configuration parameter that (recursively) includes
-	 * the sub-directories of the current input directory if <code>true</code>
-	 * .
+	 * Name of optional configuration parameter that indicates whether to (recursively) include
+	 * the sub-directories of the input directory.
+	 * 
+	 * Sub-directories are included if <code>true</code>
 	 */
 	public static final String PARAM_RECURSIVE = "Recursive";
 
