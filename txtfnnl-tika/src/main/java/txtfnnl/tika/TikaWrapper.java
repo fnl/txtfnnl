@@ -163,9 +163,12 @@ public class TikaWrapper {
 	public void parse(InputStream stream, ContentHandler handler,
 	                  Metadata metadata, ParseContext context)
 	        throws IOException, TikaException {
-		String mediaType = detect(stream, metadata).getBaseType().toString();
+		String mediaType = metadata.get(Metadata.CONTENT_TYPE);
 		Parser p = this.parser;
 		context.set(HtmlMapper.class, CleanHtmlMapper.INSTANCE);
+
+		if (mediaType == null)
+			mediaType = detect(stream, metadata).getBaseType().toString();
 
 		if ("text/html".equals(mediaType) ||
 		    mediaType.startsWith("application/xhtml")) {
@@ -351,13 +354,12 @@ public class TikaWrapper {
 		return detector;
 	}
 
-	// public static void main(String[] argv) throws IOException,
-	// TikaException {
-	// TikaWrapper wrapper = new TikaWrapper();
-	//
-	// while (true)
-	// wrapper
-	// .parseToString(new File("src/test/resources/21811562.html"));
-	// }
+	public static void main(String[] argv) throws IOException, TikaException {
+		TikaWrapper wrapper = new TikaWrapper();
+
+		for (String filename : argv) {
+			System.out.println(wrapper.parseToString(new File(filename)));
+		}
+	}
 
 }

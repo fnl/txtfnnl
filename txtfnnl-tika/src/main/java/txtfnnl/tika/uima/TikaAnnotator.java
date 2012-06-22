@@ -3,8 +3,13 @@
  */
 package txtfnnl.tika.uima;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URI;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
@@ -74,11 +79,27 @@ public class TikaAnnotator extends JCasAnnotator_ImplBase {
 			throw new AnalysisEngineProcessException(new AssertionError(
 			    "no SOFA data stream"));
 		} else {
-			logger.log(Level.INFO, "parsing a " + aJCas.getSofaMimeType() +
+			logger.log(Level.INFO, "parsing " + aJCas.getSofaMimeType() +
 			                       " file at " + aJCas.getSofaDataURI());
 		}
 
 		Metadata metadata = new Metadata();
+
+		if (aJCas.getSofaMimeType() != null)
+			metadata.set(Metadata.CONTENT_TYPE, aJCas.getSofaMimeType());
+
+		if (aJCas.getSofaDataURI() != null) {
+			try {
+				metadata.set(Metadata.RESOURCE_NAME_KEY, resourceName(new URI(
+				    aJCas.getSofaDataURI())));
+			} catch (URISyntaxException e) {
+				logger.log(Level.WARNING, "URI '" + aJCas.getSofaDataURI() +
+				                          "' not a valid URI");
+			} catch (MalformedURLException e) {
+				logger.log(Level.WARNING, "URI '" + aJCas.getSofaDataURI() +
+				                          "' not a valid URL");
+			}
+		}
 
 		try {
 			newJCas = aJCas.createView(outputView);
@@ -98,5 +119,26 @@ public class TikaAnnotator extends JCasAnnotator_ImplBase {
 
 		handler.addMetadata(metadata);
 		newJCas.setDocumentLanguage(aJCas.getDocumentLanguage());
+	}
+
+	private String resourceName(URI uri) throws MalformedURLException {
+		if ("file".equalsIgnoreCase(uri.getScheme())) {
+			File file = new File(uri);
+			if (file.isFile()) {
+				return resourceName(file);
+			}
+		}
+
+		return resourceName(uri.toURL());
+	}
+
+	private String resourceName(File file) {
+		return file.getName();
+	}
+
+	private String resourceName(URL url) {
+        String path = url.getPath();
+        int slash = path.lastIndexOf('/');
+        return path.substring(slash + 1);
 	}
 }

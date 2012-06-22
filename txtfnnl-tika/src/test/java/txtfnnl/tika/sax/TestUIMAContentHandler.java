@@ -67,7 +67,7 @@ public class TestUIMAContentHandler {
 
 		for (DocumentAnnotation ann : JCasUtil.select(handler.getView(),
 		    DocumentAnnotation.class)) {
-			assertEquals("http://tika.apache.org/", ann.getAnnotator());
+			assertEquals(TikaAnnotator.URI, ann.getAnnotator());
 			assertEquals("test_name", ann.getNamespace());
 			assertEquals("test_value", ann.getIdentifier());
 			assertEquals(1.0, ann.getConfidence(), 0.0000001);
@@ -97,8 +97,8 @@ public class TestUIMAContentHandler {
 		    TextAnnotation.class)) {
 			assertEquals(2, ann.getBegin());
 			assertEquals(7, ann.getEnd());
-			assertEquals("http://tika.apache.org/", ann.getAnnotator());
-			assertEquals("test_uri", ann.getNamespace());
+			assertEquals(TikaAnnotator.URI, ann.getAnnotator());
+			assertEquals("test_uri#", ann.getNamespace());
 			assertEquals("test_qname", ann.getIdentifier());
 			assertEquals(1.0, ann.getConfidence(), 0.0000001);
 			assertNotNull(ann.getProperties());
