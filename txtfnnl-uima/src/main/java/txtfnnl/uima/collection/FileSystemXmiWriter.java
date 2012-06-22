@@ -29,8 +29,8 @@ import txtfnnl.uima.Views;
  * created first</li>
  * <li><code>FormatXMI</code> - let the
  * {@link org.apache.uima.util.XMLSerializer XMLSerializer} format the XMI
- * (indent/line-break the XML, use UTF-8; default: compact text using the platform's
- * encoding)</li>
+ * (indent/line-break the XML, use UTF-8; default: compact text using the
+ * platform's encoding)</li>
  * </ul>
  * 
  * @author Florian Leitner
@@ -53,11 +53,15 @@ public class FileSystemXmiWriter extends CasAnnotator_ImplBase {
 	 */
 	public static final String PARAM_FORMAT_XMI = "FormatXMI";
 
-	private File outputDir;
+	public static final String PARAM_OVERWRITE_FILES = "OverwriteFiles"; // TODO
 
-	private boolean formatXMI;
+	private File outputDir = null;
 
-	private int counter; // to create "unique" output file names
+	private boolean formatXMI = false;
+
+	private int counter = 0; // to create "unique" output file names
+
+	private boolean overwriteFiles = false; // TODO
 
 	public void initialize(UimaContext ctx)
 	        throws ResourceInitializationException {
@@ -68,6 +72,8 @@ public class FileSystemXmiWriter extends CasAnnotator_ImplBase {
 		    (String) ctx.getConfigParameterValue(PARAM_OUTPUT_DIRECTORY));
 		Boolean tmp = (Boolean) ctx.getConfigParameterValue(PARAM_FORMAT_XMI);
 		formatXMI = (tmp == null) ? false : tmp.booleanValue();
+		tmp = (Boolean) ctx.getConfigParameterValue(PARAM_OVERWRITE_FILES);
+		overwriteFiles = (tmp == null) ? false : tmp.booleanValue();
 
 		if (!outputDir.exists())
 			outputDir.mkdirs();
@@ -90,17 +96,25 @@ public class FileSystemXmiWriter extends CasAnnotator_ImplBase {
 	public void process(CAS aCas) throws AnalysisEngineProcessException {
 		String uri = aCas.getView(Views.CONTENT_RAW.toString())
 		    .getSofaDataURI();
+		String outFileBaseName;
 		File outFile;
 
 		try {
 			File inFile = new File(new URI(uri));
-			outFile = new File(outputDir, inFile.getName() + ".xmi");
+			outFileBaseName = inFile.getName();
 		} catch (URISyntaxException e) {
-			outFile = new File(outputDir, String.format("doc-%06d.xmi",
-			    ++counter));
+			outFileBaseName = String.format("doc-%06d", ++counter);
 		} catch (NullPointerException e) {
-			outFile = new File(outputDir, String.format("doc-%06d.xmi",
-			    ++counter));
+			outFileBaseName = String.format("doc-%06d", ++counter);
+		}
+		outFile = new File(outputDir, outFileBaseName + ".xmi");
+
+		if (!overwriteFiles) {
+			int idx = 2;
+
+			while (outFile.exists())
+				outFile = new File(outputDir, outFileBaseName + "." + idx++ +
+				                              ".xmi");
 		}
 
 		try {
