@@ -88,10 +88,12 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 	public static final String URI = "http://opennlp.apache.org";
 
 	/** The namespace to use for all annotations. */
-	public static final String annotationNamespace = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
+	public static final String NAMESPACE = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
 
 	/** The identifier to use for all annotations. */
-	public static final String annotationIdentifier = "Sentence";
+	public static final String IDENTIFIER = "Sentence";
+
+	public static final String PARAM_MODEL_NAME = UimaUtil.MODEL_PARAMETER;
 
 	/**
 	 * Load the sentence detector model resource and initialize the model
@@ -101,16 +103,18 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 	        throws ResourceInitializationException {
 		super.initialize(ctx);
 
-		String sentenceModelName = (String) ctx
-		    .getConfigParameterValue(UimaUtil.MODEL_PARAMETER);
+		String sentenceModelResourceKey = (String) ctx
+		    .getConfigParameterValue(PARAM_MODEL_NAME);
 		SentenceModel model;
 
 		try {
 			SentenceModelResource modelResource = (SentenceModelResource) ctx
-			    .getResourceObject(sentenceModelName);
+			    .getResourceObject(sentenceModelResourceKey);
 			model = modelResource.getModel();
 		} catch (ResourceAccessException e) {
 			throw new ResourceInitializationException(e);
+		} catch (NullPointerException e) {
+			throw new ResourceInitializationException(new AssertionError("no sentence model resource for resource key '" + sentenceModelResourceKey + "' found"));
 		}
 
 		sentenceDetector = new SentenceDetectorME(model);
@@ -159,9 +163,8 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 			sentences[i].setDoubleValue(confidenceFeature,
 			    sentenceProbabilities[i]);
 			sentences[i].setStringValue(annotatorFeature, URI);
-			sentences[i].setStringValue(namespaceFeature, annotationNamespace);
-			sentences[i].setStringValue(identifierFeature,
-			    annotationIdentifier);
+			sentences[i].setStringValue(namespaceFeature, NAMESPACE);
+			sentences[i].setStringValue(identifierFeature, IDENTIFIER);
 		}
 	}
 

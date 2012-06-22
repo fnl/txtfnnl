@@ -67,9 +67,9 @@ public class SentenceAnnotatorTest {
 			assertEquals(begin, ann.getBegin());
 			assertEquals(end, ann.getEnd());
 			assertEquals(SentenceAnnotator.URI, ann.getAnnotator());
-			assertEquals(SentenceAnnotator.annotationNamespace,
+			assertEquals(SentenceAnnotator.NAMESPACE,
 			    ann.getNamespace());
-			assertEquals(SentenceAnnotator.annotationIdentifier,
+			assertEquals(SentenceAnnotator.IDENTIFIER,
 			    ann.getIdentifier());
 			assertEquals(0.9999, ann.getConfidence(), 0.001);
 			assertNull(ann.getProperties());
