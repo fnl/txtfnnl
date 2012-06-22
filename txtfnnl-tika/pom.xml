@@ -8,7 +8,7 @@
   </parent>
   <artifactId>txtfnnl-tika</artifactId>
   <name>txtfnnl-tika</name>
-  <description>Tika content extraction for txtfnnl.</description>
+  <description>Tika content extraction integrated into txtfnnl.</description>
   <dependencies>
   	<dependency>
   		<groupId>org.apache.tika</groupId>

@@ -8,7 +8,7 @@
   </parent>
   <artifactId>txtfnnl-opennlp</artifactId>
   <name>txtfnnl-opennlp</name>
-  <description>OpenNLP components in txtfnnl.</description>
+  <description>OpenNLP components used in txtfnnl.</description>
   <properties>
   	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
