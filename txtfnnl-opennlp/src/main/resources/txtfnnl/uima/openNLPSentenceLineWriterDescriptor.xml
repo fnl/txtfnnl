@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<analysisEngineDescription xmlns="http://uima.apache.org/resourceSpecifier">
+  <frameworkImplementation>org.apache.uima.java</frameworkImplementation>
+  <primitive>true</primitive>
+  <annotatorImplementationName>txtfnnl.opennlp.uima.sentdetect.SentenceLineWriter</annotatorImplementationName>
+  <analysisEngineMetaData>
+    <name>SentenceLineWriter</name>
+    <description>Write individual sentence text annotations to an output stream, separating each sentence by newline.</description>
+    <version>1.0</version>
+    <vendor>txtfnnl</vendor>
+    <configurationParameters>
+      <configurationParameter>
+        <name>OutputDirectory</name>
+        <description>Optional output directory; output files named as the inputfiles with .txt appended will be created in the given directory.</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>OverwriteFiles</name>
+        <description>Allow overwriting of existing files in the output directory (if not allowed, the file name extension is prepended with a dot followed by a sequential integer until the file name is new).</description>
+        <type>Boolean</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>PrintToStdout</name>
+        <description>Independent of file output, also print the results to stdout (default is true if no OutputDirectory is given, false otherwise).</description>
+        <type>Boolean</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>Encoding</name>
+        <description>Use the given encoding for writing to output file (default: platform encoding)</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+    </configurationParameters>
+    <configurationParameterSettings/>
+    <typeSystemDescription>
+      <imports>
+        <import name="txtfnnl.uima.typeSystemDescriptor"/>
+      </imports>
+    </typeSystemDescription>
+    <typePriorities/>
+    <fsIndexCollection/>
+    <capabilities>
+      <capability>
+        <inputs>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.TextAnnotation</type>
+        </inputs>
+        <outputs/>
+        <inputSofas>
+          <sofaName>CONTENT_TEXT</sofaName>
+          <sofaName>CONTENT_RAW</sofaName>
+        </inputSofas>
+        <languagesSupported/>
+      </capability>
+    </capabilities>
+    <operationalProperties>
+      <modifiesCas>false</modifiesCas>
+      <multipleDeploymentAllowed>false</multipleDeploymentAllowed>
+      <outputsNewCASes>false</outputsNewCASes>
+    </operationalProperties>
+  </analysisEngineMetaData>
+  <resourceManagerConfiguration/>
+</analysisEngineDescription>
