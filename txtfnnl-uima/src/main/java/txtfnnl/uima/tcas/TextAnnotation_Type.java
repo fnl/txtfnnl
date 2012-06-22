@@ -14,7 +14,7 @@ import org.apache.uima.cas.Feature;
 import org.apache.uima.jcas.tcas.Annotation_Type;
 
 /** Annotations on a specific text span.
- * Updated by JCasGen Wed Jun 06 14:49:53 CEST 2012
+ * Updated by JCasGen Fri Jun 22 11:12:49 CEST 2012
  * @generated */
 public class TextAnnotation_Type extends Annotation_Type {
   /** @generated */

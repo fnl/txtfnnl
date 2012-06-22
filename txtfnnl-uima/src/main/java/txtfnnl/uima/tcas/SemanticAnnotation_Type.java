@@ -1,5 +1,5 @@
 
-/* First created by JCasGen Wed Jun 06 13:10:16 CEST 2012 */
+/* First created by JCasGen Fri Jun 22 11:12:49 CEST 2012 */
 package txtfnnl.uima.tcas;
 
 import org.apache.uima.jcas.JCas;
@@ -10,10 +10,10 @@ import org.apache.uima.cas.FeatureStructure;
 import org.apache.uima.cas.impl.TypeImpl;
 import org.apache.uima.cas.Type;
 
-/** Annotations on an entire SOFA.
- * Updated by JCasGen Fri Jun 22 11:12:48 CEST 2012
+/** TextAnnotations of semantic elements (PoS, named entities, etc.).
+ * Updated by JCasGen Fri Jun 22 11:12:49 CEST 2012
  * @generated */
-public class DocumentAnnotation_Type extends SofaAnnotation_Type {
+public class SemanticAnnotation_Type extends TextAnnotation_Type {
   /** @generated */
   @Override
   protected FSGenerator getFSGenerator() {return fsGenerator;}
@@ -21,31 +21,31 @@ public class DocumentAnnotation_Type extends SofaAnnotation_Type {
   private final FSGenerator fsGenerator = 
     new FSGenerator() {
       public FeatureStructure createFS(int addr, CASImpl cas) {
-  			 if (DocumentAnnotation_Type.this.useExistingInstance) {
+  			 if (SemanticAnnotation_Type.this.useExistingInstance) {
   			   // Return eq fs instance if already created
-  		     FeatureStructure fs = DocumentAnnotation_Type.this.jcas.getJfsFromCaddr(addr);
+  		     FeatureStructure fs = SemanticAnnotation_Type.this.jcas.getJfsFromCaddr(addr);
   		     if (null == fs) {
-  		       fs = new DocumentAnnotation(addr, DocumentAnnotation_Type.this);
-  			   DocumentAnnotation_Type.this.jcas.putJfsFromCaddr(addr, fs);
+  		       fs = new SemanticAnnotation(addr, SemanticAnnotation_Type.this);
+  			   SemanticAnnotation_Type.this.jcas.putJfsFromCaddr(addr, fs);
   			   return fs;
   		     }
   		     return fs;
-        } else return new DocumentAnnotation(addr, DocumentAnnotation_Type.this);
+        } else return new SemanticAnnotation(addr, SemanticAnnotation_Type.this);
   	  }
     };
   /** @generated */
-  @SuppressWarnings("hiding")
-  public final static int typeIndexID = DocumentAnnotation.typeIndexID;
+  @SuppressWarnings ("hiding")
+  public final static int typeIndexID = SemanticAnnotation.typeIndexID;
   /** @generated 
      @modifiable */
-  @SuppressWarnings("hiding")
-  public final static boolean featOkTst = JCasRegistry.getFeatOkTst("txtfnnl.uima.tcas.DocumentAnnotation");
+  @SuppressWarnings ("hiding")
+  public final static boolean featOkTst = JCasRegistry.getFeatOkTst("txtfnnl.uima.tcas.SemanticAnnotation");
 
 
 
   /** initialize variables to correspond with Cas Type and Features
 	* @generated */
-  public DocumentAnnotation_Type(JCas jcas, Type casType) {
+  public SemanticAnnotation_Type(JCas jcas, Type casType) {
     super(jcas, casType);
     casImpl.getFSClassRegistry().addGeneratorForType((TypeImpl)this.casType, getFSGenerator());
 

@@ -11,8 +11,8 @@ import org.apache.uima.jcas.cas.FSArray;
 
 
 /** Annotations of relationships between text annotations. All listed source participants interact with all listed target participants (i.e., add particpants to both slots to create undirected relationships).
- * Updated by JCasGen Wed Jun 06 14:49:53 CEST 2012
- * XML source: /Users/fleitner/Workspace/txtfnnl/txtfnnl-uima/src/main/resources/typeSystemDescriptor.xml
+ * Updated by JCasGen Fri Jun 22 11:12:48 CEST 2012
+ * XML source: /Users/fleitner/Workspace/txtfnnl/txtfnnl-uima/src/main/resources/txtfnnl/uima/typeSystemDescriptor.xml
  * @generated */
 public class RelationshipAnnotation extends SofaAnnotation {
   /** @generated

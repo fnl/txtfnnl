@@ -1,6 +1,6 @@
 
 
-/* First created by JCasGen Wed Jun 06 13:10:16 CEST 2012 */
+/* First created by JCasGen Fri Jun 22 11:12:49 CEST 2012 */
 package txtfnnl.uima.tcas;
 
 import org.apache.uima.jcas.JCas; 
@@ -9,20 +9,20 @@ import org.apache.uima.jcas.cas.TOP_Type;
 
 
 
-/** Annotations on an entire SOFA.
- * Updated by JCasGen Fri Jun 22 11:12:48 CEST 2012
+/** TextAnnotations of semantic elements (PoS, named entities, etc.).
+ * Updated by JCasGen Fri Jun 22 11:12:49 CEST 2012
  * XML source: /Users/fleitner/Workspace/txtfnnl/txtfnnl-uima/src/main/resources/txtfnnl/uima/typeSystemDescriptor.xml
  * @generated */
-public class DocumentAnnotation extends SofaAnnotation {
+public class SemanticAnnotation extends TextAnnotation {
   /** @generated
    * @ordered 
    */
-  @SuppressWarnings("hiding")
-  public final static int typeIndexID = JCasRegistry.register(DocumentAnnotation.class);
+  @SuppressWarnings ("hiding")
+  public final static int typeIndexID = JCasRegistry.register(SemanticAnnotation.class);
   /** @generated
    * @ordered 
    */
-  @SuppressWarnings("hiding")
+  @SuppressWarnings ("hiding")
   public final static int type = typeIndexID;
   /** @generated  */
   @Override
@@ -30,20 +30,28 @@ public class DocumentAnnotation extends SofaAnnotation {
  
   /** Never called.  Disable default constructor
    * @generated */
-  protected DocumentAnnotation() {/* intentionally empty block */}
+  protected SemanticAnnotation() {/* intentionally empty block */}
     
   /** Internal - constructor used by generator 
    * @generated */
-  public DocumentAnnotation(int addr, TOP_Type type) {
+  public SemanticAnnotation(int addr, TOP_Type type) {
     super(addr, type);
     readObject();
   }
   
   /** @generated */
-  public DocumentAnnotation(JCas jcas) {
+  public SemanticAnnotation(JCas jcas) {
     super(jcas);
     readObject();   
   } 
+
+  /** @generated */  
+  public SemanticAnnotation(JCas jcas, int begin, int end) {
+    super(jcas);
+    setBegin(begin);
+    setEnd(end);
+    readObject();
+  }   
 
   /** <!-- begin-user-doc -->
     * Write your own initialization here

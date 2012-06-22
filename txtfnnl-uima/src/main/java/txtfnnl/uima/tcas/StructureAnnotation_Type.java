@@ -1,5 +1,5 @@
 
-/* First created by JCasGen Wed Jun 06 13:10:16 CEST 2012 */
+/* First created by JCasGen Fri Jun 22 11:12:49 CEST 2012 */
 package txtfnnl.uima.tcas;
 
 import org.apache.uima.jcas.JCas;
@@ -10,10 +10,10 @@ import org.apache.uima.cas.FeatureStructure;
 import org.apache.uima.cas.impl.TypeImpl;
 import org.apache.uima.cas.Type;
 
-/** Annotations on an entire SOFA.
- * Updated by JCasGen Fri Jun 22 11:12:48 CEST 2012
+/** TextAnnotations of text structure (sections, paragraphs, headings, typeface, sub- and superscript, etc.)
+ * Updated by JCasGen Fri Jun 22 11:12:49 CEST 2012
  * @generated */
-public class DocumentAnnotation_Type extends SofaAnnotation_Type {
+public class StructureAnnotation_Type extends TextAnnotation_Type {
   /** @generated */
   @Override
   protected FSGenerator getFSGenerator() {return fsGenerator;}
@@ -21,31 +21,31 @@ public class DocumentAnnotation_Type extends SofaAnnotation_Type {
   private final FSGenerator fsGenerator = 
     new FSGenerator() {
       public FeatureStructure createFS(int addr, CASImpl cas) {
-  			 if (DocumentAnnotation_Type.this.useExistingInstance) {
+  			 if (StructureAnnotation_Type.this.useExistingInstance) {
   			   // Return eq fs instance if already created
-  		     FeatureStructure fs = DocumentAnnotation_Type.this.jcas.getJfsFromCaddr(addr);
+  		     FeatureStructure fs = StructureAnnotation_Type.this.jcas.getJfsFromCaddr(addr);
   		     if (null == fs) {
-  		       fs = new DocumentAnnotation(addr, DocumentAnnotation_Type.this);
-  			   DocumentAnnotation_Type.this.jcas.putJfsFromCaddr(addr, fs);
+  		       fs = new StructureAnnotation(addr, StructureAnnotation_Type.this);
+  			   StructureAnnotation_Type.this.jcas.putJfsFromCaddr(addr, fs);
   			   return fs;
   		     }
   		     return fs;
-        } else return new DocumentAnnotation(addr, DocumentAnnotation_Type.this);
+        } else return new StructureAnnotation(addr, StructureAnnotation_Type.this);
   	  }
     };
   /** @generated */
-  @SuppressWarnings("hiding")
-  public final static int typeIndexID = DocumentAnnotation.typeIndexID;
+  @SuppressWarnings ("hiding")
+  public final static int typeIndexID = StructureAnnotation.typeIndexID;
   /** @generated 
      @modifiable */
-  @SuppressWarnings("hiding")
-  public final static boolean featOkTst = JCasRegistry.getFeatOkTst("txtfnnl.uima.tcas.DocumentAnnotation");
+  @SuppressWarnings ("hiding")
+  public final static boolean featOkTst = JCasRegistry.getFeatOkTst("txtfnnl.uima.tcas.StructureAnnotation");
 
 
 
   /** initialize variables to correspond with Cas Type and Features
 	* @generated */
-  public DocumentAnnotation_Type(JCas jcas, Type casType) {
+  public StructureAnnotation_Type(JCas jcas, Type casType) {
     super(jcas, casType);
     casImpl.getFSClassRegistry().addGeneratorForType((TypeImpl)this.casType, getFSGenerator());
 

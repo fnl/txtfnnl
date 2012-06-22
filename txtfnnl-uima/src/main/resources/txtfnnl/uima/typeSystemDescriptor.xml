@@ -117,5 +117,20 @@
       <description>Annotations on an entire SOFA.</description>
       <supertypeName>txtfnnl.uima.tcas.SofaAnnotation</supertypeName>
     </typeDescription>
+    <typeDescription>
+      <name>txtfnnl.uima.tcas.SyntaxAnnotation</name>
+      <description>TextAnnotations of syntactic elements (text segements such as sentences, tokens, etc.).</description>
+      <supertypeName>txtfnnl.uima.tcas.TextAnnotation</supertypeName>
+    </typeDescription>
+    <typeDescription>
+      <name>txtfnnl.uima.tcas.SemanticAnnotation</name>
+      <description>TextAnnotations of semantic elements (PoS, named entities, etc.).</description>
+      <supertypeName>txtfnnl.uima.tcas.TextAnnotation</supertypeName>
+    </typeDescription>
+    <typeDescription>
+      <name>txtfnnl.uima.tcas.StructureAnnotation</name>
+      <description>TextAnnotations of text structure (sections, paragraphs, headings, typeface, sub- and superscript, etc.)</description>
+      <supertypeName>txtfnnl.uima.tcas.TextAnnotation</supertypeName>
+    </typeDescription>
   </types>
 </typeSystemDescription>
