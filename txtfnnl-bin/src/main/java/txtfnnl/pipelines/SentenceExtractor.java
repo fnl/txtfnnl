@@ -26,6 +26,10 @@ import txtfnnl.uima.collection.FileSystemCollectionReader;
 /**
  * A sentence extractor pipeline for (nearly arbitrary) input files.
  * 
+ * Input files can be read from a directory or listed explicitly, while output
+ * files are written to another directory or to STDOUT. Output is always
+ * plain-text, where a single line contains at most a single sentence.
+ * 
  * @author Florian Leitner
  */
 public class SentenceExtractor {
@@ -140,12 +144,13 @@ public class SentenceExtractor {
 	}
 
 	/**
-	 * Execute the sentence extraction pipeline.
+	 * Execute a sentence extraction pipeline.
 	 * 
 	 * @param args command line arguments; see --help for more information.
 	 */
 	public static void main(String[] arguments) {
-		Logger l = Logger.getLogger(SentenceExtractor.class.getName() + ".main()");
+		Logger l = Logger.getLogger(SentenceExtractor.class.getName() +
+		                            ".main()");
 		Options opts = new Options();
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
@@ -170,7 +175,7 @@ public class SentenceExtractor {
 		} catch (ParseException e) {
 			// e.printStackTrace();
 			System.err.println(e.getMessage());
-			System.exit(1);
+			System.exit(1); // == exit ==
 		}
 
 		if (cmd.hasOption('h')) {
@@ -179,7 +184,7 @@ public class SentenceExtractor {
 			    "txtfnnl ss [options] <inputDir|inputFiles...>", opts);
 			System.out
 			    .println("(c) Florian Leitner 2012. All rights reserved.");
-			System.exit(0);
+			System.exit(0); // == exit ==
 		}
 
 		String[] inputFiles = cmd.getArgs();
@@ -194,7 +199,7 @@ public class SentenceExtractor {
 			if (!outputDirectory.isDirectory() || !outputDirectory.canWrite()) {
 				System.err.println("cannot write to directory '" +
 				                   outputDirectory.getPath() + "'");
-				System.exit(1);
+				System.exit(1); // == exit ==
 			}
 		}
 
@@ -211,7 +216,7 @@ public class SentenceExtractor {
 					if (!tmp.canRead() || !tmp.isFile()) {
 						System.err.println("path '" + fn +
 						                   "' not a (readable) file");
-						System.exit(1);
+						System.exit(1); // == exit ==
 					}
 				}
 			}
@@ -229,11 +234,11 @@ public class SentenceExtractor {
 		} catch (UIMAException e) {
 			l.severe("UIMAException: " + e.getMessage());
 			System.err.println(e.getMessage());
-			System.exit(1);
+			System.exit(1); // == exit ==
 		} catch (IOException e) {
 			l.severe("IOException: " + e.getMessage());
 			System.err.println(e.getMessage());
-			System.exit(1);
+			System.exit(1); // == exit ==
 		}
 
 		System.exit(0);
