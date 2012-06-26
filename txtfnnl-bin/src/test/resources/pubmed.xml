@@ -1,0 +1,122 @@
+<PubmedArticle>
+    <MedlineCitation Owner="NLM" Status="In-Data-Review">
+        <PMID Version="1">22715393</PMID>
+        <DateCreated>
+            <Year>2012</Year>
+            <Month>06</Month>
+            <Day>20</Day>
+        </DateCreated>
+        <Article PubModel="Print-Electronic">
+            <Journal>
+                <ISSN IssnType="Electronic">1932-6203</ISSN>
+                <JournalIssue CitedMedium="Internet">
+                    <Volume>7</Volume>
+                    <Issue>6</Issue>
+                    <PubDate>
+                        <Year>2012</Year>
+                    </PubDate>
+                </JournalIssue>
+                <Title>PloS one</Title>
+                <ISOAbbreviation>PLoS ONE</ISOAbbreviation>
+            </Journal>
+            <ArticleTitle>Synergistic anti-tumor effects of combination of photodynamic therapy and arsenic compound in cervical cancer cells: in vivo and in vitro studies.</ArticleTitle>
+            <Pagination>
+                <MedlinePgn>e38583</MedlinePgn>
+            </Pagination>
+            <Abstract>
+                <AbstractText>The effects of As(4)O(6) as adjuvant on photodynamic therapy (PDT) were studied. As(4)O(6) is considered to have anticancer activity via several biological actions, such as free radical production and inhibition of VEGF expression. PDT or As(4)O(6) significantly inhibited TC-1 cell proliferation in a dose-dependent manner (P&lt;0.05) by MTT assay. The anti-proliferative effect of the combination treatment was significantly higher than in TC-1 cells treated with either photodynamic therapy or As(4)O(6) alone (62.4 and 52.5% decrease compared to vehicle-only treated TC-1 cells, respectively, P&lt;0.05). In addition, cell proliferation in combination of photodynamic therapy and As(4)O(6) treatment significantly decreased by 77.4% (P&lt;0.05). Cell survival pathway (Naip1, Tert and Aip1) and p53-dependent pathway (Bax, p21(Cip1), Fas, Gadd45, IGFBP-3 and Mdm-2) were markedly increased by combination treatment of photodynamic therapy and As(4)O(6). In addition, the immune response in the NEAT pathway (Ly-12, CD178 and IL-2) was also modulated after combination treatment, suggesting improved antitumor effects by controlling unwanted growth-stimulatory pathways. The combination effect apparently reflected concordance with in vitro data, in restricting tumor growth in vivo and in relation to some common signaling pathways to those observed in vitro. These findings suggest the benefit of combinatory treatment with photodynamic therapy and As(4)O(6) for inhibition of cervical cancer cell growth.</AbstractText>
+            </Abstract>
+            <Affiliation>Catholic Research Institutes of Medical Science, The Catholic University of Korea, Seoul, Korea.</Affiliation>
+            <AuthorList CompleteYN="Y">
+                <Author ValidYN="Y">
+                    <LastName>Kim</LastName>
+                    <ForeName>Yong-Wan</ForeName>
+                    <Initials>YW</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Bae</LastName>
+                    <ForeName>Su Mi</ForeName>
+                    <Initials>SM</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Battogtokh</LastName>
+                    <ForeName>Gantumur</ForeName>
+                    <Initials>G</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Bang</LastName>
+                    <ForeName>Hyo Joo</ForeName>
+                    <Initials>HJ</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Ahn</LastName>
+                    <ForeName>Woong Shick</ForeName>
+                    <Initials>WS</Initials>
+                </Author>
+            </AuthorList>
+            <Language>eng</Language>
+            <PublicationTypeList>
+                <PublicationType>Journal Article</PublicationType>
+            </PublicationTypeList>
+            <ArticleDate DateType="Electronic">
+                <Year>2012</Year>
+                <Month>06</Month>
+                <Day>08</Day>
+            </ArticleDate>
+        </Article>
+        <MedlineJournalInfo>
+            <Country>United States</Country>
+            <MedlineTA>PLoS One</MedlineTA>
+            <NlmUniqueID>101285081</NlmUniqueID>
+            <ISSNLinking>1932-6203</ISSNLinking>
+        </MedlineJournalInfo>
+        <CitationSubset>IM</CitationSubset>
+    </MedlineCitation>
+    <PubmedData>
+        <History>
+            <PubMedPubDate PubStatus="received">
+                <Year>2011</Year>
+                <Month>12</Month>
+                <Day>19</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="accepted">
+                <Year>2012</Year>
+                <Month>5</Month>
+                <Day>7</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="epublish">
+                <Year>2012</Year>
+                <Month>6</Month>
+                <Day>8</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="entrez">
+                <Year>2012</Year>
+                <Month>6</Month>
+                <Day>21</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="pubmed">
+                <Year>2012</Year>
+                <Month>6</Month>
+                <Day>21</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="medline">
+                <Year>2012</Year>
+                <Month>6</Month>
+                <Day>21</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+        </History>
+        <PublicationStatus>ppublish</PublicationStatus>
+        <ArticleIdList>
+            <ArticleId IdType="doi">10.1371/journal.pone.0038583</ArticleId>
+            <ArticleId IdType="pii">PONE-D-11-25812</ArticleId>
+            <ArticleId IdType="pubmed">22715393</ArticleId>
+        </ArticleIdList>
+    </PubmedData>
+</PubmedArticle>
+
