@@ -18,7 +18,12 @@ Dependencies
   - `Maven <http://maven.apache.org>`_ 2.2
   - `Tika <http://tika.apache.org>`_ 1.1
   - `UIMA <http://uima.apache.org>`_ 2.4
-  - `OpenNLP <http://opennlp.apache.org>`_ 1.5 
+  - `OpenNLP <http://opennlp.apache.org>`_ 1.5
+  
+In addition, the following direct dependencies exist:
+
+  - `uimaFIT <http://code.google.com/p/uimafit/>`_ 1.4 for testing and the
+    **txtfnnl-bin** module
 
 Installation
 ------------
@@ -31,7 +36,7 @@ Usage
 -----
 
 To use the pipelines from the command line, execute the ``txtfnnl`` script in
-the ``txtfnnl-bin`` module directory (and/or place/copy it on your PATH).
+the **txtfnnl-bin** module directory (and/or place/copy it on/to your PATH).
 The script expects to find the local Maven repository either in
 ``~/.m2/repository`` or otherwise defined as the environment variable 
 ``M2_REPO``.
@@ -39,7 +44,6 @@ The script expects to find the local Maven repository either in
 License
 -------
 
-Just as the libraries ``txtfnnl`` is based on (see Dependencies), the
-`Apache 2.0 License <http://www.apache.org/licenses/LICENSE-2.0.html>`_
-applies.
-See ``LICENSE.txt`` in the TLD directory for details.
+**txtfnnl** is governed by the
+`Apache 2.0 License <http://www.apache.org/licenses/LICENSE-2.0.html>`_ -
+see ``LICENSE.txt`` in this directory for details.
