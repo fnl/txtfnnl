@@ -1,0 +1,6 @@
+.*
+classpath
+profile
+target
+txtfnnl-*/.*
+txtfnnl-*/target
