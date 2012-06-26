@@ -52,12 +52,12 @@ public class SentenceExtractor {
 	 *        the platform default is used); may be <code>null</code>
 	 * @param replaceFiles optional flag indicating that existing files in the
 	 *        output directory should be replaced
-	 * @throws ResourceInitializationException
 	 * @throws IOException
+	 * @throws UIMAException
 	 */
 	private SentenceExtractor(File outputDirectory, String characterEncoding,
-	                          boolean replaceFiles)
-	        throws ResourceInitializationException, IOException {
+	                          boolean replaceFiles) throws IOException,
+	        UIMAException {
 		sentenceLineWriter = AnalysisEngineFactory.createPrimitiveDescription(
 		    SentenceLineWriter.class,
 		    SentenceLineWriter.PARAM_ENCODING,
@@ -66,6 +66,10 @@ public class SentenceExtractor {
 		    (outputDirectory == null) ? null : outputDirectory
 		        .getCanonicalPath(), SentenceLineWriter.PARAM_OVERWRITE_FILES,
 		    Boolean.valueOf(replaceFiles));
+		tikaAED = AnalysisEngineFactory
+		    .createAnalysisEngineDescription("txtfnnl.uima.tikaAEDescriptor");
+		sentenceAED = AnalysisEngineFactory
+		    .createAnalysisEngineDescription("txtfnnl.uima.openNLPSentenceAEDescriptor");
 	}
 
 	/**
@@ -95,14 +99,10 @@ public class SentenceExtractor {
 		collectionReader = CollectionReaderFactory.createDescription(
 		    FileSystemCollectionReader.class,
 		    FileSystemCollectionReader.PARAM_DIRECTORY,
-		    inputDirectory.getAbsolutePath(),
+		    inputDirectory.getCanonicalPath(),
 		    FileSystemCollectionReader.PARAM_MIME_TYPE, mimeType,
 		    FileSystemCollectionReader.PARAM_RECURSIVE,
 		    Boolean.valueOf(recurseDirectory));
-		tikaAED = AnalysisEngineFactory
-		    .createAnalysisEngineDescription("txtfnnl.uima.tikaAEDescriptor");
-		sentenceAED = AnalysisEngineFactory
-		    .createAnalysisEngineDescription("txtfnnl.uima.openNLPSentenceAEDescriptor");
 	}
 
 	/**
@@ -128,10 +128,6 @@ public class SentenceExtractor {
 		collectionReader = CollectionReaderFactory.createDescription(
 		    FileCollectionReader.class, FileCollectionReader.PARAM_FILES,
 		    inputFiles, FileCollectionReader.PARAM_MIME_TYPE, mimeType);
-		tikaAED = AnalysisEngineFactory
-		    .createAnalysisEngineDescription("txtfnnl.uima.tikaAEDescriptor");
-		sentenceAED = AnalysisEngineFactory
-		    .createAnalysisEngineDescription("txtfnnl.uima.openNLPSentenceAEDescriptor");
 	}
 
 	/**
@@ -164,17 +160,17 @@ public class SentenceExtractor {
 		opts.addOption("o", "output-directory", true,
 		    "output directory for writing files [STDOUT]");
 		opts.addOption("e", "encoding", true,
-		    "set an encoding for output files [" + Charset.defaultCharset() + "]");
+		    "set an encoding for output files [" + Charset.defaultCharset() +
+		            "]");
 		opts.addOption("m", "mime-type", true,
 		    "define one MIME type for all input files [Tika.detect]");
 		opts.addOption("r", "recursive", false,
 		    "include files in all sub-directories of input directory [false]");
 		opts.addOption("x", "replace-files", false,
 		    "replace files in the output directory if they exist [false]");
-		opts.addOption("i", "info", false,
-			    "log INFO-level messages [false]");
+		opts.addOption("i", "info", false, "log INFO-level messages [false]");
 		opts.addOption("s", "silent", false,
-			    "log SEVERE-level messages only [false]");
+		    "log SEVERE-level messages only [false]");
 
 		try {
 			cmd = parser.parse(opts, arguments);
@@ -192,8 +188,8 @@ public class SentenceExtractor {
 
 		if (cmd.hasOption('h') || inputFiles.length == 0) {
 			HelpFormatter formatter = new HelpFormatter();
-			formatter.printHelp(
-			    "txtfnnl ss [options] <directory|files...>\n", opts);
+			formatter.printHelp("txtfnnl ss [options] <directory|files...>\n",
+			    opts);
 			System.out
 			    .println("\n(c) Florian Leitner 2012. All rights reserved.");
 			System.exit(cmd.hasOption('h') ? 0 : 1); // == exit ==
@@ -201,10 +197,10 @@ public class SentenceExtractor {
 
 		if (!cmd.hasOption('i'))
 			Logger.getLogger("").setLevel(Level.WARNING);
-		
+
 		if (cmd.hasOption('s'))
 			Logger.getLogger("").setLevel(Level.SEVERE);
-		
+
 		if (cmd.hasOption('o')) {
 			outputDirectory = new File(cmd.getOptionValue('o'));
 
