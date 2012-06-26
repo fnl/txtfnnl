@@ -19,7 +19,7 @@ import org.xml.sax.ContentHandler;
 import txtfnnl.tika.uima.TikaAnnotator;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.tcas.DocumentAnnotation;
-import txtfnnl.uima.tcas.TextAnnotation;
+import txtfnnl.uima.tcas.StructureAnnotation;
 
 /**
  * An event handler that specifically "works" with the UIMA AE philosophy.
@@ -38,7 +38,7 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	private StringBuffer textBuffer;
 
 	/** Started markup elements that are not yet ended (closed). */
-	private Stack<TextAnnotation> annotationStack;
+	private Stack<StructureAnnotation> annotationStack;
 
 	/** A logger for this handler. */
 	private Logger logger = UIMAFramework.getLogger(UIMAContentHandler.class);
@@ -121,7 +121,7 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	@Override
 	public void startDocument() {
 		textBuffer = new StringBuffer();
-		annotationStack = new Stack<TextAnnotation>();
+		annotationStack = new Stack<StructureAnnotation>();
 	}
 
 	/**
@@ -137,7 +137,7 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	                         Attributes atts) {
 		int num_atts = (atts == null) ? 0 : atts.getLength();
 		String name = chooseName(lName, qName);;
-		TextAnnotation ann = new TextAnnotation(view);
+		StructureAnnotation ann = new StructureAnnotation(view);
 
 		if (!(uri.endsWith("#") || uri.endsWith("/")))
 			uri += "#";
@@ -184,9 +184,9 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	 */
 	@Override
 	public void endElement(String uri, String lName, String qName) {
-		TextAnnotation ann = annotationStack.pop();
+		StructureAnnotation ann = annotationStack.pop();
 		String name = chooseName(lName, qName);
-		
+
 		if (!(uri.endsWith("#") || uri.endsWith("/")))
 			uri += "#";
 
@@ -243,7 +243,7 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	}
 
 	/**
-	 * Return true if the TextAnnotation has the given URI and name.
+	 * Return true if the StructureAnnotation has the given URI and name.
 	 * 
 	 * @param e the annotation to be matched
 	 * @param uri the namespace the annotation should have
@@ -251,7 +251,7 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	 * 
 	 * @return true if the strings match the ones set on the annotation
 	 */
-	static private boolean matchesElement(TextAnnotation e, String uri,
+	static private boolean matchesElement(StructureAnnotation e, String uri,
 	                                      String name) {
 		return e.getNamespace().equals(uri) && e.getIdentifier().equals(name);
 	}

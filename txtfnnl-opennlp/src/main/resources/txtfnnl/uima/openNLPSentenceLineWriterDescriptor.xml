@@ -49,12 +49,12 @@
     <capabilities>
       <capability>
         <inputs>
-          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.TextAnnotation</type>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.SyntaxAnnotation</type>
         </inputs>
         <outputs/>
         <inputSofas>
-          <sofaName>CONTENT_TEXT</sofaName>
           <sofaName>CONTENT_RAW</sofaName>
+          <sofaName>CONTENT_TEXT</sofaName>
         </inputSofas>
         <languagesSupported/>
       </capability>

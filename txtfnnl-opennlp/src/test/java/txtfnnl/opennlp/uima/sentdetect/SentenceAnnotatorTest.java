@@ -22,7 +22,7 @@ import org.uimafit.testing.util.DisableLogging;
 import org.uimafit.util.JCasUtil;
 
 import txtfnnl.uima.Views;
-import txtfnnl.uima.tcas.TextAnnotation;
+import txtfnnl.uima.tcas.SyntaxAnnotation;
 
 public class SentenceAnnotatorTest {
 
@@ -60,8 +60,8 @@ public class SentenceAnnotatorTest {
 		int count = 0;
 		int begin, end;
 
-		for (TextAnnotation ann : JCasUtil.select(textJCas,
-		    TextAnnotation.class)) {
+		for (SyntaxAnnotation ann : JCasUtil.select(textJCas,
+			SyntaxAnnotation.class)) {
 			begin = offsets.next();
 			end = offsets.next();
 			assertEquals(begin, ann.getBegin());

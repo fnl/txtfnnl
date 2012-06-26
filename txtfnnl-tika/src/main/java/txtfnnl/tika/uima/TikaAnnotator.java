@@ -31,7 +31,7 @@ import txtfnnl.uima.Views;
  * sets this text content in a new output view.
  * 
  * Any markup that Tika extracts during the process is added to as
- * {@link txtfnnl.uima.tcas.TextAnnotation} to the text content. If Tika
+ * {@link txtfnnl.uima.tcas.StructureAnnotation} to the text content. If Tika
  * detects {@link org.apache.tika.metadata.Metadata}, it is added as
  * {@link txtfnnl.uima.tcas.DocumentAnnotation}. As Tika takes care of
  * "everything" there is nothing to configure for this AE.

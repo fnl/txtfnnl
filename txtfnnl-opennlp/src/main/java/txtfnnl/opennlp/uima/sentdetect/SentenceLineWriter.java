@@ -22,7 +22,7 @@ import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
 import txtfnnl.uima.Views;
-import txtfnnl.uima.tcas.TextAnnotation;
+import txtfnnl.uima.tcas.SyntaxAnnotation;
 
 /**
  * An CPE LineWriter for sentences detected by the SentenceAnnotator.
@@ -45,7 +45,7 @@ import txtfnnl.uima.tcas.TextAnnotation;
  * <td>String</td>
  * <td>opennlp.uima.SentenceType</td>
  * <td>The full name of the sentence annotation type (usually,
- * "txtfnnl.uima.TextAnnotation"). Note that this AE assumes the chosen
+ * "txtfnnl.uima.SyntaxAnnotation"). Note that this AE assumes the chosen
  * annotation type has the features "annotator", "confidence", "identifier",
  * and "namespace".</td>
  * </tr>
@@ -177,7 +177,7 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 	@Override
 	public void typeSystemInit(TypeSystem typeSystem)
 	        throws AnalysisEngineProcessException {
-		String textAnnotationName = TextAnnotation.class.getName();
+		String textAnnotationName = SyntaxAnnotation.class.getName();
 		identifier = typeSystem.getFeatureByFullName(textAnnotationName +
 		                                             ":identifier");
 		namespace = typeSystem.getFeatureByFullName(textAnnotationName +
@@ -211,7 +211,7 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 		String text = textJCas.getDocumentText();
 		int offset = 0;
 
-		for (Annotation ann : textJCas.getAnnotationIndex(TextAnnotation.type)) {
+		for (Annotation ann : textJCas.getAnnotationIndex(SyntaxAnnotation.type)) {
 			if (ann.getStringValue(identifier).equals(
 			    SentenceAnnotator.IDENTIFIER) &&
 			    ann.getStringValue(namespace).equals(

@@ -18,7 +18,7 @@ import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.Views;
-import txtfnnl.uima.tcas.TextAnnotation;
+import txtfnnl.uima.tcas.SyntaxAnnotation;
 
 public class SentenceLineWriterTest {
 
@@ -56,8 +56,8 @@ public class SentenceLineWriterTest {
 		JCas textCas = baseCas.createView(Views.CONTENT_TEXT.toString());
 		rawCas.setSofaDataURI("file:/dummy", "mime/dummy");
 		textCas.setDocumentText(s1 + " " + s2);
-		TextAnnotation a1 = new TextAnnotation(textCas);
-		TextAnnotation a2 = new TextAnnotation(textCas);
+		SyntaxAnnotation a1 = new SyntaxAnnotation(textCas);
+		SyntaxAnnotation a2 = new SyntaxAnnotation(textCas);
 		a1.setBegin(0);
 		a1.setEnd(s1.length());
 		a1.setNamespace(SentenceAnnotator.NAMESPACE);

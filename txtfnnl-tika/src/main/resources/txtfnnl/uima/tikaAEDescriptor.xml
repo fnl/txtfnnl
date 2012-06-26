@@ -21,9 +21,9 @@
       <capability>
         <inputs/>
         <outputs>
-          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.TextAnnotation</type>
           <type allAnnotatorFeatures="true">txtfnnl.uima.cas.Property</type>
           <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.DocumentAnnotation</type>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.StructureAnnotation</type>
         </outputs>
         <inputSofas>
           <sofaName>CONTENT_RAW</sofaName>

@@ -39,7 +39,7 @@ import txtfnnl.uima.Views;
  * <td>String</td>
  * <td>opennlp.uima.SentenceType</td>
  * <td>The full name of the sentence annotation type (usually,
- * "txtfnnl.uima.TextAnnotation"). Note that this AE assumes the chosen
+ * "txtfnnl.uima.SyntaxAnnotation"). Note that this AE assumes the chosen
  * annotation type has the features "annotator", "confidence", "identifier",
  * and "namespace".</td>
  * </tr>

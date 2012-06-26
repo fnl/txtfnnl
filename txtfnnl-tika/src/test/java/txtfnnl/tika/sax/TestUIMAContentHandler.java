@@ -27,7 +27,7 @@ import org.uimafit.util.JCasUtil;
 import txtfnnl.tika.uima.TikaAnnotator;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.tcas.DocumentAnnotation;
-import txtfnnl.uima.tcas.TextAnnotation;
+import txtfnnl.uima.tcas.StructureAnnotation;
 
 public class TestUIMAContentHandler {
 
@@ -93,8 +93,8 @@ public class TestUIMAContentHandler {
 		handler.endElement(uri, lName, qName);
 		handler.characters("out".toCharArray(), 0, 3);
 
-		for (TextAnnotation ann : JCasUtil.select(handler.getView(),
-		    TextAnnotation.class)) {
+		for (StructureAnnotation ann : JCasUtil.select(handler.getView(),
+		    StructureAnnotation.class)) {
 			assertEquals(2, ann.getBegin());
 			assertEquals(7, ann.getEnd());
 			assertEquals(TikaAnnotator.URI, ann.getAnnotator());

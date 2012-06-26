@@ -49,7 +49,7 @@ String namespace</description>
       <nameValuePair>
         <name>opennlp.uima.SentenceType</name>
         <value>
-          <string>txtfnnl.uima.tcas.TextAnnotation</string>
+          <string>txtfnnl.uima.tcas.SyntaxAnnotation</string>
         </value>
       </nameValuePair>
       <nameValuePair>
@@ -70,7 +70,7 @@ String namespace</description>
       <capability>
         <inputs/>
         <outputs>
-          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.TextAnnotation</type>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.SyntaxAnnotation</type>
         </outputs>
         <inputSofas>
           <sofaName>CONTENT_TEXT</sofaName>

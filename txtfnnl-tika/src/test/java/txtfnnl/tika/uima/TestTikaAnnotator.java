@@ -23,7 +23,7 @@ import org.uimafit.util.JCasUtil;
 
 import txtfnnl.uima.Views;
 import txtfnnl.uima.cas.Property;
-import txtfnnl.uima.tcas.TextAnnotation;
+import txtfnnl.uima.tcas.StructureAnnotation;
 
 public class TestTikaAnnotator {
 
@@ -83,7 +83,8 @@ public class TestTikaAnnotator {
 		jCas = baseJCas.getView(Views.CONTENT_TEXT.toString());
 		int count = 0;
 
-		for (TextAnnotation ann : JCasUtil.select(jCas, TextAnnotation.class)) {
+		for (StructureAnnotation ann : JCasUtil.select(jCas,
+		    StructureAnnotation.class)) {
 			assertEquals(0, ann.getBegin());
 			assertEquals(4, ann.getEnd());
 			assertEquals(TikaAnnotator.URI, ann.getAnnotator());
