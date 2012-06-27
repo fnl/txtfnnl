@@ -10,13 +10,21 @@ import opennlp.uima.util.UimaUtil;
 import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CAS;
+import org.apache.uima.cas.ConstraintFactory;
+import org.apache.uima.cas.FSIterator;
+import org.apache.uima.cas.FSMatchConstraint;
+import org.apache.uima.cas.FSStringConstraint;
 import org.apache.uima.cas.Feature;
+import org.apache.uima.cas.FeaturePath;
 import org.apache.uima.cas.TypeSystem;
 import org.apache.uima.cas.text.AnnotationFS;
+import org.apache.uima.jcas.JCas;
+import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ResourceAccessException;
 import org.apache.uima.resource.ResourceInitializationException;
 
 import txtfnnl.uima.Views;
+import txtfnnl.uima.tcas.SyntaxAnnotation;
 
 /**
  * An OpenNLP Sentence Detector AE variant for the txtfnnl pipeline.
@@ -127,6 +135,43 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 	@Override
 	public void process(CAS cas) throws AnalysisEngineProcessException {
 		super.process(cas.getView(Views.CONTENT_TEXT.toString()));
+	}
+
+	/**
+	 * Return an annotation iterator for sentence annotations on the given
+	 * CAS.
+	 * 
+	 * @param jcas to iterate over
+	 * @param typeName fully qualified name of the used sentence annotation
+	 *        type
+	 * @return a sentence annotation iterator
+	 */
+	public static FSIterator<Annotation> getSentenceIterator(JCas jcas,
+	                                                         String typeName) {
+		Feature identifier = jcas.getTypeSystem().getFeatureByFullName(
+		    typeName + ":identifier");
+		Feature namespace = jcas.getTypeSystem().getFeatureByFullName(
+		    typeName + ":namespace");
+		FSIterator<Annotation> annIt = jcas.getAnnotationIndex(
+		    SyntaxAnnotation.type).iterator();
+		ConstraintFactory cf = jcas.getConstraintFactory();
+		FeaturePath namespacePath = jcas.createFeaturePath();
+		namespacePath.addFeature(namespace);
+		FeaturePath identifierPath = jcas.createFeaturePath();
+		identifierPath.addFeature(identifier);
+		FSStringConstraint namespaceCons = cf.createStringConstraint();
+		FSStringConstraint identifierCons = cf.createStringConstraint();
+		namespaceCons.equals(NAMESPACE);
+		identifierCons.equals(IDENTIFIER);
+		FSMatchConstraint namespaceEmbed = cf.embedConstraint(namespacePath,
+		    namespaceCons);
+		FSMatchConstraint identifierEmbed = cf.embedConstraint(identifierPath,
+		    identifierCons);
+		FSMatchConstraint namespaceAndIdentifierCons = cf.and(identifierEmbed,
+		    namespaceEmbed);
+		FSIterator<Annotation> sentenceIt = jcas.createFilteredIterator(annIt,
+		    namespaceAndIdentifierCons);
+		return sentenceIt;
 	}
 
 	/**

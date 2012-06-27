@@ -8,13 +8,14 @@ import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.util.regex.Pattern;
 
+import opennlp.uima.util.UimaUtil;
+
 import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_component.CasAnnotator_ImplBase;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CAS;
 import org.apache.uima.cas.CASException;
-import org.apache.uima.cas.Feature;
-import org.apache.uima.cas.TypeSystem;
+import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ResourceInitializationException;
@@ -30,11 +31,15 @@ import txtfnnl.utils.IOUtils;
  * the character(s) {@link txtfnnl.opennlp.uima.sentdetect.SentenceAnnotator}
  * detected as sentence terminals.
  * 
- * This consumer has no required parameters, but several optional
- * configuration possibilities. With no option chosen at all, output is
- * written to <b>STDOUT</b>. But if {@link #PARAM_PRINT_TO_STDOUT} was set to
- * <code>False</code> and no output directory was set either, this consumer
- * would go silent.
+ * Mandatory parameters:
+ * <ul>
+ * <li>{@link opennlp.uima.util.UimaUtil#SENTENCE_TYPE_PARAMETER} the sentence
+ * annotation type to use (usually, "txtfnnl.uima.SyntaxAnnotation")</li>
+ * </ul>
+ * This consumer has several optional configuration possibilities. With no
+ * option chosen at all, output is written to <b>STDOUT</b>. But if
+ * {@link #PARAM_PRINT_TO_STDOUT} was set to <code>False</code> and no output
+ * directory was set either, this consumer would go silent.
  * <ul>
  * <li>{@link #PARAM_OUTPUT_DIRECTORY} defines an output directory</li>
  * <li>{@link #PARAM_PRINT_TO_STDOUT} defines <b>STDOUT</b> as output</li>
@@ -106,10 +111,8 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 	private boolean overwriteFiles = false;
 	private boolean joinLines = false;
 	private String encoding = null;
+	private String sentenceTypeName;
 	private Writer outputWriter;
-
-	private Feature identifier;
-	private Feature namespace;
 
 	private Logger logger;
 
@@ -126,6 +129,14 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 
 		String outputDirName = (String) ctx
 		    .getConfigParameterValue(PARAM_OUTPUT_DIRECTORY);
+
+		sentenceTypeName = (String) ctx
+		    .getConfigParameterValue(UimaUtil.SENTENCE_TYPE_PARAMETER);
+
+		if (sentenceTypeName == null)
+			throw new ResourceInitializationException(
+			    ResourceInitializationException.CONFIG_SETTING_ABSENT,
+			    new Object[] { UimaUtil.SENTENCE_TYPE_PARAMETER });
 
 		if (outputDirName != null && outputDirName.length() > 0) {
 			outputDirectory = new File(outputDirName);
@@ -153,7 +164,8 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 			if (encoding == null && IOUtils.isMacOSX()) {
 				// fix broken Mac JDK that uses MacRoman instead of the LANG
 				// setting as default encoding; if LANG is not set, use UTF-8.
-				// TODO: make this change work across the entire library always
+				// TODO: make this change work across the entire library
+				// always
 				encoding = IOUtils.getLocaleEncoding();
 
 				if (encoding == null)
@@ -191,24 +203,6 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 		counter = 0;
 	}
 
-	@Override
-	public void typeSystemInit(TypeSystem typeSystem)
-	        throws AnalysisEngineProcessException {
-		String textAnnotationName = SyntaxAnnotation.class.getName();
-		identifier = typeSystem.getFeatureByFullName(textAnnotationName +
-		                                             ":identifier");
-		namespace = typeSystem.getFeatureByFullName(textAnnotationName +
-		                                            ":namespace");
-
-		if (identifier == null)
-			throw new AnalysisEngineProcessException(new AssertionError(
-			    textAnnotationName + ":identifier feature not found"));
-
-		if (namespace == null)
-			throw new AnalysisEngineProcessException(new AssertionError(
-			    textAnnotationName + ":namespace feature not found"));
-	}
-
 	/**
 	 * Detect sentences in the {@link Views.CONTENT_TEXT} view of a CAS.
 	 */
@@ -228,34 +222,33 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 		String text = textJCas.getDocumentText();
 		int offset = 0;
 
-		for (Annotation ann : textJCas
-		    .getAnnotationIndex(SyntaxAnnotation.type)) {
-			// FIXME: wrap UIMA to use generics for JCas#getAnnotationIndex?
-			// would avoid the cast in the next line and ensure type safety
-			if (isSentenceAnnotation((SyntaxAnnotation) ann)) {
-				String prefix = replaceAndTrimMultipleSpaces(text.substring(
-				    offset, ann.getBegin()));
-				String sentence = replaceAndTrimMultipleSpaces(text.substring(
-				    ann.getBegin(), ann.getEnd()));
+		FSIterator<Annotation> sentenceIt = SentenceAnnotator
+		    .getSentenceIterator(textJCas, sentenceTypeName);
 
-				try {
-					if (prefix.length() > 0)
-						write(prefix);
+		while (sentenceIt.hasNext()) {
+			SyntaxAnnotation ann = (SyntaxAnnotation) sentenceIt.next();
+			String prefix = replaceAndTrimMultipleSpaces(text.substring(
+			    offset, ann.getBegin()));
+			String sentence = replaceAndTrimMultipleSpaces(text.substring(
+			    ann.getBegin(), ann.getEnd()));
 
-					if (joinLines) {
-						write(replaceSingleBreaksAndSpaces(sentence));
+			try {
+				if (prefix.length() > 0)
+					write(prefix);
+
+				if (joinLines) {
+					write(replaceSingleBreaksAndSpaces(sentence));
+					write(LINEBREAK);
+				} else {
+					for (String line : sentence.split("\\r?\\n")) {
+						write(line);
 						write(LINEBREAK);
-					} else {
-						for (String line : sentence.split("\\r?\\n")) {
-							write(line);
-							write(LINEBREAK);
-						}
 					}
-				} catch (IOException e) {
-					throw new AnalysisEngineProcessException(e);
 				}
-				offset = ann.getEnd();
+			} catch (IOException e) {
+				throw new AnalysisEngineProcessException(e);
 			}
+			offset = ann.getEnd();
 		}
 
 		try {
@@ -263,18 +256,6 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 		} catch (IOException e) {
 			throw new AnalysisEngineProcessException(e);
 		}
-	}
-
-	/**
-	 * @param ann any UIMA annotation.
-	 * @return <code>true</code> if the syntax annotation is a sentence
-	 *         annotation
-	 */
-	boolean isSentenceAnnotation(SyntaxAnnotation ann) {
-		return ann.getStringValue(identifier).equals(
-		    SentenceAnnotator.IDENTIFIER) &&
-		       ann.getStringValue(namespace).equals(
-		           SentenceAnnotator.NAMESPACE);
 	}
 
 	/**
@@ -309,7 +290,7 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 
 			File outputFile = new File(outputDirectory, inputName + ".txt");
 
-			if (!overwriteFiles) {
+			if (!overwriteFiles && outputFile.exists()) {
 				int idx = 2;
 
 				while (outputFile.exists())
@@ -317,31 +298,29 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 					                                       idx++ + ".txt");
 			}
 
-			logger.log(
-			    Level.INFO,
-			    "writing to '" +
-			            outputFile.getAbsolutePath() +
-			            "' using '" +
-			            (encoding == null ? System
-			                .getProperty("file.encoding") : encoding) +
-			            "' encoding");
-
-			if (encoding == null)
+			if (encoding == null) {
+				logger.log(Level.INFO, String.format(
+				    "writing to '%s' using '%s' encoding", outputFile,
+				    System.getProperty("file.encoding")));
 				outputWriter = new OutputStreamWriter(new FileOutputStream(
 				    outputFile));
-			else
+			} else {
+				logger.log(Level.INFO, String.format(
+				    "writing to '%s' using '%s' encoding", outputFile,
+				    encoding));
 				outputWriter = new OutputStreamWriter(new FileOutputStream(
 				    outputFile), encoding);
+			}
 		}
 	}
 
 	/**
-     * @throws AnalysisEngineProcessException
-     */
-    void unsetStream() throws IOException {
-	    if (outputDirectory != null)
-	    	outputWriter.close();
-    }
+	 * @throws AnalysisEngineProcessException
+	 */
+	void unsetStream() throws IOException {
+		if (outputDirectory != null)
+			outputWriter.close();
+	}
 
 	void write(String text) throws IOException {
 		if (outputDirectory != null)

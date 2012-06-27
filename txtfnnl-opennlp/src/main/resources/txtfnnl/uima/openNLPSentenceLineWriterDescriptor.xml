@@ -44,8 +44,22 @@
         <multiValued>false</multiValued>
         <mandatory>false</mandatory>
       </configurationParameter>
+      <configurationParameter>
+        <name>opennlp.uima.SentenceType</name>
+        <description>fully qualified name of the sentence annotation type</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>true</mandatory>
+      </configurationParameter>
     </configurationParameters>
-    <configurationParameterSettings/>
+    <configurationParameterSettings>
+      <nameValuePair>
+        <name>opennlp.uima.SentenceType</name>
+        <value>
+          <string>txtfnnl.uima.tcas.SyntaxAnnotation</string>
+        </value>
+      </nameValuePair>
+    </configurationParameterSettings>
     <typeSystemDescription>
       <imports>
         <import name="txtfnnl.uima.typeSystemDescriptor"/>
