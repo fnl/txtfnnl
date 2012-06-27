@@ -3,6 +3,8 @@ package txtfnnl.opennlp.uima.sentdetect;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.logging.Level;
@@ -12,17 +14,24 @@ import org.junit.Test;
 
 import org.apache.uima.UIMAException;
 import org.apache.uima.analysis_engine.AnalysisEngine;
+import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
+import org.apache.uima.cas.CASException;
 import org.apache.uima.jcas.JCas;
+import org.apache.uima.resource.ResourceInitializationException;
 
 import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
+import txtfnnl.utils.IOUtils;
 
 public class SentenceLineWriterTest {
 
 	public static final String DESCRIPTOR = "txtfnnl.uima.openNLPSentenceLineWriterDescriptor";
+
+	private static final String SENTENCE_1 = "  This is\na sentence.  ";
+	private static final String SENTENCE_2 = "  This is\nanother one.  ";
 
 	@Before
 	public void setUp() {
@@ -46,36 +55,83 @@ public class SentenceLineWriterTest {
 	}
 
 	@Test
-	public void testProcessJCas() throws UIMAException, IOException {
+	public void testProcessJCasToStdout() throws UIMAException, IOException {
 		AnalysisEngine slw = AnalysisEngineFactory
 		    .createAnalysisEngine(DESCRIPTOR);
+		String result = SENTENCE_1.trim() +
+		                System.getProperty("line.separator") +
+		                SENTENCE_2.trim() +
+		                System.getProperty("line.separator");
+		ByteArrayOutputStream outputStream = processHelper(slw);
 
-		String s1 = "This is\na sentence.";
-		String s2 = "This is\nanother one.";
-		JCas baseCas = slw.newJCas();
+		assertEquals(result, outputStream.toString());
+	}
+
+	@Test
+	public void testProcessJCasJoinLines() throws UIMAException, IOException {
+		AnalysisEngine slw = AnalysisEngineFactory.createAnalysisEngine(
+		    DESCRIPTOR, SentenceLineWriter.PARAM_JOIN_LINES, Boolean.TRUE);
+		ByteArrayOutputStream outputStream = processHelper(slw);
+		String result = SENTENCE_1.replace('\n', ' ').trim() +
+		                System.getProperty("line.separator") +
+		                SENTENCE_2.replace('\n', ' ').trim() +
+		                System.getProperty("line.separator");
+
+		assertEquals(result, outputStream.toString());
+	}
+
+	@Test
+	public void testProcessJCasOutputDir() throws UIMAException, IOException {
+		File tmpDir = IOUtils.mkTmpDir();
+		File existing = new File(tmpDir, "test.txt.txt");
+
+		assertTrue(existing.createNewFile());
+
+		AnalysisEngine slw = AnalysisEngineFactory.createAnalysisEngine(
+		    DESCRIPTOR, SentenceLineWriter.PARAM_OUTPUT_DIRECTORY,
+		    tmpDir.getCanonicalPath(), SentenceLineWriter.PARAM_ENCODING,
+		    "UTF-32");
+		String result = SENTENCE_1.trim() +
+		                System.getProperty("line.separator") +
+		                SENTENCE_2.trim() +
+		                System.getProperty("line.separator");
+		processHelper(slw);
+		File created = new File(tmpDir, "test.txt.2.txt");
+		FileInputStream fis = new FileInputStream(created);
+
+		assertTrue(created.exists());
+		assertEquals(result,
+		    IOUtils.read(fis, "UTF-32"));
+
+		existing.delete();
+		created.delete();
+		tmpDir.delete();
+	}
+
+	ByteArrayOutputStream processHelper(AnalysisEngine sentenceLineWriter)
+	        throws ResourceInitializationException, CASException,
+	        AnalysisEngineProcessException {
+		JCas baseCas = sentenceLineWriter.newJCas();
 		JCas rawCas = baseCas.createView(Views.CONTENT_RAW.toString());
 		JCas textCas = baseCas.createView(Views.CONTENT_TEXT.toString());
-		rawCas.setSofaDataURI("file:/dummy", "mime/dummy");
-		textCas.setDocumentText(s1 + " " + s2);
+		rawCas.setSofaDataURI("http://example.com/test.txt", "mime/dummy");
+		textCas.setDocumentText(SENTENCE_1 + " " + SENTENCE_2);
 		SyntaxAnnotation a1 = new SyntaxAnnotation(textCas);
 		SyntaxAnnotation a2 = new SyntaxAnnotation(textCas);
 		a1.setBegin(0);
-		a1.setEnd(s1.length());
+		a1.setEnd(SENTENCE_1.length());
 		a1.setNamespace(SentenceAnnotator.NAMESPACE);
 		a1.setIdentifier(SentenceAnnotator.IDENTIFIER);
 		a1.addToIndexes();
-		a2.setBegin(s1.length() + " ".length());
-		a2.setEnd(s1.length() + s2.length() + " ".length());
+		a2.setBegin(SENTENCE_1.length() + " ".length());
+		a2.setEnd(SENTENCE_1.length() + SENTENCE_2.length() + " ".length());
 		a2.setNamespace(SentenceAnnotator.NAMESPACE);
 		a2.setIdentifier(SentenceAnnotator.IDENTIFIER);
 		a2.addToIndexes();
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 		System.setOut(new PrintStream(outputStream));
-		slw.process(baseCas);
-		String result = s1 + System.getProperty("line.separator") + s2 +
-		                System.getProperty("line.separator");
-		
-		assertEquals(result, outputStream.toString());
+		sentenceLineWriter.process(baseCas);
+		return outputStream;
 	}
 
 }

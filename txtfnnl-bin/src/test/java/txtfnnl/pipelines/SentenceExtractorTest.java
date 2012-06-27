@@ -18,27 +18,13 @@ import org.uimafit.testing.util.DisableLogging;
 import txtfnnl.opennlp.uima.sentdetect.SentenceLineWriter;
 import txtfnnl.uima.collection.FileCollectionReader;
 import txtfnnl.uima.collection.FileSystemCollectionReader;
+import txtfnnl.utils.IOUtils;
 
 public class SentenceExtractorTest {
 
-	public static File mkTmpDir() throws IOException {
-		File tmp = File
-		    .createTempFile("tmp", Long.toString(System.nanoTime()));
-
-		if (!tmp.delete())
-			throw new IOException("could not delete tmp file: " +
-			                      tmp.getAbsolutePath());
-
-		if (!tmp.mkdir())
-			throw new IOException("could not create tmp dir: " +
-			                      tmp.getAbsolutePath());
-
-		return tmp;
-	}
-
 	@Test
 	public void testDirectoryReaderSetup() throws IOException, UIMAException {
-		File inputDir = mkTmpDir();
+		File inputDir = IOUtils.mkTmpDir();
 		SentenceExtractor se = new SentenceExtractor(inputDir, "mime type",
 		    true, null, null, true, true);
 		ConfigurationParameterSettings cps = se.collectionReader
@@ -72,7 +58,7 @@ public class SentenceExtractorTest {
 		File inputFile = File.createTempFile("input",
 		    Long.toString(System.nanoTime()));
 		String[] inputFiles = new String[] { inputFile.getAbsolutePath() };
-		File outputDir = mkTmpDir();
+		File outputDir = IOUtils.mkTmpDir();
 		SentenceExtractor se = new SentenceExtractor(inputFiles, null,
 		    outputDir, "encoding", true, true);
 		ConfigurationParameterSettings cps = se.sentenceLineWriter

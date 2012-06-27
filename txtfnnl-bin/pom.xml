@@ -35,6 +35,12 @@
   		<artifactId>txtfnnl-opennlp</artifactId>
   		<version>0.1</version>
   	</dependency>
+  	<dependency>
+  		<groupId>txtfnnl</groupId>
+  		<artifactId>txtfnnl-utils</artifactId>
+  		<version>0.1</version>
+  		<scope>test</scope>
+  	</dependency>
   </dependencies>
   <properties>
   	<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
