@@ -40,7 +40,7 @@ public class SentenceExtractorTest {
 	public void testDirectoryReaderSetup() throws IOException, UIMAException {
 		File inputDir = mkTmpDir();
 		SentenceExtractor se = new SentenceExtractor(inputDir, "mime type",
-		    true, null, null, true);
+		    true, null, null, true, true);
 		ConfigurationParameterSettings cps = se.collectionReader
 		    .getCollectionReaderMetaData().getConfigurationParameterSettings();
 
@@ -58,7 +58,7 @@ public class SentenceExtractorTest {
 		    Long.toString(System.nanoTime()));
 		String[] inputFiles = new String[] { inputFile.getAbsolutePath() };
 		SentenceExtractor se = new SentenceExtractor(inputFiles, null, null,
-		    null, true);
+		    null, true, true);
 		ConfigurationParameterSettings cps = se.collectionReader
 		    .getCollectionReaderMetaData().getConfigurationParameterSettings();
 
@@ -74,7 +74,7 @@ public class SentenceExtractorTest {
 		String[] inputFiles = new String[] { inputFile.getAbsolutePath() };
 		File outputDir = mkTmpDir();
 		SentenceExtractor se = new SentenceExtractor(inputFiles, null,
-		    outputDir, "encoding", true);
+		    outputDir, "encoding", true, true);
 		ConfigurationParameterSettings cps = se.sentenceLineWriter
 		    .getMetaData().getConfigurationParameterSettings();
 
@@ -84,6 +84,8 @@ public class SentenceExtractorTest {
 		    cps.getParameterValue(SentenceLineWriter.PARAM_OUTPUT_DIRECTORY));
 		assertEquals(Boolean.TRUE,
 		    cps.getParameterValue(SentenceLineWriter.PARAM_OVERWRITE_FILES));
+		assertEquals(Boolean.TRUE,
+		    cps.getParameterValue(SentenceLineWriter.PARAM_JOIN_LINES));
 	}
 
 	@Test
@@ -96,7 +98,7 @@ public class SentenceExtractorTest {
 		DisableLogging.enableLogging(Level.WARNING);
 		SentenceExtractor se = new SentenceExtractor(
 		    new String[] { inputFile.getCanonicalPath() }, null, null,
-		    "UTF-8", false);
+		    "UTF-8", false, false);
 		se.run();
 		String content = outContent.toString();
 		assertTrue(content.indexOf("studied.\nAs(4)O(6)") > 0);

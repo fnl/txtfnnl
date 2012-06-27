@@ -4,9 +4,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.util.regex.Pattern;
 
 import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_component.CasAnnotator_ImplBase;
@@ -23,74 +23,94 @@ import org.apache.uima.util.Logger;
 
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
+import txtfnnl.utils.IOUtils;
 
 /**
- * An CPE LineWriter for sentences detected by the SentenceAnnotator.
+ * A CAS consumer that writes plain-text lines, adding line separators after
+ * the character(s) {@link txtfnnl.opennlp.uima.sentdetect.SentenceAnnotator}
+ * detected as sentence terminals.
  * 
- * <p>
- * Mandatory parameters (same as original parameters)
- * <table border=1>
- * <tr>
- * <th>Type</th>
- * <th>Name</th>
- * <th>Description</th>
- * </tr>
- * <tr>
- * <td>String</td>
- * <td>opennlp.uima.ModelName</td>
- * <td>The name (key) of the sentence model resource (e.g.,
- * "EnglishSentenceModelResource").</td>
- * </tr>
- * <tr>
- * <td>String</td>
- * <td>opennlp.uima.SentenceType</td>
- * <td>The full name of the sentence annotation type (usually,
- * "txtfnnl.uima.SyntaxAnnotation"). Note that this AE assumes the chosen
- * annotation type has the features "annotator", "confidence", "identifier",
- * and "namespace".</td>
- * </tr>
- * </table>
- * <p>
- * Optional parameters
- * <table border=1>
- * <tr>
- * <th>Type</th>
- * <th>Name</th>
- * <th>Description</th>
- * </tr>
- * <tr>
- * <td>String</td>
- * <td>opennlp.uima.ContainerType</td>
- * <td>The name of the container type (default: use the entire SOFA).</td>
- * </tr>
- * <tr>
- * <td>Boolean</td>
- * <td>opennlp.uima.IsRemoveExistingAnnotations</td>
- * <td>Remove existing annotations (from the container) before processing the
- * CAS.</td>
- * </tr>
- * </table>
+ * This consumer has no required parameters, but several optional
+ * configuration possibilities. With no option chosen at all, output is
+ * written to <b>STDOUT</b>. But if {@link #PARAM_PRINT_TO_STDOUT} was set to
+ * <code>False</code> and no output directory was set either, this consumer
+ * would go silent.
+ * <ul>
+ * <li>{@link #PARAM_OUTPUT_DIRECTORY} defines an output directory</li>
+ * <li>{@link #PARAM_PRINT_TO_STDOUT} defines <b>STDOUT</b> as output</li>
+ * <li>{@link #PARAM_OVERWRITE_FILES} allows overwriting of existing files</li>
+ * <li>{@link #PARAM_JOIN_LINES} joins lines within sentences</li>
+ * <li>{@link #PARAM_ENCODING} sets a particular output encoding</li>
+ * </ul>
+ * All written line-breaks are the character sequence defined by the system
+ * property "line.separator".
+ * 
+ * <b>Note</b> that on <b>Apple OSX</b> the default encoding would be
+ * MacRoman; however, this consumer uses either the encoding defined by the
+ * <b>LANG</b> environment variable or otherwise defaults to <b>UTF-8</b> as a
+ * far more sensible encoding on OSX instead.
  * 
  * @author Florian Leitner
  */
 public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 
+	/**
+	 * A String representing the path of the output directory.
+	 * 
+	 * With the use of this option, a file named just as the basename of the
+	 * CAS URI with ".txt" attached is produced for each SOFA, and these SOFAs
+	 * are all written to this output directory.
+	 */
 	public static final String PARAM_OUTPUT_DIRECTORY = "OutputDirectory";
 
+	/**
+	 * <code>True</code> if the output should also go to <b>STDOUT</b>.
+	 * 
+	 * With the use of this option, all lines are written to <b>STDOUT</b>;
+	 * this may be set in <i>addition</i> to any file output.
+	 */
 	public static final String PARAM_PRINT_TO_STDOUT = "PrintToStdout";
 
+	/**
+	 * <code>True</code> if all files written to the
+	 * {@link #PARAM_OUTPUT_DIRECTORY} should replace any already existing
+	 * ones.
+	 * 
+	 * By default, if a file exits, ".<i>n</i>" is inserted between the file
+	 * name and the ".txt" suffix, where <i>n</i> is an integer chosen as to
+	 * make the file name unique wrt. the directory.
+	 */
 	public static final String PARAM_OVERWRITE_FILES = "OverwriteFiles";
 
+	/**
+	 * <code>True</code> if multi-line sentences spanning <i>single</i>
+	 * line-breaks should be joined to form one single line.
+	 * 
+	 * Double or more consecutive line-breaks are never joined. Detected
+	 * line-breaks are only Windows (CR-LF) and Unix line-breaks (LF only).
+	 */
+	public static final String PARAM_JOIN_LINES = "JoinLines";
+
+	/** Define a particular output encoding String. */
 	public static final String PARAM_ENCODING = "Encoding";
 
+	static final Pattern REGEX_SPACES = Pattern.compile("[ \\t\\v\\f]+");
+	static final Pattern REGEX_LINEBREAK_SPACE = Pattern.compile("(\\r?\\n) ");
+	static final Pattern REGEX_SINGLE_LINEBREAK = Pattern
+	    .compile("(?<!\\r?\\n)\\r?\\n(?!\\r?\\n)");
+	static final String LINEBREAK = System.getProperty("line.separator");
+
+	// parameter settings
 	private File outputDirectory = null;
 	private boolean printToStdout = false;
 	private boolean overwriteFiles = false;
+	private boolean joinLines = false;
 	private String encoding = null;
 	private Writer outputWriter;
 
 	private Feature identifier;
 	private Feature namespace;
+
 	private Logger logger;
 
 	private int counter = 0;
@@ -130,46 +150,43 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 			    "no output stream (no directory or STDOUT specified)"));
 
 		if (printToStdout) {
-			logger.log(
-			    Level.INFO,
-			    "writing to STDOUT using '" +
-			            System.getProperty("file.encoding") + "'");
+			if (encoding == null && IOUtils.isMacOSX()) {
+				// fix broken Mac JDK that uses MacRoman instead of the LANG
+				// setting as default encoding; if LANG is not set, use UTF-8.
+				// TODO: make this change work across the entire library always
+				encoding = IOUtils.getLocaleEncoding();
 
-			// fix broken Mac JDK that uses MacRoman instead of the LANG
-			// setting as default encoding
-			if (encoding == null &&
-			    System.getProperty("os.name").toLowerCase().startsWith("mac")) {
-				String fixedEncoding = "utf-8";
-				String lang = System.getenv("LANG");
+				if (encoding == null)
+					encoding = "UTF-8";
 
-				if (lang != null && lang.lastIndexOf('.') > -1) {
-					fixedEncoding = lang.substring(lang.lastIndexOf('.') + 1);
-				}
 				try {
-					System.setOut(new PrintStream(System.out, true,
-					    fixedEncoding));
-					logger.log(Level.INFO, "fixed Mac STDOUT to use '" +
-					                       fixedEncoding +
-					                       "' instead of MacRoman");
+					IOUtils.setOutputEncoding(encoding);
 				} catch (UnsupportedEncodingException e) {
 					throw new ResourceInitializationException(e);
 				}
 			} else if (encoding != null) {
 				try {
-					System.setOut(new PrintStream(System.out, true, encoding));
+					IOUtils.setOutputEncoding(encoding);
 				} catch (UnsupportedEncodingException e) {
 					throw new ResourceInitializationException(e);
 				}
+			}
+
+			if (encoding != null)
 				logger.log(Level.INFO, "set STDOUT to use '" + encoding +
 				                       "' encoding");
-			}
 		}
 
 		Boolean overwriteFilesVal = (Boolean) ctx
 		    .getConfigParameterValue(PARAM_OVERWRITE_FILES);
+		Boolean joinLinesVal = (Boolean) ctx
+		    .getConfigParameterValue(PARAM_JOIN_LINES);
 
 		if (overwriteFilesVal != null && overwriteFilesVal)
 			overwriteFiles = true;
+
+		if (joinLinesVal != null && joinLinesVal)
+			joinLines = true;
 
 		counter = 0;
 	}
@@ -211,16 +228,28 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 		String text = textJCas.getDocumentText();
 		int offset = 0;
 
-		for (Annotation ann : textJCas.getAnnotationIndex(SyntaxAnnotation.type)) {
-			if (ann.getStringValue(identifier).equals(
-			    SentenceAnnotator.IDENTIFIER) &&
-			    ann.getStringValue(namespace).equals(
-			        SentenceAnnotator.NAMESPACE)) {
+		for (Annotation ann : textJCas
+		    .getAnnotationIndex(SyntaxAnnotation.type)) {
+			// FIXME: wrap UIMA to use generics for JCas#getAnnotationIndex?
+			// would avoid the cast in the next line and ensure type safety
+			if (isSentenceAnnotation((SyntaxAnnotation) ann)) {
+				String prefix = replaceAndTrimMultipleSpaces(text.substring(
+				    offset, ann.getBegin()));
+				String sentence = replaceAndTrimMultipleSpaces(text.substring(
+				    ann.getBegin(), ann.getEnd()));
+
 				try {
-					for (String line : text.substring(offset, ann.getEnd())
-					    .split("\\r?\\n")) {
-						write(line.replace('\t', ' ').trim());
-						write(System.getProperty("line.separator"));
+					if (prefix.length() > 0)
+						write(prefix);
+
+					if (joinLines) {
+						write(replaceSingleBreaksAndSpaces(sentence));
+						write(LINEBREAK);
+					} else {
+						for (String line : sentence.split("\\r?\\n")) {
+							write(line);
+							write(LINEBREAK);
+						}
 					}
 				} catch (IOException e) {
 					throw new AnalysisEngineProcessException(e);
@@ -228,16 +257,49 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 				offset = ann.getEnd();
 			}
 		}
-		
-		if (outputDirectory != null) {
-	        try {
-	            outputWriter.close();
-            } catch (IOException e) {
-            	throw new AnalysisEngineProcessException(e);
-            }
+
+		try {
+			unsetStream();
+		} catch (IOException e) {
+			throw new AnalysisEngineProcessException(e);
 		}
 	}
 
+	/**
+	 * @param ann any UIMA annotation.
+	 * @return <code>true</code> if the syntax annotation is a sentence
+	 *         annotation
+	 */
+	boolean isSentenceAnnotation(SyntaxAnnotation ann) {
+		return ann.getStringValue(identifier).equals(
+		    SentenceAnnotator.IDENTIFIER) &&
+		       ann.getStringValue(namespace).equals(
+		           SentenceAnnotator.NAMESPACE);
+	}
+
+	/**
+	 * @param text to replace spaces in
+	 * @return the text without consecutive spaces and trimmed
+	 */
+	String replaceAndTrimMultipleSpaces(String text) {
+		return REGEX_SPACES.matcher(text).replaceAll(" ").trim();
+	}
+
+	/**
+	 * @param text to replace line-breaks in
+	 * @return the text with single line-breaks trimmed
+	 */
+	String replaceSingleBreaksAndSpaces(String text) {
+		return REGEX_SINGLE_LINEBREAK
+		    .matcher(REGEX_LINEBREAK_SPACE.matcher(text).replaceAll("$1"))
+		    .replaceAll(" ").trim();
+	}
+
+	/**
+	 * @param jCas
+	 * @throws CASException
+	 * @throws IOException
+	 */
 	void setStream(JCas jCas) throws CASException, IOException {
 		if (outputDirectory != null) {
 			String inputName = (new File(jCas.getSofaDataURI())).getName();
@@ -272,6 +334,14 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 				    outputFile), encoding);
 		}
 	}
+
+	/**
+     * @throws AnalysisEngineProcessException
+     */
+    void unsetStream() throws IOException {
+	    if (outputDirectory != null)
+	    	outputWriter.close();
+    }
 
 	void write(String text) throws IOException {
 		if (outputDirectory != null)

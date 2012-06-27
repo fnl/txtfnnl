@@ -37,6 +37,13 @@
         <multiValued>false</multiValued>
         <mandatory>false</mandatory>
       </configurationParameter>
+      <configurationParameter>
+        <name>JoinLines</name>
+        <description>Join sentence segments (i.e., replace newlines within sentence segments with whitespaces).</description>
+        <type>Boolean</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
     </configurationParameters>
     <configurationParameterSettings/>
     <typeSystemDescription>

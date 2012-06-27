@@ -52,12 +52,14 @@ public class SentenceExtractor {
 	 *        the platform default is used); may be <code>null</code>
 	 * @param replaceFiles optional flag indicating that existing files in the
 	 *        output directory should be replaced
+	 * @param joinLines flag indicating that newline and carriage return
+	 *        characters within sentences should be replaced with spaces
 	 * @throws IOException
 	 * @throws UIMAException
 	 */
 	private SentenceExtractor(File outputDirectory, String characterEncoding,
-	                          boolean replaceFiles) throws IOException,
-	        UIMAException {
+	                          boolean replaceFiles, boolean joinLines)
+	        throws IOException, UIMAException {
 		sentenceLineWriter = AnalysisEngineFactory.createPrimitiveDescription(
 		    SentenceLineWriter.class,
 		    SentenceLineWriter.PARAM_ENCODING,
@@ -65,7 +67,8 @@ public class SentenceExtractor {
 		    SentenceLineWriter.PARAM_OUTPUT_DIRECTORY,
 		    (outputDirectory == null) ? null : outputDirectory
 		        .getCanonicalPath(), SentenceLineWriter.PARAM_OVERWRITE_FILES,
-		    Boolean.valueOf(replaceFiles));
+		    Boolean.valueOf(replaceFiles),
+		    SentenceLineWriter.PARAM_JOIN_LINES, Boolean.valueOf(joinLines));
 		tikaAED = AnalysisEngineFactory
 		    .createAnalysisEngineDescription("txtfnnl.uima.tikaAEDescriptor");
 		sentenceAED = AnalysisEngineFactory
@@ -86,14 +89,17 @@ public class SentenceExtractor {
 	 *        used); optional - may be <code>null</code>
 	 * @param replaceFiles flag indicating that existing files in the output
 	 *        directory should be replaced
+	 * @param joinLines flag indicating that newline and carriage return
+	 *        characters within sentences should be replaced with spaces
 	 * @throws ResourceInitializationException
 	 * @throws IOException
 	 */
 	public SentenceExtractor(File inputDirectory, String mimeType,
 	                         boolean recurseDirectory, File outputDirectory,
-	                         String characterEncoding, boolean replaceFiles)
-	        throws IOException, UIMAException {
-		this(outputDirectory, characterEncoding, replaceFiles);
+	                         String characterEncoding, boolean replaceFiles,
+	                         boolean joinLines) throws IOException,
+	        UIMAException {
+		this(outputDirectory, characterEncoding, replaceFiles, joinLines);
 		assert inputDirectory.isDirectory() && inputDirectory.canRead() : inputDirectory
 		    .getAbsolutePath() + " is not a (readable) directory";
 		collectionReader = CollectionReaderFactory.createDescription(
@@ -117,14 +123,16 @@ public class SentenceExtractor {
 	 *        used); optional - may be <code>null</code>
 	 * @param replaceFiles flag indicating that existing files in the output
 	 *        directory should be replaced
+	 * @param joinLines flag indicating that newline and carriage return
+	 *        characters within sentences should be replaced with spaces
 	 * @throws ResourceInitializationException
 	 * @throws IOException
 	 */
 	public SentenceExtractor(String[] inputFiles, String mimeType,
 	                         File outputDirectory, String characterEncoding,
-	                         boolean replaceFiles) throws IOException,
-	        UIMAException {
-		this(outputDirectory, characterEncoding, replaceFiles);
+	                         boolean replaceFiles, boolean joinLines)
+	        throws IOException, UIMAException {
+		this(outputDirectory, characterEncoding, replaceFiles, joinLines);
 		collectionReader = CollectionReaderFactory.createDescription(
 		    FileCollectionReader.class, FileCollectionReader.PARAM_FILES,
 		    inputFiles, FileCollectionReader.PARAM_MIME_TYPE, mimeType);
@@ -168,6 +176,8 @@ public class SentenceExtractor {
 		    "include files in all sub-directories of input directory [false]");
 		opts.addOption("x", "replace-files", false,
 		    "replace files in the output directory if they exist [false]");
+		opts.addOption("j", "join-lines", false,
+		    "replace newline chars within sentences with spaces [false]");
 		opts.addOption("i", "info", false, "log INFO-level messages [false]");
 		opts.addOption("s", "silent", false,
 		    "log SEVERE-level messages only [false]");
@@ -183,6 +193,7 @@ public class SentenceExtractor {
 		String[] inputFiles = cmd.getArgs();
 		boolean replace = cmd.hasOption('x');
 		boolean recursive = cmd.hasOption('r');
+		boolean joinLines = cmd.hasOption('j');
 		String mimeType = cmd.getOptionValue('m');
 		String encoding = cmd.getOptionValue('e');
 
@@ -233,10 +244,10 @@ public class SentenceExtractor {
 		try {
 			if (inputDirectory == null)
 				extractor = new SentenceExtractor(inputFiles, mimeType,
-				    outputDirectory, encoding, replace);
+				    outputDirectory, encoding, replace, joinLines);
 			else
 				extractor = new SentenceExtractor(inputDirectory, mimeType,
-				    recursive, outputDirectory, encoding, replace);
+				    recursive, outputDirectory, encoding, replace, joinLines);
 
 			extractor.run();
 		} catch (UIMAException e) {

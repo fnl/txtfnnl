@@ -21,32 +21,18 @@ import txtfnnl.uima.Views;
 /**
  * An OpenNLP Sentence Detector AE variant for the txtfnnl pipeline.
  * 
- * <p>
- * Mandatory parameters (same as original parameters)
- * <table border=1>
- * <tr>
- * <th>Type</th>
- * <th>Name</th>
- * <th>Description</th>
- * </tr>
- * <tr>
- * <td>String</td>
- * <td>opennlp.uima.ModelName</td>
- * <td>The name (key) of the sentence model resource (e.g.,
- * "EnglishSentenceModelResource").</td>
- * </tr>
- * <tr>
- * <td>String</td>
- * <td>opennlp.uima.SentenceType</td>
- * <td>The full name of the sentence annotation type (usually,
- * "txtfnnl.uima.SyntaxAnnotation"). Note that this AE assumes the chosen
- * annotation type has the features "annotator", "confidence", "identifier",
- * and "namespace".</td>
- * </tr>
- * </table>
- * <p>
- * Optional parameters
- * <table border=1>
+ * Mandatory parameters (same as original parameters):
+ * <ul>
+ * <li>{@link opennlp.uima.util.UimaUtil#SENTENCE_TYPE_PARAMETER} the sentence
+ * annotation type to use (usually, "txtfnnl.uima.SyntaxAnnotation")</li>
+ * <li>{@link #PARAM_MODEL_NAME} defines the sentence model resource to use
+ * (e.g., "EnglishSentenceModelResource")</li>
+ * </ul>
+ * Note that this AE assumes the chosen sentence annotation type has the
+ * features "annotator", "confidence", "identifier", and "namespace".
+ * 
+ * Optional parameters (inherited from OpenNLP):
+ * <table>
  * <tr>
  * <th>Type</th>
  * <th>Name</th>
@@ -93,6 +79,7 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 	/** The identifier to use for all annotations. */
 	public static final String IDENTIFIER = "Sentence";
 
+	/** The fully qualified sentence model name String. */
 	public static final String PARAM_MODEL_NAME = UimaUtil.MODEL_PARAMETER;
 
 	/**
@@ -114,7 +101,9 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 		} catch (ResourceAccessException e) {
 			throw new ResourceInitializationException(e);
 		} catch (NullPointerException e) {
-			throw new ResourceInitializationException(new AssertionError("no sentence model resource for resource key '" + sentenceModelResourceKey + "' found"));
+			throw new ResourceInitializationException(new AssertionError(
+			    "no sentence model resource for resource key '" +
+			            sentenceModelResourceKey + "' found"));
 		}
 
 		sentenceDetector = new SentenceDetectorME(model);

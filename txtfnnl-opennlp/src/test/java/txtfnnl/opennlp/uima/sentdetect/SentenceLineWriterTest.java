@@ -38,7 +38,8 @@ public class SentenceLineWriterTest {
 		    SentenceLineWriter.PARAM_OUTPUT_DIRECTORY,
 		    SentenceLineWriter.PARAM_OVERWRITE_FILES,
 		    SentenceLineWriter.PARAM_PRINT_TO_STDOUT,
-		    SentenceLineWriter.PARAM_ENCODING }) {
+		    SentenceLineWriter.PARAM_ENCODING,
+		    SentenceLineWriter.PARAM_JOIN_LINES }) {
 			assertNull("Parameter " + p + " does not default to null.",
 			    slw.getConfigParameterValue(p));
 		}
@@ -73,8 +74,8 @@ public class SentenceLineWriterTest {
 		slw.process(baseCas);
 		String result = s1 + System.getProperty("line.separator") + s2 +
 		                System.getProperty("line.separator");
+		
 		assertEquals(result, outputStream.toString());
-
 	}
 
 }
