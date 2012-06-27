@@ -1,5 +1,6 @@
 package txtfnnl.utils;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -24,7 +25,7 @@ public class IOUtils {
 
 	public static String read(InputStream in, String encoding)
 	        throws UnsupportedEncodingException, IOException {
-		InputStreamReader stream = new InputStreamReader(in, "UTF-8");
+		InputStreamReader stream = new InputStreamReader(in, encoding);
 		StringBuilder out = new StringBuilder();
 		final char[] buffer = new char[BUFFER_SIZE];
 		int read;
@@ -40,10 +41,6 @@ public class IOUtils {
 		return out.toString();
 	}
 
-	public static boolean isMacOSX() {
-		return System.getProperty("os.name").toLowerCase().startsWith("mac");
-	}
-
 	public static String getLocaleEncoding() {
 		String encoding = System.getenv("LANG");
 
@@ -55,6 +52,25 @@ public class IOUtils {
 		}
 
 		return encoding;
+	}
+
+	public static boolean isMacOSX() {
+		return System.getProperty("os.name").toLowerCase().startsWith("mac");
+	}
+
+	public static File mkTmpDir() throws IOException {
+		File tmp = File
+		    .createTempFile("tmp", Long.toString(System.nanoTime()));
+
+		if (!tmp.delete())
+			throw new IOException("could not delete tmp file: " +
+			                      tmp.getAbsolutePath());
+
+		if (!tmp.mkdir())
+			throw new IOException("could not create tmp dir: " +
+			                      tmp.getAbsolutePath());
+
+		return tmp;
 	}
 
 	public static void setOutputEncoding(String encoding)
