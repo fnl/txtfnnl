@@ -6,6 +6,8 @@ import java.nio.charset.Charset;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import opennlp.uima.util.UimaUtil;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -62,6 +64,8 @@ public class SentenceExtractor {
 	        throws IOException, UIMAException {
 		sentenceLineWriter = AnalysisEngineFactory.createPrimitiveDescription(
 		    SentenceLineWriter.class,
+		    UimaUtil.SENTENCE_TYPE_PARAMETER,
+		    "txtfnnl.uima.tcas.SyntaxAnnotation",
 		    SentenceLineWriter.PARAM_ENCODING,
 		    characterEncoding,
 		    SentenceLineWriter.PARAM_OUTPUT_DIRECTORY,
