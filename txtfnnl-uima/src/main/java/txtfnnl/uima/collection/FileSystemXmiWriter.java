@@ -129,21 +129,21 @@ public class FileSystemXmiWriter extends CasAnnotator_ImplBase {
 	/**
 	 * Serialize a CAS to a file in XMI format.
 	 * 
-	 * @param aCas CAS to serialize
+	 * @param cas CAS to serialize
 	 * @param file output file
 	 * 
 	 * @throws SAXException
 	 * @throws IOException
 	 */
-	private void writeXmi(CAS aCas, File file) throws IOException,
+	private void writeXmi(CAS cas, File file) throws IOException,
 	        SAXException {
 		FileOutputStream out = null;
 
 		try {
 			out = new FileOutputStream(file);
-			XmiCasSerializer trafo = new XmiCasSerializer(aCas.getTypeSystem());
+			XmiCasSerializer xmi = new XmiCasSerializer(cas.getTypeSystem());
 			XMLSerializer xml = new XMLSerializer(out, formatXMI);
-			trafo.serialize(aCas, xml.getContentHandler());
+			xmi.serialize(cas, xml.getContentHandler());
 		} finally {
 			if (out != null)
 				out.close();
