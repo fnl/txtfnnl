@@ -2,6 +2,8 @@
 # (c) Florian Leitner 2012.
 # All rights reserved.
 
+VERSION=0.1;
+
 ###################
 ## configuration ##
 ###################
@@ -76,21 +78,28 @@ $MAVEN_REPO/txtfnnl/txtfnnl-utils/0.1/txtfnnl-utils-0.1.jar;
 ## main script ##
 #################
 
-if [ $# -gt 0 ]; then
-    cmd=$1;
-    shift;
-    case $cmd in
-        ss) java txtfnnl.pipelines.SentenceExtractor "$@";;
-        *) echo "unknown command:" $cmd; exit 1;;
-    esac;
-else
+help () {
     echo "usage: txtfnnl <command> [options] <arguments>";
     echo;
     echo "commands:";
     echo "  ss    - split sentences";
     echo;
     echo "Use 'txtfnnl <command> --help' to learn more about each command.";
-    echo "(c) Florian Leitner 2012. All rights reserved.";
+    echo "(c) Florian Leitner 2012. All rights reserved. Version" $VERSION;
+}
+
+if [ $# -gt 0 ]; then
+    cmd=$1;
+    shift;
+    case $cmd in
+        ss) java txtfnnl.pipelines.SentenceExtractor "$@";;
+        -v) echo txtfnnl-$VERSION;;
+        --version) echo txtfnnl-$VERSION;;
+        -h) help; exit 0;;
+        --help) help; exit 0;;
+        *) echo "unknown command:" $cmd; exit 1;;
+    esac;
+else
+    help;
     exit 2;
- fi;
- 
+fi;
