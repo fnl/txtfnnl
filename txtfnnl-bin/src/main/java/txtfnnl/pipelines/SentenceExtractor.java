@@ -23,6 +23,7 @@ import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.factory.CollectionReaderFactory;
 import org.uimafit.pipeline.SimplePipeline;
 
+import txtfnnl.opennlp.uima.sentdetect.SentenceAnnotator;
 import txtfnnl.opennlp.uima.sentdetect.SentenceLineWriter;
 import txtfnnl.uima.collection.FileCollectionReader;
 import txtfnnl.uima.collection.FileSystemCollectionReader;
@@ -48,8 +49,8 @@ public class SentenceExtractor {
 	 * {@link txtfnnl.opennlp.uima.sentdetect.SentenceLineWriter} CAS
 	 * consumer.
 	 * 
-	 * @param outputDirectory optional output directory to use (otherwise
-	 *        output is printed to STDOUT); may be <code>null</code>
+	 * @param outputDir optional output directory to use (otherwise output is
+	 *        printed to STDOUT); may be <code>null</code>
 	 * @param characterEncoding optional character encoding to use (otherwise
 	 *        the platform default is used); may be <code>null</code>
 	 * @param replaceFiles optional flag indicating that existing files in the
@@ -59,20 +60,19 @@ public class SentenceExtractor {
 	 * @throws IOException
 	 * @throws UIMAException
 	 */
-	private SentenceExtractor(File outputDirectory, String characterEncoding,
+	private SentenceExtractor(File outputDir, String characterEncoding,
 	                          boolean replaceFiles, boolean joinLines)
 	        throws IOException, UIMAException {
 		sentenceLineWriter = AnalysisEngineFactory.createPrimitiveDescription(
-		    SentenceLineWriter.class,
-		    UimaUtil.SENTENCE_TYPE_PARAMETER,
-		    "txtfnnl.uima.tcas.SyntaxAnnotation",
-		    SentenceLineWriter.PARAM_ENCODING,
-		    characterEncoding,
-		    SentenceLineWriter.PARAM_OUTPUT_DIRECTORY,
-		    (outputDirectory == null) ? null : outputDirectory
-		        .getCanonicalPath(), SentenceLineWriter.PARAM_OVERWRITE_FILES,
-		    Boolean.valueOf(replaceFiles),
-		    SentenceLineWriter.PARAM_JOIN_LINES, Boolean.valueOf(joinLines));
+		    SentenceLineWriter.class, UimaUtil.SENTENCE_TYPE_PARAMETER,
+		    SentenceAnnotator.SENTENCE_TYPE_NAME,
+		    SentenceLineWriter.PARAM_ENCODING, characterEncoding,
+		    SentenceLineWriter.PARAM_OUTPUT_DIRECTORY, (outputDir == null)
+		            ? null
+		            : outputDir.getCanonicalPath(),
+		    SentenceLineWriter.PARAM_OVERWRITE_FILES, Boolean
+		        .valueOf(replaceFiles), SentenceLineWriter.PARAM_JOIN_LINES,
+		    Boolean.valueOf(joinLines));
 		tikaAED = AnalysisEngineFactory
 		    .createAnalysisEngineDescription("txtfnnl.uima.tikaAEDescriptor");
 		sentenceAED = AnalysisEngineFactory

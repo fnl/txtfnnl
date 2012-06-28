@@ -32,7 +32,7 @@ import txtfnnl.uima.tcas.SyntaxAnnotation;
  * Mandatory parameters (same as original parameters):
  * <ul>
  * <li>{@link opennlp.uima.util.UimaUtil#SENTENCE_TYPE_PARAMETER} the sentence
- * annotation type to use (usually, "txtfnnl.uima.SyntaxAnnotation")</li>
+ * annotation type to use (usually, {@link #SENTENCE_TYPE_NAME})</li>
  * <li>{@link #PARAM_MODEL_NAME} defines the sentence model resource to use
  * (e.g., "EnglishSentenceModelResource")</li>
  * </ul>
@@ -89,6 +89,14 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 
 	/** The fully qualified sentence model name String. */
 	public static final String PARAM_MODEL_NAME = UimaUtil.MODEL_PARAMETER;
+
+	/**
+	 * The default type name for the sentence annotation type.
+	 * 
+	 * In other words, this is the default value for the
+	 * {@link UimaUtil#SENTENCE_TYPE_PARAMETER}.
+	 */
+	public static final String SENTENCE_TYPE_NAME = "txtfnnl.uima.tcas.SyntaxAnnotation";
 
 	/**
 	 * Load the sentence detector model resource and initialize the model
