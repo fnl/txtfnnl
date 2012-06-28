@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<analysisEngineDescription xmlns="http://uima.apache.org/resourceSpecifier">
+  <frameworkImplementation>org.apache.uima.java</frameworkImplementation>
+  <primitive>true</primitive>
+  <annotatorImplementationName>txtfnnl.uima.analysis_component.KnownEntityTypeAnnotator</annotatorImplementationName>
+  <analysisEngineMetaData>
+    <name>KnownEntityTypeAnnotator</name>
+    <description>Uses regex matching to annotate matching strings from a given dictionary if the target entity IDs are known for the document.</description>
+    <version>1.0</version>
+    <vendor>txtfnnl</vendor>
+    <configurationParameters>
+      <configurationParameter>
+        <name>DriverClass</name>
+        <description>The full JDBC driver class name.</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>true</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>Namespace</name>
+        <description>The namespace for the entity annotations.</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>true</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>Username</name>
+        <description>DB username</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>Password</name>
+        <description>DB password</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>LoginTimeout</name>
+        <description>DB connection login timeout (seconds)</description>
+        <type>Integer</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>ReadOnly</name>
+        <description>create read-only DB connections</description>
+        <type>Boolean</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>IsolationLevel</name>
+        <description>DB transaction isolation level</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+    </configurationParameters>
+    <configurationParameterSettings>
+      <nameValuePair>
+        <name>DriverClass</name>
+        <value>
+          <string>org.postgres.Driver</string>
+        </value>
+      </nameValuePair>
+      <nameValuePair>
+        <name>Namespace</name>
+        <value>
+          <string>genenamenamespace</string>
+        </value>
+      </nameValuePair>
+    </configurationParameterSettings>
+    <typeSystemDescription>
+      <imports>
+        <import name="txtfnnl.uima.typeSystemDescriptor"/>
+      </imports>
+    </typeSystemDescription>
+    <typePriorities/>
+    <fsIndexCollection/>
+    <capabilities>
+      <capability>
+        <inputs>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.SyntaxAnnotation</type>
+        </inputs>
+        <outputs>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.SemanticAnnotation</type>
+        </outputs>
+        <languagesSupported/>
+      </capability>
+    </capabilities>
+    <operationalProperties>
+      <modifiesCas>true</modifiesCas>
+      <multipleDeploymentAllowed>true</multipleDeploymentAllowed>
+      <outputsNewCASes>false</outputsNewCASes>
+    </operationalProperties>
+  </analysisEngineMetaData>
+  <externalResourceDependencies>
+    <externalResourceDependency>
+      <key>KnownEntities</key>
+      <description>A text file that contains the known entities of each document being processed.
+
+The file format should be TSV, as:
+1. documentId
+2. entityType
+3. namespace
+4. identifier</description>
+      <optional>false</optional>
+    </externalResourceDependency>
+    <externalResourceDependency>
+      <key>EntityDb</key>
+      <description>The database containing names for the "namespace, identifier" entities listed by the KnownEntities resource.</description>
+      <interfaceName>txtfnnl.uima.resource.JdbcConnectionResource</interfaceName>
+      <optional>false</optional>
+    </externalResourceDependency>
+  </externalResourceDependencies>
+  <resourceManagerConfiguration>
+    <externalResources>
+      <externalResource>
+        <name>GeneProteinNameDb</name>
+        <description>A database of protein and gene names. Each table is a namespace (e.g., uniprot or entrez) mapping to a global, unique ID, and a master table holds all names for that global, unique ID.
+
+PG URL: jdbc:postgresql://host:port/database</description>
+        <fileResourceSpecifier>
+          <fileUrl>jdbc:postgresql://host:port/database</fileUrl>
+        </fileResourceSpecifier>
+        <implementationName>txtfnnl.uima.resource.JdbcConnectionResourceImpl</implementationName>
+      </externalResource>
+      <externalResource>
+        <name>DocumentEntityList</name>
+        <description>A list of entities found in each document.</description>
+        <fileResourceSpecifier>
+          <fileUrl>file:/tmp/path</fileUrl>
+        </fileResourceSpecifier>
+      </externalResource>
+    </externalResources>
+    <externalResourceBindings>
+      <externalResourceBinding>
+        <key>EntityDb</key>
+        <resourceName>GeneProteinNameDb</resourceName>
+      </externalResourceBinding>
+      <externalResourceBinding>
+        <key>KnownEntities</key>
+        <resourceName>DocumentEntityList</resourceName>
+      </externalResourceBinding>
+    </externalResourceBindings>
+  </resourceManagerConfiguration>
+</analysisEngineDescription>
