@@ -110,7 +110,7 @@ The file format should be TSV, as:
       <optional>false</optional>
     </externalResourceDependency>
     <externalResourceDependency>
-      <key>EntityDb</key>
+      <key>EntityNameDb</key>
       <description>The database containing names for the "namespace, identifier" entities listed by the KnownEntities resource.</description>
       <interfaceName>txtfnnl.uima.resource.JdbcConnectionResource</interfaceName>
       <optional>false</optional>
@@ -138,7 +138,7 @@ PG URL: jdbc:postgresql://host:port/database</description>
     </externalResources>
     <externalResourceBindings>
       <externalResourceBinding>
-        <key>EntityDb</key>
+        <key>EntityNameDb</key>
         <resourceName>GeneProteinNameDb</resourceName>
       </externalResourceBinding>
       <externalResourceBinding>
