@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 import org.apache.commons.cli.CommandLine;
@@ -153,16 +154,29 @@ public class GeneMentionAnnotator {
 	 *        information.
 	 */
 	public static void main(String[] arguments) {
+		try {
+			if (System.getProperty("java.util.logging.config.file") == null)
+				LogManager.getLogManager().readConfiguration(
+				    Thread.currentThread().getClass()
+				        .getResourceAsStream("/logging.properties"));
+		} catch (SecurityException ex) {
+			System.err.println("SecurityException while configuring logging");
+			System.err.println(ex.getMessage());
+		} catch (IOException ex) {
+			System.err.println("IOException while configuring logging");
+			System.err.println(ex.getMessage());
+		}
+		CommandLine cmd = null;
+		CommandLineParser parser = new PosixParser();
+		File geneMap;
+		File inputDirectory = null;
+		File outputDirectory;
+		GeneMentionAnnotator annotator;
 		Logger l = Logger.getLogger(SentenceSplitter.class.getName() +
 		                            ".main()");
+		Logger rootLogger = Logger.getLogger("");
 		Options opts = new Options();
-		CommandLineParser parser = new PosixParser();
-		CommandLine cmd = null;
-		File outputDirectory = null;
-		File inputDirectory = null;
-		GeneMentionAnnotator annotator;
-		File geneMap = null;
-		String dbUrl = null;
+		String dbUrl;
 		String enc = Charset.defaultCharset().toString();
 
 		if (IOUtils.isMacOSX())
@@ -203,7 +217,6 @@ public class GeneMentionAnnotator {
 		}
 
 		String[] inputFiles = cmd.getArgs();
-
 		String dbName = cmd.getOptionValue('d');
 		String encoding = cmd.getOptionValue('e');
 		String geneMapPath = cmd.getOptionValue('g');
@@ -225,7 +238,13 @@ public class GeneMentionAnnotator {
 			System.exit(cmd.hasOption('h') ? 0 : 1); // == exit ==
 		}
 
-		Logger rootLogger = Logger.getLogger("");
+		if (inputFiles.length == 1) {
+			System.err.println("too few arguments (" + inputFiles.length +
+			                   "/2+)");
+			System.exit(1); // == exit ==
+		}
+		outputDirectory = new File(inputFiles[0]);
+		inputFiles = Arrays.copyOfRange(inputFiles, 1, inputFiles.length);
 
 		if (cmd.hasOption('q'))
 			rootLogger.setLevel(Level.SEVERE);
@@ -234,19 +253,13 @@ public class GeneMentionAnnotator {
 		else if (!cmd.hasOption('i'))
 			rootLogger.setLevel(Level.WARNING);
 
+		l.log(Level.FINE, "logging setup complete");
+
 		if (namespace == null)
 			namespace = DEFAULT_NAMESPACE;
 
 		if (geneMapPath == null)
 			geneMapPath = DEFAULT_GMAP_FILE;
-
-		geneMap = new File(geneMapPath);
-
-		if (!geneMap.isFile() || !geneMap.canRead()) {
-			System.err.println("cannot read gene map file '" + geneMapPath +
-			                   "'");
-			System.exit(1); // == exit ==
-		}
 
 		if (dbName == null)
 			dbName = DEFAULT_DATABASE;
@@ -256,36 +269,34 @@ public class GeneMentionAnnotator {
 
 		dbUrl = "jdbc:postgresql://" + dbHost + "/" + dbName;
 
-		if (inputFiles.length > 1) {
-			outputDirectory = new File(inputFiles[0]);
+		if (!outputDirectory.isDirectory() || !outputDirectory.canWrite()) {
+			System.err.println("cannot write to directory '" +
+			                   outputDirectory.getPath() + "'");
+			System.exit(1); // == exit ==
+		}
 
-			if (!outputDirectory.isDirectory() || !outputDirectory.canWrite()) {
-				System.err.println("cannot write to directory '" +
-				                   outputDirectory.getPath() + "'");
-				System.exit(1); // == exit ==
-			}
+		if (inputFiles.length == 1) {
+			inputDirectory = new File(inputFiles[0]);
 
-			inputFiles = Arrays.copyOfRange(inputFiles, 1, inputFiles.length);
+			if (inputDirectory.isFile() && inputDirectory.canRead())
+				inputDirectory = null;
+		} else {
+			for (String fn : inputFiles) {
+				File tmp = new File(fn);
 
-			if (inputFiles.length == 1) {
-				inputDirectory = new File(inputFiles[0]);
-
-				if (inputDirectory.isFile() && inputDirectory.canRead())
-					inputDirectory = null;
-			} else {
-				for (String fn : inputFiles) {
-					File tmp = new File(fn);
-
-					if (!tmp.canRead() || !tmp.isFile()) {
-						System.err.println("path '" + fn +
-						                   "' not a (readable) file");
-						System.exit(1); // == exit ==
-					}
+				if (!tmp.canRead() || !tmp.isFile()) {
+					System.err.println("path '" + fn +
+					                   "' not a (readable) file");
+					System.exit(1); // == exit ==
 				}
 			}
-		} else {
-			System.err.println("too few arguments (" + inputFiles.length +
-			                   "/2+)");
+		}
+
+		geneMap = new File(geneMapPath);
+
+		if (!geneMap.isFile() || !geneMap.canRead()) {
+			System.err.println("cannot read gene map file '" + geneMapPath +
+			                   "'");
 			System.exit(1); // == exit ==
 		}
 

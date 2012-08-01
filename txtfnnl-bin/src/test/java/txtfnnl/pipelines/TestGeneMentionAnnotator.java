@@ -19,7 +19,7 @@ import txtfnnl.uima.collection.FileSystemCollectionReader;
 import txtfnnl.uima.collection.FileSystemXmiWriter;
 import txtfnnl.utils.IOUtils;
 
-public class KnownGeneAnnotatorTest {
+public class TestGeneMentionAnnotator {
 
 	@Test
 	public void testDirectoryReaderSetup() throws IOException, UIMAException,

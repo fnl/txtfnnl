@@ -20,7 +20,7 @@ import txtfnnl.uima.collection.FileCollectionReader;
 import txtfnnl.uima.collection.FileSystemCollectionReader;
 import txtfnnl.utils.IOUtils;
 
-public class SentenceExtractorTest {
+public class TestSentenceSplitter {
 
 	@Test
 	public void testDirectoryReaderSetup() throws IOException, UIMAException {
