@@ -236,7 +236,7 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 
 				int min = sum / matches.length / 10;
 
-				for (int idx = 0; idx > matches.length; ++idx) {
+				for (int idx = 0; idx < matches.length; ++idx) {
 					if (matches[idx] <= min)
 						missed.add(list.get(idx));
 				}
@@ -286,7 +286,6 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		// Create a mapping of all names to their entities in the list
 		Map<String, Set<Entity>> nameMap = generateNameMap(list);
 		int[] entityMatches = null;
-		Integer[] offset = new Integer[2];
 
 		if (nameMap.size() == 0) {
 			logger.log(Level.INFO, "no entity names for doc '" + documentId +
@@ -332,13 +331,31 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 			Matcher match = regex.matcher(text);
 			entityMatches = new int[list.size()];
 			String name;
+			Map<String, Set<String>> lowerCaseMap = null;
+
+			if (regex.flags() == (Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE)) {
+				lowerCaseMap = new HashMap<String, Set<String>>();
+				Set<String> names = new HashSet<String>(nameMap.keySet());
+				names.addAll(compressionMap.keySet());
+
+				for (String n : names) {
+					String l = n.toLowerCase();
+
+					if (!lowerCaseMap.containsKey(l))
+						lowerCaseMap.put(l, new HashSet<String>());
+
+					lowerCaseMap.get(l).add(n);
+				}
+			}
 
 			while (match.find()) {
+				Integer[] offset = new Integer[2];
 				offset[0] = match.start();
 				offset[1] = match.end();
 				Set<Entity> alreadyMatched;
 				name = match.group();
 				Map<String, Set<Entity>> map = nameMap;
+				Set<String> uppers = null;
 
 				if (matched.containsKey(offset)) {
 					alreadyMatched = matched.get(offset);
@@ -347,11 +364,24 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 					matched.put(offset, alreadyMatched);
 				}
 
-				if (!nameMap.containsKey(name)) {
+				if (lowerCaseMap != null &&
+				    lowerCaseMap.containsKey(name.toLowerCase())) {
+					uppers = lowerCaseMap.get(name.toLowerCase());
+					uppers.retainAll(nameMap.keySet());
+				}
+
+				if ((!nameMap.containsKey(name) && uppers == null) ||
+				    (uppers != null && uppers.isEmpty())) {
 					// If the name does not match, it *should* match to a
 					// name in the compressionMap
 					name = compressed(name);
 					map = compressionMap;
+
+					if (lowerCaseMap != null &&
+					    lowerCaseMap.containsKey(name.toLowerCase())) {
+						uppers = lowerCaseMap.get(name.toLowerCase());
+						uppers.retainAll(compressionMap.keySet());
+					}
 				}
 
 				if (map.containsKey(name)) {
@@ -366,13 +396,30 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 							alreadyMatched.add(e);
 						}
 					}
+				} else if (uppers != null && !uppers.isEmpty()) {
+					for (String realName : uppers) {
+						for (Entity e : map.get(realName)) {
+							if (!alreadyMatched.contains(e)) {
+								annotate(e, textCas, match.start(),
+								    match.end());
+								++entityMatches[list.indexOf(e)];
+								alreadyMatched.add(e);
+							}
+						}
+					}
 				} else {
 					logger.log(Level.WARNING,
 					    "name='" + name + "' not found in name map for doc '" +
 					            documentId + "'");
-					logger.log(Level.FINE,
-					    "surrounding='" + text.substring(offset[0] - 10 > 0 ? offset[0] - 10 : 0, offset[1] + 10 < text.length() ? offset[1] + 10 : text.length()) + "' of name in doc '" +
-					            documentId + "'");
+					logger.log(
+					    Level.FINE,
+					    "surrounding='" +
+					            text.substring(offset[0] - 10 > 0
+					                    ? offset[0] - 10
+					                    : 0, offset[1] + 10 < text.length()
+					                    ? offset[1] + 10
+					                    : text.length()) +
+					            "' of name in doc '" + documentId + "'");
 					logger.log(
 					    Level.INFO,
 					    "names=" +

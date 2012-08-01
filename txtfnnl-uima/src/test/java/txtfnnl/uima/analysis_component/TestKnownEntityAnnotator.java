@@ -79,6 +79,10 @@ public class TestKnownEntityAnnotator {
 		BufferedWriter out = new BufferedWriter(new FileWriter(tmpMap));
 		out.write(docId + "\t" + SEMANTIC_ANNOTATION_IDENTIFIER + "\t" +
 		          ENTITY_NS + "\t" + ENTITY_ID + "\n");
+		out.write(docId + "\t" + SEMANTIC_ANNOTATION_IDENTIFIER +
+		          "\tgene-ns\tgene-id-1\n");
+		out.write(docId + "\t" + SEMANTIC_ANNOTATION_IDENTIFIER +
+		          "\tgene-ns\tgene-id-2\n");
 		out.close();
 		ExternalResourceFactory
 		    .createDependencyAndBind(annotatorDesc,
@@ -97,6 +101,13 @@ public class TestKnownEntityAnnotator {
 		                   + "                    name VARCHAR)");
 		stmt.executeUpdate("INSERT INTO entities VALUES(1, '" + ENTITY_NS +
 		                   "', '" + ENTITY_ID + "', '" + ENTITY_NAME + "')");
+		stmt.executeUpdate("INSERT INTO entities VALUES(2, 'gene-ns', "
+		                   + "'gene-id-1', 'tumor necrosis factor alpha')");
+		stmt.executeUpdate("INSERT INTO entities VALUES(3, 'gene-ns', "
+		                   + "'gene-id-2', 'TNF-alpha')");
+		// create a case where the (case-insensitive) gene names overlap
+		stmt.executeUpdate("INSERT INTO entities VALUES(4, 'gene-ns', "
+		                   + "'gene-id-1', 'tnf-alpha')");
 		stmt.close();
 		jdbc_resource.commit();
 		ExternalResourceFactory.createDependencyAndBind(annotatorDesc,
@@ -157,6 +168,48 @@ public class TestKnownEntityAnnotator {
 		}
 
 		assertEquals(1, count);
+	}
+
+	@Test
+	public void testCaseInsensitiveMatching() throws CASRuntimeException,
+	        IOException, AnalysisEngineProcessException {
+		String text = "The mouse Tumor necrosis factor alpha (Tnf-alpha) "
+		              + "gene is one of the earliest genes expressed.\n";
+		BufferedWriter out = new BufferedWriter(new FileWriter(textFile));
+		out.write(text);
+		out.close();
+		textJCas.setDocumentText(text);
+		rawJCas.setSofaDataURI("file:" + textFile.getCanonicalPath(),
+		    "text/plain");
+		annotator.process(baseJCas.getCas());
+		int count = 0;
+
+		for (SemanticAnnotation ann : JCasUtil.select(textJCas,
+		    SemanticAnnotation.class)) {
+			FSArray a = ann.getProperties();
+			Property p0 = (Property) a.get(0);
+			Property p1 = (Property) a.get(1);
+			assertEquals("namespace", p0.getName());
+			assertEquals("gene-ns", p0.getValue());
+			assertEquals("identifier", p1.getName());
+			
+			if (count == 0)
+				assertEquals("gene-id-1", p1.getValue());
+			else if (count == 1)
+				assertEquals("gene-id-2", p1.getValue());
+			else
+				assertEquals("gene-id-1", p1.getValue());
+
+			if (count == 0)
+				assertEquals("Tumor necrosis factor alpha",
+				    ann.getCoveredText());
+			else
+				assertEquals("Tnf-alpha", ann.getCoveredText());
+
+			count++;
+		}
+
+		assertEquals(3, count);
 	}
 
 	@Test
