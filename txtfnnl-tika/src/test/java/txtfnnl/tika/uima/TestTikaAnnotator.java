@@ -66,10 +66,10 @@ public class TestTikaAnnotator {
 	public void testProcessCreatesNewPlainTextView()
 	        throws AnalysisEngineProcessException, CASException {
 		JCas jCas = baseJCas.createView(Views.CONTENT_RAW.toString());
-		jCas.setSofaDataString("text", "text/plain");
+		jCas.setSofaDataString("text ß", "text/plain"); // latin small sharp S
 		tikaAnnotator.process(baseJCas);
 		assertNotNull(baseJCas.getView(Views.CONTENT_TEXT.toString()));
-		assertEquals("text", baseJCas.getView(Views.CONTENT_TEXT.toString())
+		assertEquals("text beta", baseJCas.getView(Views.CONTENT_TEXT.toString())
 		    .getDocumentText());
 	}
 

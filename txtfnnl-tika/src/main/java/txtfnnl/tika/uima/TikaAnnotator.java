@@ -80,7 +80,7 @@ public class TikaAnnotator extends JCasAnnotator_ImplBase {
 			    "no SOFA data stream"));
 		} else {
 			logger.log(Level.INFO, "parsing " + aJCas.getSofaMimeType() +
-			                       " file at " + aJCas.getSofaDataURI());
+			                       " at " + aJCas.getSofaDataURI());
 		}
 
 		Metadata metadata = new Metadata();

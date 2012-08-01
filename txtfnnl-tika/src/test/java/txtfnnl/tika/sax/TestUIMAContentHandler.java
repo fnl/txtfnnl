@@ -12,6 +12,7 @@ import org.junit.Test;
 
 import org.apache.tika.metadata.Metadata;
 import org.apache.uima.analysis_engine.AnalysisEngine;
+import org.apache.uima.jcas.JCas;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.metadata.TypeSystemDescription;
 
@@ -76,6 +77,14 @@ public class TestUIMAContentHandler {
 		}
 
 		assertEquals(1, count);
+	}
+	
+	@Test
+	public void testGreekCharacers() {
+		handler.characters(new char[] { 'a', '\u0391', ' ', '\u03D7'}, 0, 4);
+		handler.endDocument();
+		JCas jcas = handler.getView();
+		assertEquals("aAlpha kai", jcas.getDocumentText());
 	}
 
 	@Test
