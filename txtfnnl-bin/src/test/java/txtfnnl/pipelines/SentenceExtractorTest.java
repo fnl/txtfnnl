@@ -25,7 +25,7 @@ public class SentenceExtractorTest {
 	@Test
 	public void testDirectoryReaderSetup() throws IOException, UIMAException {
 		File inputDir = IOUtils.mkTmpDir();
-		SentenceExtractor se = new SentenceExtractor(inputDir, "mime type",
+		SentenceSplitter se = new SentenceSplitter(inputDir, "mime type",
 		    true, null, null, true, true);
 		ConfigurationParameterSettings cps = se.collectionReader
 		    .getCollectionReaderMetaData().getConfigurationParameterSettings();
@@ -43,7 +43,7 @@ public class SentenceExtractorTest {
 		File inputFile = File.createTempFile("out",
 		    Long.toString(System.nanoTime()));
 		String[] inputFiles = new String[] { inputFile.getAbsolutePath() };
-		SentenceExtractor se = new SentenceExtractor(inputFiles, null, null,
+		SentenceSplitter se = new SentenceSplitter(inputFiles, null, null,
 		    null, true, true);
 		ConfigurationParameterSettings cps = se.collectionReader
 		    .getCollectionReaderMetaData().getConfigurationParameterSettings();
@@ -59,7 +59,7 @@ public class SentenceExtractorTest {
 		    Long.toString(System.nanoTime()));
 		String[] inputFiles = new String[] { inputFile.getAbsolutePath() };
 		File outputDir = IOUtils.mkTmpDir();
-		SentenceExtractor se = new SentenceExtractor(inputFiles, null,
+		SentenceSplitter se = new SentenceSplitter(inputFiles, null,
 		    outputDir, "encoding", true, true);
 		ConfigurationParameterSettings cps = se.sentenceLineWriter
 		    .getMetaData().getConfigurationParameterSettings();
@@ -81,7 +81,7 @@ public class SentenceExtractorTest {
 		ByteArrayOutputStream outContent = new ByteArrayOutputStream();
 		System.setOut(new PrintStream(outContent));
 		DisableLogging.enableLogging(Level.WARNING);
-		SentenceExtractor se = new SentenceExtractor(
+		SentenceSplitter se = new SentenceSplitter(
 		    new String[] { inputFile.getCanonicalPath() }, null, null,
 		    "UTF-8", false, false);
 		se.run();

@@ -39,7 +39,7 @@ import txtfnnl.utils.IOUtils;
  * 
  * @author Florian Leitner
  */
-public class KnownGeneAnnotator {
+public class GeneMentionAnnotator {
 
 	CollectionReaderDescription collectionReader;
 	AnalysisEngineDescription tikaAED;
@@ -64,10 +64,10 @@ public class KnownGeneAnnotator {
 	            + "AND gene_refs.accession=? "
 	            + "AND gene_strings.cat IN ('name', 'symbol')" };
 
-	private KnownGeneAnnotator(File outputDir, String characterEncoding,
-	                           boolean replaceFiles, String namespace,
-	                           File geneMap, String dbUrl, String dbUser,
-	                           String dbPass) throws IOException,
+	private GeneMentionAnnotator(File outputDir, String characterEncoding,
+	                             boolean replaceFiles, String namespace,
+	                             File geneMap, String dbUrl, String dbUser,
+	                             String dbPass) throws IOException,
 	        UIMAException, ClassNotFoundException {
 		xmiWriter = AnalysisEngineFactory.createPrimitiveDescription(
 		    FileSystemXmiWriter.class, FileSystemXmiWriter.PARAM_ENCODING,
@@ -100,12 +100,14 @@ public class KnownGeneAnnotator {
 		    JdbcConnectionResourceImpl.PARAM_PASSWORD, dbPass);
 	}
 
-	public KnownGeneAnnotator(File inputDirectory, String mimeType,
-	                          boolean recurseDirectory, File outputDirectory,
-	                          String characterEncoding, boolean replaceFiles,
-	                          String namespace, File geneMap, String dbUrl,
-	                          String dbUser, String dbPass)
-	        throws IOException, UIMAException, ClassNotFoundException {
+	public GeneMentionAnnotator(File inputDirectory, String mimeType,
+	                            boolean recurseDirectory,
+	                            File outputDirectory,
+	                            String characterEncoding,
+	                            boolean replaceFiles, String namespace,
+	                            File geneMap, String dbUrl, String dbUser,
+	                            String dbPass) throws IOException,
+	        UIMAException, ClassNotFoundException {
 		this(outputDirectory, characterEncoding, replaceFiles, namespace,
 		    geneMap, dbUrl, dbUser, dbPass);
 		assert inputDirectory.isDirectory() && inputDirectory.canRead() : inputDirectory
@@ -119,11 +121,12 @@ public class KnownGeneAnnotator {
 		    Boolean.valueOf(recurseDirectory));
 	}
 
-	public KnownGeneAnnotator(String[] inputFiles, String mimeType,
-	                          File outputDirectory, String characterEncoding,
-	                          boolean replaceFiles, String namespace,
-	                          File geneMap, String dbUrl, String dbUser,
-	                          String dbPass) throws IOException,
+	public GeneMentionAnnotator(String[] inputFiles, String mimeType,
+	                            File outputDirectory,
+	                            String characterEncoding,
+	                            boolean replaceFiles, String namespace,
+	                            File geneMap, String dbUrl, String dbUser,
+	                            String dbPass) throws IOException,
 	        UIMAException, ClassNotFoundException {
 		this(outputDirectory, characterEncoding, replaceFiles, namespace,
 		    geneMap, dbUrl, dbUser, dbPass);
@@ -150,14 +153,14 @@ public class KnownGeneAnnotator {
 	 *        information.
 	 */
 	public static void main(String[] arguments) {
-		Logger l = Logger.getLogger(SentenceExtractor.class.getName() +
+		Logger l = Logger.getLogger(SentenceSplitter.class.getName() +
 		                            ".main()");
 		Options opts = new Options();
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
 		File outputDirectory = null;
 		File inputDirectory = null;
-		KnownGeneAnnotator annotator;
+		GeneMentionAnnotator annotator;
 		File geneMap = null;
 		String dbUrl = null;
 		String enc = Charset.defaultCharset().toString();
@@ -288,11 +291,11 @@ public class KnownGeneAnnotator {
 
 		try {
 			if (inputDirectory == null)
-				annotator = new KnownGeneAnnotator(inputFiles, mimeType,
+				annotator = new GeneMentionAnnotator(inputFiles, mimeType,
 				    outputDirectory, encoding, replace, namespace, geneMap,
 				    dbUrl, dbUser, dbPass);
 			else
-				annotator = new KnownGeneAnnotator(inputDirectory, mimeType,
+				annotator = new GeneMentionAnnotator(inputDirectory, mimeType,
 				    recursive, outputDirectory, encoding, replace, namespace,
 				    geneMap, dbUrl, dbUser, dbPass);
 

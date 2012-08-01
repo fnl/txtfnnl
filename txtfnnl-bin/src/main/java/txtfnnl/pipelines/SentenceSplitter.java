@@ -38,7 +38,7 @@ import txtfnnl.uima.collection.FileSystemCollectionReader;
  * 
  * @author Florian Leitner
  */
-public class SentenceExtractor {
+public class SentenceSplitter {
 
 	CollectionReaderDescription collectionReader;
 	AnalysisEngineDescription tikaAED;
@@ -61,8 +61,8 @@ public class SentenceExtractor {
 	 * @throws IOException
 	 * @throws UIMAException
 	 */
-	private SentenceExtractor(File outputDir, String characterEncoding,
-	                          boolean replaceFiles, boolean joinLines)
+	private SentenceSplitter(File outputDir, String characterEncoding,
+	                         boolean replaceFiles, boolean joinLines)
 	        throws IOException, UIMAException {
 		sentenceLineWriter = AnalysisEngineFactory.createPrimitiveDescription(
 		    SentenceLineWriter.class, UimaUtil.SENTENCE_TYPE_PARAMETER,
@@ -104,10 +104,10 @@ public class SentenceExtractor {
 	 * @throws ResourceInitializationException
 	 * @throws IOException
 	 */
-	public SentenceExtractor(File inputDirectory, String mimeType,
-	                         boolean recurseDirectory, File outputDirectory,
-	                         String characterEncoding, boolean replaceFiles,
-	                         boolean joinLines) throws IOException,
+	public SentenceSplitter(File inputDirectory, String mimeType,
+	                        boolean recurseDirectory, File outputDirectory,
+	                        String characterEncoding, boolean replaceFiles,
+	                        boolean joinLines) throws IOException,
 	        UIMAException {
 		this(outputDirectory, characterEncoding, replaceFiles, joinLines);
 		assert inputDirectory.isDirectory() && inputDirectory.canRead() : inputDirectory
@@ -138,9 +138,9 @@ public class SentenceExtractor {
 	 * @throws ResourceInitializationException
 	 * @throws IOException
 	 */
-	public SentenceExtractor(String[] inputFiles, String mimeType,
-	                         File outputDirectory, String characterEncoding,
-	                         boolean replaceFiles, boolean joinLines)
+	public SentenceSplitter(String[] inputFiles, String mimeType,
+	                        File outputDirectory, String characterEncoding,
+	                        boolean replaceFiles, boolean joinLines)
 	        throws IOException, UIMAException {
 		this(outputDirectory, characterEncoding, replaceFiles, joinLines);
 		collectionReader = CollectionReaderFactory.createDescription(
@@ -166,14 +166,14 @@ public class SentenceExtractor {
 	 *        information.
 	 */
 	public static void main(String[] arguments) {
-		Logger l = Logger.getLogger(SentenceExtractor.class.getName() +
+		Logger l = Logger.getLogger(SentenceSplitter.class.getName() +
 		                            ".main()");
 		Options opts = new Options();
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
 		File outputDirectory = null;
 		File inputDirectory = null;
-		SentenceExtractor extractor;
+		SentenceSplitter extractor;
 
 		opts.addOption("h", "help", false, "show this help document");
 		opts.addOption("o", "output-directory", true,
@@ -258,10 +258,10 @@ public class SentenceExtractor {
 
 		try {
 			if (inputDirectory == null)
-				extractor = new SentenceExtractor(inputFiles, mimeType,
+				extractor = new SentenceSplitter(inputFiles, mimeType,
 				    outputDirectory, encoding, replace, joinLines);
 			else
-				extractor = new SentenceExtractor(inputDirectory, mimeType,
+				extractor = new SentenceSplitter(inputDirectory, mimeType,
 				    recursive, outputDirectory, encoding, replace, joinLines);
 
 			extractor.run();

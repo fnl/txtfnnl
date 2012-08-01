@@ -80,9 +80,9 @@ $MAVEN_REPO/txtfnnl/txtfnnl-utils/0.1/txtfnnl-utils-0.1.jar;
 #################
 
 help () {
-    echo "usage: txtfnnl <command> [options] <arguments>";
+    echo "usage: txtfnnl <pipeline> [options] <arguments>";
     echo;
-    echo "commands:";
+    echo "pipelines:";
     echo "  ss    - split sentences";
     echo "  gma   - annotate known gene mentions";
     echo;
@@ -94,8 +94,8 @@ if [ $# -gt 0 ]; then
     cmd=$1;
     shift;
     case $cmd in
-        ss) java -Djava.util.logging.config.file=src/main/resources/logging.properties txtfnnl.pipelines.SentenceExtractor "$@";;
-        gma) java -Djava.util.logging.config.file=src/main/resources/logging.properties txtfnnl.pipelines.KnownGeneAnnotator "$@";;
+        ss) java -Djava.util.logging.config.file=src/main/resources/logging.properties txtfnnl.pipelines.SentenceSplitter "$@";;
+        gma) java -Djava.util.logging.config.file=src/main/resources/logging.properties txtfnnl.pipelines.GeneMentionAnnotator "$@";;
         -v) echo txtfnnl-$VERSION;;
         --version) echo txtfnnl-$VERSION;;
         -h) help; exit 0;;
