@@ -131,6 +131,7 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	@Override
 	public void initialize(UimaContext ctx)
 	        throws ResourceInitializationException {
+		super.initialize(ctx);
 		logger = ctx.getLogger();
 		truePositives = 0;
 		falseNegatives = 0;
@@ -369,11 +370,17 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 					logger.log(Level.WARNING,
 					    "name='" + name + "' not found in name map for doc '" +
 					            documentId + "'");
+					logger.log(Level.FINE,
+					    "surrounding='" + text.substring(offset[0] - 10 > 0 ? offset[0] - 10 : 0, offset[1] + 10 < text.length() ? offset[1] + 10 : text.length()) + "' of name in doc '" +
+					            documentId + "'");
 					logger.log(
 					    Level.INFO,
-					    "names='" +
+					    "names=" +
 					            Arrays.toString(nameMap.keySet().toArray()) +
-					            "' for doc '" + documentId + "'");
+					            " compressed=" +
+					            Arrays.toString(compressionMap.keySet()
+					                .toArray()) + " for doc '" + documentId +
+					            "'");
 					logger.log(Level.FINE, "regex='" + regex.pattern() +
 					                       "' for doc '" + documentId + "'");
 				}
@@ -532,8 +539,7 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 			regex.append("\\b|");
 		}
 
-		return Pattern.compile(regex.substring(0, regex.length() - 1),
-		    flags);
+		return Pattern.compile(regex.substring(0, regex.length() - 1), flags);
 	}
 
 	private static boolean

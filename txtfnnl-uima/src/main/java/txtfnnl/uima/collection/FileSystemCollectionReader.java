@@ -74,6 +74,7 @@ public class FileSystemCollectionReader extends CollectionReader_ImplBase {
 	private Tika tika = new Tika(); // for MIME type detection
 
 	public void initialize() throws ResourceInitializationException {
+		super.initialize();
 		File directory = new File(
 		    ((String) getConfigParameterValue(PARAM_DIRECTORY)).trim());
 		Boolean recursive = (Boolean) getConfigParameterValue(PARAM_RECURSIVE);

@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.logging.Level;
 
@@ -36,7 +37,6 @@ public class TestTikaAnnotator {
 		    .createAnalysisEngine("txtfnnl.uima.tikaAEDescriptor");
 		baseJCas = tikaAnnotator.newJCas();
 		DisableLogging.enableLogging(Level.WARNING);
-
 	}
 
 	@Test
@@ -69,8 +69,8 @@ public class TestTikaAnnotator {
 		jCas.setSofaDataString("text ß", "text/plain"); // latin small sharp S
 		tikaAnnotator.process(baseJCas);
 		assertNotNull(baseJCas.getView(Views.CONTENT_TEXT.toString()));
-		assertEquals("text beta", baseJCas.getView(Views.CONTENT_TEXT.toString())
-		    .getDocumentText());
+		assertEquals("text beta",
+		    baseJCas.getView(Views.CONTENT_TEXT.toString()).getDocumentText());
 	}
 
 	@Test
@@ -100,6 +100,22 @@ public class TestTikaAnnotator {
 		}
 
 		assertEquals(1, count);
+	}
+
+	@Test
+	public void testEncoding() throws CASRuntimeException, IOException,
+	        UIMAException {
+		tikaAnnotator = AnalysisEngineFactory.createAnalysisEngine(
+		    "txtfnnl.uima.tikaAEDescriptor", TikaAnnotator.PARAM_ENCODING,
+		    "UTF-8");
+		baseJCas = tikaAnnotator.newJCas();
+		JCas jCas = baseJCas.createView(Views.CONTENT_RAW.toString());
+		File infile = new File("src/test/resources/encoding.html");
+		jCas.setSofaDataURI("file:" + infile.getCanonicalPath(), null);
+		tikaAnnotator.process(baseJCas);
+		jCas = baseJCas.getView(Views.CONTENT_TEXT.toString());
+		String text = jCas.getDocumentText();
+		assertTrue(text, text.indexOf("and HIF-1alpha. A new p300") > -1);
 	}
 
 }

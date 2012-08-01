@@ -8,7 +8,15 @@
     <description/>
     <version>1.0</version>
     <vendor>txtfnnl</vendor>
-    <configurationParameters/>
+    <configurationParameters>
+      <configurationParameter>
+        <name>Encoding</name>
+        <description>Set the Metadata.CONTENT_ENCODING value for Tika to improve the autodetection effect.  </description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+    </configurationParameters>
     <configurationParameterSettings/>
     <typeSystemDescription>
       <imports>

@@ -25,6 +25,7 @@ import org.uimafit.pipeline.SimplePipeline;
 
 import txtfnnl.opennlp.uima.sentdetect.SentenceAnnotator;
 import txtfnnl.opennlp.uima.sentdetect.SentenceLineWriter;
+import txtfnnl.tika.uima.TikaAnnotator;
 import txtfnnl.uima.collection.FileCollectionReader;
 import txtfnnl.uima.collection.FileSystemCollectionReader;
 
@@ -73,8 +74,13 @@ public class SentenceExtractor {
 		    SentenceLineWriter.PARAM_OVERWRITE_FILES, Boolean
 		        .valueOf(replaceFiles), SentenceLineWriter.PARAM_JOIN_LINES,
 		    Boolean.valueOf(joinLines));
-		tikaAED = AnalysisEngineFactory
-		    .createAnalysisEngineDescription("txtfnnl.uima.tikaAEDescriptor");
+		if (characterEncoding == null)
+			tikaAED = AnalysisEngineFactory
+			    .createAnalysisEngineDescription("txtfnnl.uima.tikaAEDescriptor");
+		else
+			tikaAED = AnalysisEngineFactory.createAnalysisEngineDescription(
+			    "txtfnnl.uima.tikaAEDescriptor", TikaAnnotator.PARAM_ENCODING,
+			    characterEncoding);
 		sentenceAED = AnalysisEngineFactory
 		    .createAnalysisEngineDescription("txtfnnl.uima.openNLPSentenceAEDescriptor");
 	}
@@ -156,7 +162,8 @@ public class SentenceExtractor {
 	/**
 	 * Execute a sentence extraction pipeline.
 	 * 
-	 * @param arguments command line arguments; see --help for more information.
+	 * @param arguments command line arguments; see --help for more
+	 *        information.
 	 */
 	public static void main(String[] arguments) {
 		Logger l = Logger.getLogger(SentenceExtractor.class.getName() +
@@ -182,8 +189,7 @@ public class SentenceExtractor {
 		    "replace files in the output directory if they exist [false]");
 		opts.addOption("j", "join-lines", false,
 		    "replace newline chars within sentences with spaces [false]");
-		opts.addOption("v", "verbose", false,
-			    "log FINE-level messages [WARN]");
+		opts.addOption("v", "verbose", false, "log FINE-level messages [WARN]");
 		opts.addOption("i", "info", false, "log INFO-level messages [WARN]");
 		opts.addOption("q", "quiet", false,
 		    "log SEVERE-level messages only [WARN]");

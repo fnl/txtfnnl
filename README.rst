@@ -2,7 +2,7 @@
 txtfnnl 
 =======
 
-aka. text-funnel - ``/tɛkstˈfʌn.əl/``
+text-funnel :: ``/tɛkstˈfʌn.əl/``
 
 Introduction
 ------------

@@ -14,11 +14,12 @@ import java.net.URI;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 
-import org.apache.uima.UIMAFramework;
+import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_component.JCasAnnotator_ImplBase;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.jcas.JCas;
+import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
@@ -42,6 +43,11 @@ public class TikaAnnotator extends JCasAnnotator_ImplBase {
 
 	/** The annotator's URI (for the annotations) set by this AE. */
 	public static final String URI = "http://tika.apache.org";
+	
+	/** Set the content encoding metadata value. */
+	public static final String PARAM_ENCODING = "Encoding";
+	
+	String encoding;
 
 	/** The actual "annotator" for this AE. */
 	private TikaWrapper annotator = new TikaWrapper();
@@ -53,7 +59,15 @@ public class TikaAnnotator extends JCasAnnotator_ImplBase {
 	private String outputView = Views.CONTENT_TEXT.toString();
 
 	/** A logger for this annotator. */
-	private Logger logger = UIMAFramework.getLogger(TikaAnnotator.class);
+	private Logger logger;
+
+	@Override
+	public void initialize(UimaContext ctx)
+	        throws ResourceInitializationException {
+		super.initialize(ctx);
+		logger = ctx.getLogger();
+		encoding = (String) ctx.getConfigParameterValue(PARAM_ENCODING);
+	}
 
 	/**
 	 * The AE process expects a SOFA with a {@link View.CONTENT_RAW} and uses
@@ -87,6 +101,9 @@ public class TikaAnnotator extends JCasAnnotator_ImplBase {
 
 		if (aJCas.getSofaMimeType() != null)
 			metadata.set(Metadata.CONTENT_TYPE, aJCas.getSofaMimeType());
+		
+		if (encoding != null)
+			metadata.set(Metadata.CONTENT_ENCODING, encoding);
 
 		if (aJCas.getSofaDataURI() != null) {
 			try {

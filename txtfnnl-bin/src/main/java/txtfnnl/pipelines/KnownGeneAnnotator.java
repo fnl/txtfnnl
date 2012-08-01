@@ -25,6 +25,7 @@ import org.uimafit.factory.CollectionReaderFactory;
 import org.uimafit.factory.ExternalResourceFactory;
 import org.uimafit.pipeline.SimplePipeline;
 
+import txtfnnl.tika.uima.TikaAnnotator;
 import txtfnnl.uima.analysis_component.KnownEntityAnnotator;
 import txtfnnl.uima.collection.FileCollectionReader;
 import txtfnnl.uima.collection.FileSystemCollectionReader;
@@ -74,8 +75,14 @@ public class KnownGeneAnnotator {
 		    outputDir.getCanonicalPath(),
 		    FileSystemXmiWriter.PARAM_OVERWRITE_FILES,
 		    Boolean.valueOf(replaceFiles));
-		tikaAED = AnalysisEngineFactory
-		    .createAnalysisEngineDescription("txtfnnl.uima.tikaAEDescriptor");
+
+		if (characterEncoding == null)
+			tikaAED = AnalysisEngineFactory
+			    .createAnalysisEngineDescription("txtfnnl.uima.tikaAEDescriptor");
+		else
+			tikaAED = AnalysisEngineFactory.createAnalysisEngineDescription(
+			    "txtfnnl.uima.tikaAEDescriptor", TikaAnnotator.PARAM_ENCODING,
+			    characterEncoding);
 		knownEntityAED = AnalysisEngineFactory.createPrimitiveDescription(
 		    KnownEntityAnnotator.class, KnownEntityAnnotator.PARAM_NAMESPACE,
 		    namespace, KnownEntityAnnotator.PARAM_QUERIES, SQL_QUERIES);
@@ -180,8 +187,7 @@ public class KnownGeneAnnotator {
 		    "hostname of the DB server (incl. port) [localhost]");
 		opts.addOption("u", "db-username", true,
 		    "username for the DB server (if any is needed)");
-		opts.addOption("v", "verbose", false,
-		    "log FINE-level messages [WARN]");
+		opts.addOption("v", "verbose", false, "log FINE-level messages [WARN]");
 		opts.addOption("x", "replace-files", false,
 		    "replace files in the output directory if they exist [false]");
 

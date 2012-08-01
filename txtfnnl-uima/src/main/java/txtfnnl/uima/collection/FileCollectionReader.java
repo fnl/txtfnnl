@@ -61,6 +61,7 @@ public class FileCollectionReader extends CollectionReader_ImplBase {
 	private Tika tika = new Tika(); // for MIME type detection
 
 	public void initialize() throws ResourceInitializationException {
+		super.initialize();
 		String[] fileNames = ((String[]) getConfigParameterValue(PARAM_FILES));
 
 		// TODO: instantiate a Tika language identifier and some profiles
