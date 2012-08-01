@@ -156,7 +156,7 @@ public class SentenceExtractor {
 	/**
 	 * Execute a sentence extraction pipeline.
 	 * 
-	 * @param args command line arguments; see --help for more information.
+	 * @param arguments command line arguments; see --help for more information.
 	 */
 	public static void main(String[] arguments) {
 		Logger l = Logger.getLogger(SentenceExtractor.class.getName() +
@@ -182,9 +182,11 @@ public class SentenceExtractor {
 		    "replace files in the output directory if they exist [false]");
 		opts.addOption("j", "join-lines", false,
 		    "replace newline chars within sentences with spaces [false]");
-		opts.addOption("i", "info", false, "log INFO-level messages [false]");
-		opts.addOption("s", "silent", false,
-		    "log SEVERE-level messages only [false]");
+		opts.addOption("v", "verbose", false,
+			    "log FINE-level messages [WARN]");
+		opts.addOption("i", "info", false, "log INFO-level messages [WARN]");
+		opts.addOption("q", "quiet", false,
+		    "log SEVERE-level messages only [WARN]");
 
 		try {
 			cmd = parser.parse(opts, arguments);
@@ -210,11 +212,14 @@ public class SentenceExtractor {
 			System.exit(cmd.hasOption('h') ? 0 : 1); // == exit ==
 		}
 
-		if (!cmd.hasOption('i'))
-			Logger.getLogger("").setLevel(Level.WARNING);
+		Logger rootLogger = Logger.getLogger("");
 
-		if (cmd.hasOption('s'))
-			Logger.getLogger("").setLevel(Level.SEVERE);
+		if (cmd.hasOption('q'))
+			rootLogger.setLevel(Level.SEVERE);
+		else if (cmd.hasOption('v'))
+			rootLogger.setLevel(Level.FINE);
+		else if (!cmd.hasOption('i'))
+			rootLogger.setLevel(Level.WARNING);
 
 		if (cmd.hasOption('o')) {
 			outputDirectory = new File(cmd.getOptionValue('o'));

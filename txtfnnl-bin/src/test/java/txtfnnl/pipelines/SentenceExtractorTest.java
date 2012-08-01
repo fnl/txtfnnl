@@ -76,7 +76,6 @@ public class SentenceExtractorTest {
 
 	@Test
 	public void testRunningThePipeline() throws UIMAException, IOException {
-		
 		File inputFile = new File("src/test/resources/pubmed.xml");
 		assert inputFile.exists() : "test file does not exist";
 		ByteArrayOutputStream outContent = new ByteArrayOutputStream();
