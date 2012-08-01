@@ -86,7 +86,7 @@ help () {
     echo "  ss    - split sentences";
     echo "  gma   - annotate known gene mentions";
     echo;
-    echo "Use 'txtfnnl <command> --help' to learn more about each command.";
+    echo "Use 'txtfnnl <pipeline> --help' to learn more about each pipeline.";
     echo "(c) Florian Leitner 2012. All rights reserved. Version" $VERSION;
 }
 
