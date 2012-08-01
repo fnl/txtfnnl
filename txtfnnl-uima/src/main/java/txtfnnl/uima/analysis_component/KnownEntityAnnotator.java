@@ -599,7 +599,7 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	}
 
 	private void expandMapWithLowerCase(Map<String, Set<Entity>> map) {
-		for (String n : map.keySet()) {
+		for (String n : map.keySet().toArray(new String[] {})) {
 			String l = n.toLowerCase();
 
 			if (!l.equals(n)) {
