@@ -46,7 +46,7 @@ The script expects to find the local Maven repository either in
 ``~/.m2/repository`` or otherwise defined as the environment variable 
 ``M2_REPO``.
 
-Currently, the following pipelines are available::
+Currently, the following pipelines are available:
 
  - ``ss`` splits any kind of data Tika can extract plain-text from into
    sentences, one per line.
