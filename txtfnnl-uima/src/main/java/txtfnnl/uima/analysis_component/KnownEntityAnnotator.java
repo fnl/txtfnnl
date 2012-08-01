@@ -305,12 +305,10 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		int[] entityMatches = null;
 
 		if (nameMap.size() == 0) {
-			logger.log(Level.WARNING, "no entity names for doc '" +
-			                          documentId + "'");
-			for (Entity e : list) {
-				logger
-				    .log(Level.FINE, "doc '" + documentId + "' entity: " + e);
-			}
+			if (patternFlags == caseSensitiveFlags)
+				logger.log(Level.WARNING,
+				    "no known names for any entity in doc '" + documentId +
+				            "' found");
 		} else {
 			entityMatches = matchEntities(list, documentId, textCas,
 			    patternFlags, nameMap);
@@ -372,6 +370,9 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 				throw new AnalysisEngineProcessException(e);
 			}
 		}
+
+		if (names.size() == 0)
+			logger.log(Level.INFO, "no known names for " + entity);
 
 		return names;
 	}
@@ -435,10 +436,9 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		while (match.find()) {
 			String name = match.group();
 			String lower = caseInsensitiveMatching ? name.toLowerCase() : null;
-			Integer[] offset = new Integer[2];
 			Map<String, Set<Entity>> map = nameMap;
 			Set<Entity> alreadyMatched;
-
+			Integer[] offset = new Integer[2];
 			offset[0] = match.start();
 			offset[1] = match.end();
 
