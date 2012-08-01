@@ -2,7 +2,7 @@
 # (c) Florian Leitner 2012.
 # All rights reserved.
 
-VERSION=0.1;
+VERSION=0.2;
 
 ###################
 ## configuration ##
