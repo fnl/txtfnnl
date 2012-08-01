@@ -7,6 +7,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.After;
 import org.junit.Before;
@@ -99,6 +101,10 @@ public class TestFileSystemXmiWriter {
 	        AnalysisEngineProcessException, UnsupportedEncodingException,
 	        IOException {
 		String enc = System.getProperty("file.encoding");
+		
+		if (IOUtils.isMacOSX())
+			enc = "UTF-8";
+
 		fileSystemXmiConsumer = AnalysisEngineFactory.createPrimitive(
 		    FileSystemXmiWriter.class,
 		    FileSystemXmiWriter.PARAM_OUTPUT_DIRECTORY, OUTPUT_DIR,
@@ -110,8 +116,12 @@ public class TestFileSystemXmiWriter {
 		rawCas.setSofaDataURI("file:/tmp/raw.ext", "text/plain");
 		fileSystemXmiConsumer.process(baseCas);
 		String xml = IOUtils.read(new FileInputStream(outputFile), enc);
-		assertTrue(xml.indexOf("<?xml version=\"1.1\"") == 0);
-		assertTrue(xml.indexOf("encoding=\"" + enc + "\"") > -1);
+		assertTrue(xml, xml.indexOf("<?xml version=\"1.1\"") == 0);
+		Pattern regex = Pattern.compile("encoding *= *\"(.*?)\"");
+		Matcher match = regex.matcher(xml);
+		assertTrue(xml, match.find());
+		assertTrue(enc + " != " + match.group(1),
+		    xml.indexOf("encoding=\"" + enc + "\"") > -1);
 		outputFile.delete();
 	}
 

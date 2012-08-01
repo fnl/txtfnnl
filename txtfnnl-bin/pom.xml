@@ -41,6 +41,11 @@
   		<version>0.1</version>
   		<scope>test</scope>
   	</dependency>
+  	<dependency>
+  		<groupId>postgresql</groupId>
+  		<artifactId>postgresql</artifactId>
+  		<version>9.1-901-1.jdbc4</version>
+  	</dependency>
   </dependencies>
   <properties>
   	<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
