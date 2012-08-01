@@ -25,7 +25,7 @@ public class KnownGeneAnnotatorTest {
 	public void testDirectoryReaderSetup() throws IOException, UIMAException,
 	        ClassNotFoundException {
 		File inputDir = IOUtils.mkTmpDir();
-		KnownGeneAnnotator gAnn = new KnownGeneAnnotator(inputDir,
+		GeneMentionAnnotator gAnn = new GeneMentionAnnotator(inputDir,
 		    "mime type", false, IOUtils.mkTmpDir(), null, true, null,
 		    File.createTempFile("gene_", ".map"), "TODO", null, null);
 		ConfigurationParameterSettings cps = gAnn.collectionReader
@@ -43,7 +43,7 @@ public class KnownGeneAnnotatorTest {
 	public void testFileReaderSetup() throws IOException, UIMAException,
 	        ClassNotFoundException {
 		File inputFile = File.createTempFile("input_", ".txt");
-		KnownGeneAnnotator gAnn = new KnownGeneAnnotator(
+		GeneMentionAnnotator gAnn = new GeneMentionAnnotator(
 		    new String[] { inputFile.getCanonicalPath() }, "mime type",
 		    IOUtils.mkTmpDir(), null, true, null, File.createTempFile("gene_",
 		        ".map"), "TODO", null, null);
@@ -60,7 +60,7 @@ public class KnownGeneAnnotatorTest {
 	public void testXmiWriterSetup() throws IOException, UIMAException,
 	        ClassNotFoundException {
 		File outputDir = IOUtils.mkTmpDir();
-		KnownGeneAnnotator gAnn = new KnownGeneAnnotator(IOUtils.mkTmpDir(),
+		GeneMentionAnnotator gAnn = new GeneMentionAnnotator(IOUtils.mkTmpDir(),
 		    null, true, outputDir, "encoding", false, null,
 		    File.createTempFile("gene_", ".map"), "TODO", null, null);
 		ConfigurationParameterSettings cps = gAnn.xmiWriter
@@ -77,7 +77,7 @@ public class KnownGeneAnnotatorTest {
 	@Test
 	public void testAnalysisEngineSetup() throws IOException, UIMAException,
 	        ClassNotFoundException {
-		KnownGeneAnnotator gAnn = new KnownGeneAnnotator(IOUtils.mkTmpDir(),
+		GeneMentionAnnotator gAnn = new GeneMentionAnnotator(IOUtils.mkTmpDir(),
 		    null, true, IOUtils.mkTmpDir(), null, true, "namespace",
 		    File.createTempFile("gene_", ".map"), "TODO", null, null);
 		ConfigurationParameterSettings cps = gAnn.knownEntityAED
@@ -97,7 +97,7 @@ public class KnownGeneAnnotatorTest {
 		tmpDb.deleteOnExit();
 		String connectionUrl = "jdbc:h2:" + tmpDb.getCanonicalPath();
 		DisableLogging.enableLogging(Level.WARNING);
-		KnownGeneAnnotator gAnn = new KnownGeneAnnotator(
+		GeneMentionAnnotator gAnn = new GeneMentionAnnotator(
 		    new String[] { inputFile.getCanonicalPath() }, null, outputDir,
 		    "UTF-8", false, "namespace", File.createTempFile("gene_",
 		        ".map"), connectionUrl, null, null);

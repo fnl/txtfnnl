@@ -80,9 +80,9 @@ $MAVEN_REPO/txtfnnl/txtfnnl-utils/0.1/txtfnnl-utils-0.1.jar;
 #################
 
 help () {
-    echo "usage: txtfnnl <command> [options] <arguments>";
+    echo "usage: txtfnnl <pipeline> [options] <arguments>";
     echo;
-    echo "commands:";
+    echo "pipelines:";
     echo "  ss    - split sentences";
     echo "  gma   - annotate known gene mentions";
     echo;
