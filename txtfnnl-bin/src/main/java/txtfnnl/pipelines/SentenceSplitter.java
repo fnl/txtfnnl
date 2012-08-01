@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 import opennlp.uima.util.UimaUtil;
@@ -166,13 +167,26 @@ public class SentenceSplitter {
 	 *        information.
 	 */
 	public static void main(String[] arguments) {
-		Logger l = Logger.getLogger(SentenceSplitter.class.getName() +
-		                            ".main()");
-		Options opts = new Options();
+		try {
+			if (System.getProperty("java.util.logging.config.file") == null)
+				LogManager.getLogManager().readConfiguration(
+				    Thread.currentThread().getClass()
+				        .getResourceAsStream("/logging.properties"));
+		} catch (SecurityException ex) {
+			System.err.println("SecurityException while configuring logging");
+			System.err.println(ex.getMessage());
+		} catch (IOException ex) {
+			System.err.println("IOException while configuring logging");
+			System.err.println(ex.getMessage());
+		}
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
 		File outputDirectory = null;
 		File inputDirectory = null;
+		Logger l = Logger.getLogger(SentenceSplitter.class.getName() +
+		                            ".main()");
+		Logger rootLogger = Logger.getLogger("");
+		Options opts = new Options();
 		SentenceSplitter extractor;
 
 		opts.addOption("h", "help", false, "show this help document");
@@ -217,8 +231,6 @@ public class SentenceSplitter {
 			    .println("\n(c) Florian Leitner 2012. All rights reserved.");
 			System.exit(cmd.hasOption('h') ? 0 : 1); // == exit ==
 		}
-
-		Logger rootLogger = Logger.getLogger("");
 
 		if (cmd.hasOption('q'))
 			rootLogger.setLevel(Level.SEVERE);

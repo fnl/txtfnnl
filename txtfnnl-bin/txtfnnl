@@ -69,11 +69,11 @@ $MAVEN_REPO/org/springframework/spring-core/3.0.3.RELEASE/spring-core-3.0.3.RELE
 $MAVEN_REPO/org/uimafit/uimafit/1.3.1/uimafit-1.3.1.jar:\
 $MAVEN_REPO/postgresql/postgresql/9.1-901-1.jdbc4/postgresql-9.1-901-1.jdbc4.jar:\
 $MAVEN_REPO/rome/rome/0.9/rome-0.9.jar:\
-$MAVEN_REPO/txtfnnl/txtfnnl-bin/0.1/txtfnnl-bin-0.1.jar:\
-$MAVEN_REPO/txtfnnl/txtfnnl-opennlp/0.1/txtfnnl-opennlp-0.1.jar:\
-$MAVEN_REPO/txtfnnl/txtfnnl-tika/0.1/txtfnnl-tika-0.1.jar:\
-$MAVEN_REPO/txtfnnl/txtfnnl-uima/0.1/txtfnnl-uima-0.1.jar:\
-$MAVEN_REPO/txtfnnl/txtfnnl-utils/0.1/txtfnnl-utils-0.1.jar;
+$MAVEN_REPO/txtfnnl/txtfnnl-bin/$VERSION/txtfnnl-bin-$VERSION.jar:\
+$MAVEN_REPO/txtfnnl/txtfnnl-opennlp/$VERSION/txtfnnl-opennlp-$VERSION.jar:\
+$MAVEN_REPO/txtfnnl/txtfnnl-tika/$VERSION/txtfnnl-tika-$VERSION.jar:\
+$MAVEN_REPO/txtfnnl/txtfnnl-uima/$VERSION/txtfnnl-uima-$VERSION.jar:\
+$MAVEN_REPO/txtfnnl/txtfnnl-utils/$VERSION/txtfnnl-utils-$VERSION.jar;
 
 #################
 ## main script ##
@@ -96,8 +96,8 @@ if [ $# -gt 0 ]; then
     case $cmd in
         ss) java txtfnnl.pipelines.SentenceSplitter "$@";;
         gma) java txtfnnl.pipelines.GeneMentionAnnotator "$@";;
-        -v) echo txtfnnl-$VERSION;;
-        --version) echo txtfnnl-$VERSION;;
+        -v) echo txtfnnl-$VERSION.0;;
+        --version) echo txtfnnl-$VERSION.0;;
         -h) help; exit 0;;
         --help) help; exit 0;;
         *) echo "unknown command:" $cmd; exit 1;;
