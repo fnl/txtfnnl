@@ -39,7 +39,6 @@
   		<groupId>txtfnnl</groupId>
   		<artifactId>txtfnnl-utils</artifactId>
   		<version>0.1</version>
-  		<scope>test</scope>
   	</dependency>
   	<dependency>
   		<groupId>postgresql</groupId>
