@@ -454,6 +454,7 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 				// If the name does not match, it *should* match to a
 				// name in the compressionMap
 				name = compressed(name);
+				lower = caseInsensitiveMatching ? name.toLowerCase() : null;
 				map = compressionMap;
 			}
 
