@@ -96,13 +96,8 @@ if [ $# -gt 0 ]; then
     case $cmd in
         ss) java txtfnnl.pipelines.SentenceSplitter "$@";;
         gma) java txtfnnl.pipelines.GeneMentionAnnotator "$@";;
-<<<<<<< HEAD
-        -v) echo txtfnnl-$VERSION;;
-        --version) echo txtfnnl-$VERSION;;
-=======
-        -v) echo txtfnnl-$VERSION.0;;
-        --version) echo txtfnnl-$VERSION.0;;
->>>>>>> master
+        -v) echo txtfnnl-$VERSION.1;;
+        --version) echo txtfnnl-$VERSION.1;;
         -h) help; exit 0;;
         --help) help; exit 0;;
         *) echo "unknown command:" $cmd; exit 1;;
