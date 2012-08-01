@@ -97,7 +97,9 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	/** The URL of this Annotator. */
 	public static final String URL = "http://txtfnnl/KnownEntityAnnotator";
 
+	/** The logger for this Annotator. */
 	Logger logger;
+
 	private String namespace = null;
 	private String[] queries;
 	private EntityStringMapResource documentEntityMap;
@@ -106,6 +108,17 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	private int truePositives;
 	private int falseNegatives;
 	private Map<Integer[], Set<Entity>> matched;
+
+	/* states for the RegEx builder in generateRegex(List, int) */
+	private static final int OTHER = 0;
+	private static final int UPPER = 1;
+	private static final int ALL_UPPER = 2;
+	private static final int LOWER = 3;
+	private static final int DIGIT = 4;
+
+	/* flags for the two RegEx matching modes */
+	private static final int caseInsensitiveFlags = (Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+	private static final int caseSensitiveFlags = Pattern.UNICODE_CASE;
 
 	/**
 	 * The string length comparator sorts strings first by length (longest
@@ -138,15 +151,13 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		namespace = (String) ctx.getConfigParameterValue(PARAM_NAMESPACE);
 		queries = (String[]) ctx.getConfigParameterValue(PARAM_QUERIES);
 
-		if (namespace == null)
-			throw new ResourceInitializationException(
-			    ResourceInitializationException.CONFIG_SETTING_ABSENT,
-			    new Object[] { PARAM_NAMESPACE });
+		ensureNotNull(namespace,
+		    ResourceInitializationException.CONFIG_SETTING_ABSENT,
+		    PARAM_NAMESPACE);
 
-		if (queries == null)
-			throw new ResourceInitializationException(
-			    ResourceInitializationException.CONFIG_SETTING_ABSENT,
-			    new Object[] { PARAM_QUERIES });
+		ensureNotNull(queries,
+		    ResourceInitializationException.CONFIG_SETTING_ABSENT,
+		    new Object[] { PARAM_QUERIES });
 
 		try {
 			documentEntityMap = (EntityStringMapResource) ctx
@@ -157,21 +168,25 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 			throw new ResourceInitializationException(e);
 		}
 
-		if (documentEntityMap == null)
-			throw new ResourceInitializationException(
-			    ResourceInitializationException.NO_RESOURCE_FOR_PARAMETERS,
-			    new Object[] { MODEL_KEY_ENTITY_STRING_MAP });
+		ensureNotNull(documentEntityMap,
+		    ResourceInitializationException.NO_RESOURCE_FOR_PARAMETERS,
+		    new Object[] { MODEL_KEY_ENTITY_STRING_MAP });
 
-		if (connector == null)
-			throw new ResourceInitializationException(
-			    ResourceInitializationException.NO_RESOURCE_FOR_PARAMETERS,
-			    new Object[] { MODEL_KEY_JDBC_CONNECTION });
+		ensureNotNull(connector,
+		    ResourceInitializationException.NO_RESOURCE_FOR_PARAMETERS,
+		    new Object[] { MODEL_KEY_JDBC_CONNECTION });
 
 		try {
 			conn = connector.getConnection();
 		} catch (SQLException e) {
 			throw new ResourceInitializationException(e);
 		}
+	}
+
+	private void ensureNotNull(Object o, String msg, Object... params)
+	        throws ResourceInitializationException {
+		if (o == null)
+			throw new ResourceInitializationException(msg, params);
 	}
 
 	/**
@@ -213,15 +228,17 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		List<Entity> list = documentEntityMap.get(documentId);
 
 		if (list == null) {
-			logger.log(Level.INFO, "no entities mapped to doc '" + documentId +
-			                       "' (" + rawCas.getSofaDataURI() + ")");
+			logger.log(
+			    Level.WARNING,
+			    "no entities mapped to doc '" + documentId + "' (" +
+			            rawCas.getSofaDataURI() + ")");
 		} else {
 			// Store a registry of done matches ([start, end]: entity)
 			matched = new HashMap<Integer[], Set<Entity>>();
 
 			// Match the names of those entities to the document text
-			int[] matches = matchEntities(list, documentId, textCas,
-			    Pattern.UNICODE_CASE);
+			int[] matches = annotateEntities(list, documentId, textCas,
+			    caseSensitiveFlags);
 
 			if (matches != null) {
 				// Check missed matches: missed matches are either cases of no
@@ -243,8 +260,8 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 
 				// Try to find missed entities with a case-insensitive regex
 				if (missed.size() > 0) {
-					matches = matchEntities(missed, documentId, textCas,
-					    Pattern.UNICODE_CASE | Pattern.CASE_INSENSITIVE);
+					matches = annotateEntities(missed, documentId, textCas,
+					    caseInsensitiveFlags);
 
 					if (matches != null) {
 						for (int idx = 0; idx > matches.length; ++idx) {
@@ -280,232 +297,28 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	 * @throws AnalysisEngineProcessException if the SQL query or the JDBC
 	 *         fails
 	 */
-	int[] matchEntities(List<Entity> list, String documentId, JCas textCas,
-	                    int patternFlags)
+	int[] annotateEntities(List<Entity> list, String documentId, JCas textCas,
+	                       int patternFlags)
 	        throws AnalysisEngineProcessException {
 		// Create a mapping of all names to their entities in the list
 		Map<String, Set<Entity>> nameMap = generateNameMap(list);
 		int[] entityMatches = null;
 
 		if (nameMap.size() == 0) {
-			logger.log(Level.INFO, "no entity names for doc '" + documentId +
-			                       "'");
+			logger.log(Level.WARNING, "no entity names for doc '" +
+			                          documentId + "'");
 			for (Entity e : list) {
 				logger
 				    .log(Level.FINE, "doc '" + documentId + "' entity: " + e);
 			}
 		} else {
-			// Generate one "gigantic" regex from all names
-			Pattern regex = generateRegex(
-			    new ArrayList<String>(nameMap.keySet()), patternFlags);
-			String text = textCas.getDocumentText();
-
-			/* As the regex contains versions of the name where any non-
-			 * letter or -digit character is allowed in between letter and
-			 * digit "token spans", we create a "compressed" version of the
-			 * name only consisting of letters and digits. */
-
-			// Store these compressed names separately, as we would rather
-			// want to match the "real" names
-			Map<String, Set<Entity>> compressionMap = new HashMap<String, Set<Entity>>();
-
-			for (String name : nameMap.keySet()) {
-				String compressedName = compressed(name);
-
-				// But only do this if the removal of non-letter and -digit
-				// characters does not shorten the name by one third or more
-				if (compressedNameIsTwoThirdsOfLength(compressedName, name)) {
-					if (compressionMap.containsKey(compressedName)) {
-						// The issue: compressed names might merge
-						// "entity spaces"
-						Set<Entity> entities = compressionMap
-						    .get(compressedName);
-						// This is why a separate compressionMap is used!
-						entities.addAll(nameMap.get(name));
-					} else {
-						compressionMap.put(compressedName, nameMap.get(name));
-					}
-				}
-			}
-
-			Matcher match = regex.matcher(text);
-			entityMatches = new int[list.size()];
-			String name;
-			Map<String, Set<String>> lowerCaseMap = null;
-
-			if (regex.flags() == (Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE)) {
-				lowerCaseMap = new HashMap<String, Set<String>>();
-				Set<String> names = new HashSet<String>(nameMap.keySet());
-				names.addAll(compressionMap.keySet());
-
-				for (String n : names) {
-					String l = n.toLowerCase();
-
-					if (!lowerCaseMap.containsKey(l))
-						lowerCaseMap.put(l, new HashSet<String>());
-
-					lowerCaseMap.get(l).add(n);
-				}
-			}
-
-			while (match.find()) {
-				Integer[] offset = new Integer[2];
-				offset[0] = match.start();
-				offset[1] = match.end();
-				Set<Entity> alreadyMatched;
-				name = match.group();
-				Map<String, Set<Entity>> map = nameMap;
-				Set<String> uppers = extractUppers(lowerCaseMap, name, nameMap);
-
-				if (matched.containsKey(offset)) {
-					alreadyMatched = matched.get(offset);
-				} else {
-					alreadyMatched = new HashSet<Entity>();
-					matched.put(offset, alreadyMatched);
-				}
-
-				if (!nameMap.containsKey(name) &&
-				    (uppers == null || uppers.isEmpty())) {
-					// If the name does not match, it *should* match to a
-					// name in the compressionMap
-					name = compressed(name);
-					map = compressionMap;
-					uppers = extractUppers(lowerCaseMap, name, compressionMap);
-				}
-
-				if (map.containsKey(name)) {
-					for (Entity e : map.get(name)) {
-						if (!alreadyMatched.contains(e)) {
-							// Annotate all entities that map to that name on
-							// the
-							// matched text span
-							annotate(e, textCas, match.start(), match.end());
-							// Count a match for that entity
-							++entityMatches[list.indexOf(e)];
-							alreadyMatched.add(e);
-						}
-					}
-				} else if (uppers != null && !uppers.isEmpty()) {
-					for (String realName : uppers) {
-						for (Entity e : map.get(realName)) {
-							if (!alreadyMatched.contains(e)) {
-								annotate(e, textCas, match.start(),
-								    match.end());
-								++entityMatches[list.indexOf(e)];
-								alreadyMatched.add(e);
-							}
-						}
-					}
-				} else {
-					logFailedMatch(documentId, nameMap, regex, text,
-                        compressionMap, name, lowerCaseMap, offset, uppers);
-				}
-			}
+			entityMatches = matchEntities(list, documentId, textCas,
+			    patternFlags, nameMap);
 		}
 
 		// Return the counted matches for each entity
 		// (or null, to show we did not even get that far)
 		return entityMatches;
-	}
-
-	private void logFailedMatch(String documentId,
-                                Map<String, Set<Entity>> nameMap,
-                                Pattern regex, String text,
-                                Map<String, Set<Entity>> compressionMap,
-                                String name,
-                                Map<String, Set<String>> lowerCaseMap,
-                                Integer[] offset, Set<String> uppers) {
-	    logger.log(Level.WARNING,
-	        "name='" + name + "' not found in name map for doc '" +
-	                documentId + "'");
-	    logger.log(
-	        Level.INFO,
-	        "map names=" +
-	                Arrays.toString(nameMap.keySet().toArray()) +
-	                " for doc '" + documentId + "'");
-
-	    if (logger.isLoggable(Level.FINE)) {
-	    	logger.log(
-	    	    Level.FINE,
-	    	    "surrounding text='" +
-	    	            text.substring(offset[0] - 10 > 0
-	    	                    ? offset[0] - 10
-	    	                    : 0,
-	    	                offset[1] + 10 < text.length()
-	    	                        ? offset[1] + 10
-	    	                        : text.length()) +
-	    	            "' in doc '" + documentId + "'");
-	    	logger.log(
-	    	    Level.FINE,
-	    	    "compressed names=" +
-	    	            Arrays.toString(compressionMap.keySet()
-	    	                .toArray()) + " for doc '" +
-	    	            documentId + "'");
-
-	    	if (lowerCaseMap != null)
-	    		logger.log(
-	    		    Level.FINE,
-	    		    "lower-case names=" +
-	    		            Arrays.toString(lowerCaseMap.keySet()
-	    		                .toArray()) + " for doc '" +
-	    		            documentId + "'");
-
-	    	if (uppers != null)
-	    		logger.log(
-	    		    Level.FINE,
-	    		    "upper-case names=" +
-	    		            Arrays.toString(uppers.toArray()) +
-	    		            " for doc '" + documentId + "'");
-
-	    	logger.log(Level.FINE, "regex='" + regex.pattern() +
-	    	                       "' for doc '" + documentId +
-	    	                       "'");
-	    }
-    }
-
-	private Set<String> extractUppers(Map<String, Set<String>> lowerCaseMap,
-                                      String name,
-                                      Map<String, Set<Entity>> nameMap) {
-		Set<String> uppers = null;
-		
-	    if (lowerCaseMap != null &&
-	        lowerCaseMap.containsKey(name.toLowerCase())) {
-	    	uppers = lowerCaseMap.get(name.toLowerCase());
-	    	uppers = new HashSet<String>(uppers);
-	    	uppers.retainAll(nameMap.keySet());
-	    }
-	    return uppers;
-    }
-
-	/**
-	 * Annotate an entity mention on the CAS at the given offsets.
-	 * 
-	 * @param e the Entity to annotate
-	 * @param textCas with the SOFA
-	 * @param start of the entity mention
-	 * @param end of the entity mention
-	 */
-	void annotate(Entity e, JCas textCas, int start, int end) {
-		SemanticAnnotation ann = new SemanticAnnotation(textCas);
-		ann.setAnnotator(URL);
-		ann.setNamespace(namespace);
-		ann.setIdentifier(e.getType());
-		ann.setConfidence(1.0);
-		ann.setBegin(start);
-		ann.setEnd(end);
-		// Add the original entity ns & id, so we can
-		// backtrace
-		Property ns = new Property(textCas);
-		ns.setName("namespace");
-		ns.setValue(e.getNamespace());
-		Property id = new Property(textCas);
-		id.setName("identifier");
-		id.setValue(e.getIdentifier());
-		FSArray properties = new FSArray(textCas, 2);
-		properties.set(0, ns);
-		properties.set(1, id);
-		ann.setProperties(properties);
-		ann.addToIndexes();
 	}
 
 	/**
@@ -531,27 +344,6 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 			}
 		}
 		return nameMap;
-	}
-
-	/**
-	 * Return the name with all non-digit and -letter character removed.
-	 * 
-	 * @param name to "compress"
-	 * @return the "compressed" name
-	 */
-	static String compressed(String name) {
-		StringBuffer compressedName = new StringBuffer();
-		int nLen = name.length();
-		char c;
-
-		for (int i = 0; i < nLen; i++) {
-			c = name.charAt(i);
-
-			if (Character.isLetter(c) || Character.isDigit(c))
-				compressedName.append(c);
-		}
-
-		return compressedName.toString();
 	}
 
 	/**
@@ -584,12 +376,121 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		return names;
 	}
 
-	/* states for the RegEx builder in generateRegex(List, int) */
-	static final private int OTHER = 0;
-	static final private int UPPER = 1;
-	static final private int ALL_UPPER = 2;
-	static final private int LOWER = 3;
-	static final private int DIGIT = 4;
+	/**
+	 * Match the mapped names of all known entities in the text, annotating
+	 * them as SemanticAnnotation spans.
+	 * 
+	 * @param list of Entities to match/find
+	 * @param documentId of the current CAS
+	 * @param textCas the actual SOFA to scan
+	 * @param patternFlags for the Java Pattern
+	 * @param nameMap mapping of all names to their entities
+	 * @throws AnalysisEngineProcessException if the SQL query or the JDBC
+	 *         fails
+	 */
+	int[] matchEntities(List<Entity> list, String documentId, JCas textCas,
+	                    int patternFlags, Map<String, Set<Entity>> nameMap) {
+		// Generate one "gigantic" regex from all names
+		Pattern regex = generateRegex(new ArrayList<String>(nameMap.keySet()),
+		    patternFlags);
+		String text = textCas.getDocumentText();
+		Matcher match = regex.matcher(text);
+		int[] entityMatches = new int[list.size()];
+		boolean caseInsensitiveMatching = (patternFlags == caseInsensitiveFlags);
+
+		/* As the regex contained versions of the name where any non- letter
+		 * or -digit character is allowed in between letter and digit
+		 * "token spans", we create a "compressed" version of the name only
+		 * consisting of letters and digits. */
+
+		// Store these compressed names separately, as we would rather
+		// want to match the "real" names
+		Map<String, Set<Entity>> compressionMap = new HashMap<String, Set<Entity>>();
+
+		for (String name : nameMap.keySet()) {
+			String compressedName = compressed(name);
+
+			// But only do this if the removal of non-letter and -digit
+			// characters does not shorten the name by one third or more
+			if (compressedNameIsTwoThirdsOfLength(compressedName, name)) {
+				if (compressionMap.containsKey(compressedName)) {
+					// The issue: compressed names might merge
+					// "entity spaces"
+					Set<Entity> entities = compressionMap.get(compressedName);
+					// This is why a separate compressionMap is used!
+					entities.addAll(nameMap.get(name));
+				} else {
+					compressionMap.put(compressedName, nameMap.get(name));
+				}
+			}
+		}
+
+		// Expand the mappings to cover the lower-case versions -
+		// this is needed to find the correct names if case-insensitive
+		if (caseInsensitiveMatching) {
+			expandMapWithLowerCase(nameMap);
+			expandMapWithLowerCase(compressionMap);
+		}
+
+		while (match.find()) {
+			String name = match.group();
+			String lower = caseInsensitiveMatching ? name.toLowerCase() : null;
+			Integer[] offset = new Integer[2];
+			Map<String, Set<Entity>> map = nameMap;
+			Set<Entity> alreadyMatched;
+
+			offset[0] = match.start();
+			offset[1] = match.end();
+
+			if (matched.containsKey(offset)) {
+				alreadyMatched = matched.get(offset);
+			} else {
+				alreadyMatched = new HashSet<Entity>();
+				matched.put(offset, alreadyMatched);
+			}
+
+			if (!nameMap.containsKey(name) &&
+			    (lower == null || !nameMap.containsKey(lower))) {
+				// If the name does not match, it *should* match to a
+				// name in the compressionMap
+				name = compressed(name);
+				map = compressionMap;
+			}
+
+			if (map.containsKey(name)) {
+				annotateAll(list, textCas, entityMatches, match,
+				    alreadyMatched, map.get(name));
+			} else if (lower != null && map.containsKey(lower)) {
+				annotateAll(list, textCas, entityMatches, match,
+				    alreadyMatched, map.get(lower));
+			} else {
+				logFailedMatch(documentId, nameMap, regex, text,
+				    compressionMap, name, offset);
+			}
+		}
+		return entityMatches;
+	}
+
+	/**
+	 * Return the name with all non-digit and -letter character removed.
+	 * 
+	 * @param name to "compress"
+	 * @return the "compressed" name
+	 */
+	static String compressed(String name) {
+		StringBuffer compressedName = new StringBuffer();
+		int nLen = name.length();
+		char c;
+
+		for (int i = 0; i < nLen; i++) {
+			c = name.charAt(i);
+
+			if (Character.isLetter(c) || Character.isDigit(c))
+				compressedName.append(c);
+		}
+
+		return compressedName.toString();
+	}
 
 	/**
 	 * Compile a regular expression for a set of names.
@@ -696,4 +597,86 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		}
 		return state;
 	}
+
+	private void expandMapWithLowerCase(Map<String, Set<Entity>> map) {
+		for (String n : map.keySet()) {
+			String l = n.toLowerCase();
+
+			if (!l.equals(n)) {
+				if (!map.containsKey(l))
+					map.put(l, new HashSet<Entity>());
+
+				map.get(l).addAll(map.get(n));
+			}
+		}
+	}
+
+	private void annotateAll(List<Entity> list, JCas textCas,
+	                         int[] entityMatches, Matcher match,
+	                         Set<Entity> alreadyMatched, Set<Entity> entities) {
+		for (Entity e : entities) {
+			if (!alreadyMatched.contains(e)) {
+				// Annotate all entities that map to that name on
+				// the
+				// matched text span
+				SemanticAnnotation ann = new SemanticAnnotation(textCas);
+				ann.setAnnotator(URL);
+				ann.setNamespace(namespace);
+				ann.setIdentifier(e.getType());
+				ann.setConfidence(1.0);
+				ann.setBegin(match.start());
+				ann.setEnd(match.end());
+				// Add the original entity ns & id, so we can
+				// backtrace
+				Property ns = new Property(textCas);
+				ns.setName("namespace");
+				ns.setValue(e.getNamespace());
+				Property id = new Property(textCas);
+				id.setName("identifier");
+				id.setValue(e.getIdentifier());
+				FSArray properties = new FSArray(textCas, 2);
+				properties.set(0, ns);
+				properties.set(1, id);
+				ann.setProperties(properties);
+				ann.addToIndexes();
+				// Count a match for that entity
+				++entityMatches[list.indexOf(e)];
+				alreadyMatched.add(e);
+			}
+		}
+	}
+
+	private void logFailedMatch(String documentId,
+	                            Map<String, Set<Entity>> nameMap,
+	                            Pattern regex, String text,
+	                            Map<String, Set<Entity>> compressionMap,
+	                            String name, Integer[] offset) {
+		logger.log(Level.WARNING, "name='" + name +
+		                          "' not found in name map for doc '" +
+		                          documentId + "'");
+		logger.log(Level.INFO,
+		    "map names=" + Arrays.toString(nameMap.keySet().toArray()) +
+		            " for doc '" + documentId + "'");
+
+		if (logger.isLoggable(Level.FINE)) {
+			logger.log(
+			    Level.FINE,
+			    "surrounding text='" +
+			            text.substring(
+			                offset[0] - 10 > 0 ? offset[0] - 10 : 0,
+			                offset[1] + 10 < text.length()
+			                        ? offset[1] + 10
+			                        : text.length()) + "' in doc '" +
+			            documentId + "'");
+			logger.log(
+			    Level.FINE,
+			    "compressed names=" +
+			            Arrays.toString(compressionMap.keySet().toArray()) +
+			            " for doc '" + documentId + "'");
+
+			logger.log(Level.FINE, "regex='" + regex.pattern() +
+			                       "' for doc '" + documentId + "'");
+		}
+	}
+
 }

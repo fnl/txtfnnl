@@ -11,6 +11,8 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 
@@ -183,6 +185,9 @@ public class TestKnownEntityAnnotator {
 		    "text/plain");
 		annotator.process(baseJCas.getCas());
 		int count = 0;
+		Set<String> ids = new HashSet<String>();
+		ids.add("gene-id-1");
+		ids.add("gene-id-2");
 
 		for (SemanticAnnotation ann : JCasUtil.select(textJCas,
 		    SemanticAnnotation.class)) {
@@ -195,11 +200,9 @@ public class TestKnownEntityAnnotator {
 			
 			if (count == 0)
 				assertEquals("gene-id-1", p1.getValue());
-			else if (count == 1)
-				assertEquals("gene-id-2", p1.getValue());
 			else
-				assertEquals("gene-id-1", p1.getValue());
-
+				assertTrue(p1.getValue(), ids.remove(p1.getValue()));
+			
 			if (count == 0)
 				assertEquals("Tumor necrosis factor alpha",
 				    ann.getCoveredText());
