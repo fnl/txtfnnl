@@ -5,15 +5,15 @@ package txtfnnl.uima.resource;
 
 
 /**
- *
+ * Entity objects produced by the EntityStringMapResource.
  *
  * @author Florian Leitner
  */
 public class Entity {
 
-	private String type;
-	private String namespace;
-	private String identifier;
+	final String type;
+	final String namespace;
+	final String identifier;
 
 	Entity(String type, String namespace, String id) {
 		this.type = type;
@@ -31,6 +31,11 @@ public class Entity {
 	
 	public String getIdentifier() {
 		return identifier;
+	}
+	
+	@Override
+	public String toString() {
+		return type + "(" + namespace + ":" + identifier + ")";
 	}
 	
 }

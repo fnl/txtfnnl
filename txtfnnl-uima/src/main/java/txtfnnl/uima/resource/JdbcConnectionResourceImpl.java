@@ -40,6 +40,7 @@ public class JdbcConnectionResourceImpl implements JdbcConnectionResource,
 	 * <li><code>oracle.jdbc.driver.OracleDriver</code> Oracle</li>
 	 * <li><code>org.postgresql.Driver</code> PostgreSQL</li>
 	 * <li><code>com.ibm.db2.jdbc.app.DB2Driver</code> DB2</li>
+	 * <li><code>org.h2.Driver</code> H2</li>
 	 * </ul>
 	 * 
 	 * */

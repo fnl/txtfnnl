@@ -14,7 +14,18 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.SharedResourceObject;
 
 /**
+ * A Entity String Map is a list of Entities mapped to a unique String each.
  * 
+ * A entity string map should be a line-oriented data stream containing the
+ * following elements, separated by tabs:
+ * <ol>
+ *   <li>unique string ("key")</li>
+ *   <li>Entity type string</li>
+ *   <li>Entity namespace string</li>
+ *   <li>Entity identifier string</li>
+ * </ol>
+ * In the case of a TSV file, make sure that the data resource URL is prefixed
+ * with the "file:" schema prefix.
  * 
  * @author Florian Leitner
  */
