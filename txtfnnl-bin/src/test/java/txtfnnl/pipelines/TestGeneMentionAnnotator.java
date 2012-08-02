@@ -90,6 +90,7 @@ public class TestGeneMentionAnnotator {
 	@Test
 	public void testRunningThePipeline() throws IOException, UIMAException,
 	        ClassNotFoundException {
+		DisableLogging.enableLogging(Level.SEVERE);
 		File inputFile = new File("src/test/resources/pubmed.xml");
 		File outputDir = IOUtils.mkTmpDir();
 		assert inputFile.exists() : "test file does not exist";
