@@ -35,6 +35,7 @@ import org.uimafit.testing.util.DisableLogging;
 import org.uimafit.util.JCasUtil;
 
 import txtfnnl.uima.Views;
+import txtfnnl.uima.analysis_component.KnownEntityAnnotator;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.resource.EntityStringMapResource;
 import txtfnnl.uima.resource.JdbcConnectionResourceImpl;

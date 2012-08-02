@@ -10,7 +10,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -37,6 +36,7 @@ import txtfnnl.uima.resource.Entity;
 import txtfnnl.uima.resource.EntityStringMapResource;
 import txtfnnl.uima.resource.JdbcConnectionResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
+import txtfnnl.utils.StringLengthComparator;
 
 /**
  * A "NER" to detect the presence of names for a pre-defined list of entities.
@@ -107,6 +107,8 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	private Connection conn;
 	private int truePositives;
 	private int falseNegatives;
+	private Set<Entity> unknownEntities;
+	private Map<Entity, Set<String>> storedNames;
 	private Map<Integer[], Set<Entity>> matched;
 
 	/* states for the RegEx builder in generateRegex(List, int) */
@@ -115,31 +117,13 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	private static final int ALL_UPPER = 2;
 	private static final int LOWER = 3;
 	private static final int DIGIT = 4;
+	
+	/* max. size of storedNames Map (gets reset if too big) */
+	private static final int MAX_ENTITY_STORE_SIZE = 1000;
 
 	/* flags for the two RegEx matching modes */
 	private static final int caseInsensitiveFlags = (Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 	private static final int caseSensitiveFlags = Pattern.UNICODE_CASE;
-
-	/**
-	 * The string length comparator sorts strings first by length (longest
-	 * first), then alphabetically (A-z).
-	 * 
-	 * This is a helper class for the regular expression generator.
-	 * 
-	 * @author Florian Leitner
-	 */
-	static class StringLengthComparator implements Comparator<String> {
-
-		public int compare(String o1, String o2) {
-			if (o1.length() > o2.length()) {
-				return -1;
-			} else if (o1.length() < o2.length()) {
-				return 1;
-			} else {
-				return o1.compareTo(o2);
-			}
-		}
-	}
 
 	@Override
 	public void initialize(UimaContext ctx)
@@ -148,6 +132,8 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		logger = ctx.getLogger();
 		truePositives = 0;
 		falseNegatives = 0;
+		unknownEntities = new HashSet<Entity>();
+		storedNames = new HashMap<Entity, Set<String>>();
 		namespace = (String) ctx.getConfigParameterValue(PARAM_NAMESPACE);
 		queries = (String[]) ctx.getConfigParameterValue(PARAM_QUERIES);
 
@@ -205,6 +191,9 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		// Setup ...
 		JCas textCas;
 		JCas rawCas;
+		
+		if (storedNames.size() > MAX_ENTITY_STORE_SIZE)
+			storedNames = new HashMap<Entity, Set<String>>();
 
 		try {
 			textCas = jcas.getView(Views.CONTENT_TEXT.toString());
@@ -335,6 +324,9 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		Map<String, Set<Entity>> nameMap = new HashMap<String, Set<Entity>>();
 
 		for (Entity e : entities) {
+			if (unknownEntities.contains(e))
+				continue;
+			
 			for (String name : getNames(e)) {
 				if (!nameMap.containsKey(name))
 					nameMap.put(name, new HashSet<Entity>());
@@ -352,28 +344,37 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	 * @throws AnalysisEngineProcessException if the SQL query or JDBC fails
 	 */
 	Set<String> getNames(Entity entity) throws AnalysisEngineProcessException {
-		Set<String> names = new HashSet<String>();
-		PreparedStatement stmt;
-		ResultSet result;
-
-		for (String query : queries) {
-			try {
-				stmt = conn.prepareStatement(query,
-				    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-				stmt.setString(1, entity.getNamespace());
-				stmt.setString(2, entity.getIdentifier());
-				result = stmt.executeQuery();
-
-				while (result.next())
-					names.add(result.getString(1));
-			} catch (SQLException e) {
-				throw new AnalysisEngineProcessException(e);
+		Set<String> names;
+		
+		if (storedNames.containsKey(entity)) {
+			names = storedNames.get(entity);
+		} else {
+			names = new HashSet<String>();
+			PreparedStatement stmt;
+			ResultSet result;
+	
+			for (String query : queries) {
+				try {
+					stmt = conn.prepareStatement(query,
+					    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+					stmt.setString(1, entity.getNamespace());
+					stmt.setString(2, entity.getIdentifier());
+					result = stmt.executeQuery();
+	
+					while (result.next())
+						names.add(result.getString(1));
+				} catch (SQLException e) {
+					throw new AnalysisEngineProcessException(e);
+				}
+			}
+	
+			if (names.size() == 0) {
+				logger.log(Level.WARNING, "no known names for " + entity);
+				unknownEntities.add(entity);
+			} else {
+				storedNames.put(entity, names);
 			}
 		}
-
-		if (names.size() == 0)
-			logger.log(Level.INFO, "no known names for " + entity);
-
 		return names;
 	}
 
@@ -504,7 +505,7 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 			return null;
 
 		StringBuffer regex = new StringBuffer();
-		Collections.sort(names, new StringLengthComparator());
+		Collections.sort(names, StringLengthComparator.INSTANCE);
 
 		for (String name : names) {
 			regex.append("\\b");
