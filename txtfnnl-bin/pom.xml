@@ -23,22 +23,22 @@
   	<dependency>
   		<groupId>txtfnnl</groupId>
   		<artifactId>txtfnnl-uima</artifactId>
-  		<version>0.1</version>
+  		<version>0.2</version>
   	</dependency>
   	<dependency>
   		<groupId>txtfnnl</groupId>
   		<artifactId>txtfnnl-tika</artifactId>
-  		<version>0.1</version>
+  		<version>0.2</version>
   	</dependency>
   	<dependency>
   		<groupId>txtfnnl</groupId>
   		<artifactId>txtfnnl-opennlp</artifactId>
-  		<version>0.1</version>
+  		<version>0.2</version>
   	</dependency>
   	<dependency>
   		<groupId>txtfnnl</groupId>
   		<artifactId>txtfnnl-utils</artifactId>
-  		<version>0.1</version>
+  		<version>0.2</version>
   	</dependency>
   	<dependency>
   		<groupId>postgresql</groupId>
