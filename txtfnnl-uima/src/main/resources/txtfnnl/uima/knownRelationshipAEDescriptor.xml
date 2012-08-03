@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<analysisEngineDescription xmlns="http://uima.apache.org/resourceSpecifier">
+  <frameworkImplementation>org.apache.uima.java</frameworkImplementation>
+  <primitive>true</primitive>
+  <annotatorImplementationName>txtfnnl.uima.analysis_component.KnownRelationshipAnnotator</annotatorImplementationName>
+  <analysisEngineMetaData>
+    <name>knownRelationshipAEDescriptor</name>
+    <description>Annotate known ("pre-defined", or "evidence retrieval") relationships (from a RelationshipStringMapResource) between entities (ie., SemanticAnnotations) within sentences (ie., SyntaxAnnotations) on the CAS.
+
+In general, this will require that a txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator and a KnownEntityAnnotator was used to create the relevant annotations this annotator then combines.</description>
+    <version>1.0</version>
+    <vendor>txtfnnl</vendor>
+    <configurationParameters>
+      <configurationParameter>
+        <name>EntityNamespace</name>
+        <description>The namespace that was used for the entity annotations.</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>true</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>opennlp.uima.SentenceType</name>
+        <description>The fully qualified name of the sentence annotation type; by default uses the name set at txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator.SENTENCE_TYPE_NAME</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>RelationshipNamespace</name>
+        <description>The namespace that will be used for the relationship annotations.</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>true</mandatory>
+      </configurationParameter>
+    </configurationParameters>
+    <configurationParameterSettings>
+      <nameValuePair>
+        <name>EntityNamespace</name>
+        <value>
+          <string>http://purl.org/entity/</string>
+        </value>
+      </nameValuePair>
+      <nameValuePair>
+        <name>RelationshipNamespace</name>
+        <value>
+          <string>http://purl.org/relationship/</string>
+        </value>
+      </nameValuePair>
+      <nameValuePair>
+        <name>opennlp.uima.SentenceType</name>
+        <value>
+          <string>txtfnnl.uima.tcas.SyntaxAnnotation</string>
+        </value>
+      </nameValuePair>
+    </configurationParameterSettings>
+    <typeSystemDescription>
+      <imports>
+        <import name="txtfnnl.uima.typeSystemDescriptor"/>
+      </imports>
+    </typeSystemDescription>
+    <typePriorities/>
+    <fsIndexCollection/>
+    <capabilities>
+      <capability>
+        <inputs>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.SyntaxAnnotation</type>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.SemanticAnnotation</type>
+        </inputs>
+        <outputs>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.RelationshipAnnotation</type>
+        </outputs>
+        <languagesSupported/>
+      </capability>
+    </capabilities>
+    <operationalProperties>
+      <modifiesCas>true</modifiesCas>
+      <multipleDeploymentAllowed>true</multipleDeploymentAllowed>
+      <outputsNewCASes>false</outputsNewCASes>
+    </operationalProperties>
+  </analysisEngineMetaData>
+  <externalResourceDependencies>
+    <externalResourceDependency>
+      <key>KnownEvidence</key>
+      <description>A text file that contains the entities that are known to be in some relationships within each document being processed.
+
+The file format should be TSV, as:
+1. documentId
+2. entityType
+3. namespace
+4. identifier
+with 2. - 4. repeated as often as required.</description>
+      <interfaceName>txtfnnl.uima.resource.StringMapResource</interfaceName>
+      <optional>false</optional>
+    </externalResourceDependency>
+  </externalResourceDependencies>
+  <resourceManagerConfiguration>
+    <externalResources>
+      <externalResource>
+        <name>DocumentRelationshipList</name>
+        <description>A TSV file containing the document ID (SOFA URI basename w/o suffix) and a list of entites (type, namespace, ID) to annotate.</description>
+        <fileResourceSpecifier>
+          <fileUrl>file:/tmp/path</fileUrl>
+        </fileResourceSpecifier>
+      </externalResource>
+    </externalResources>
+    <externalResourceBindings>
+      <externalResourceBinding>
+        <key>KnownEvidence</key>
+        <resourceName>DocumentRelationshipList</resourceName>
+      </externalResourceBinding>
+    </externalResourceBindings>
+  </resourceManagerConfiguration>
+</analysisEngineDescription>
