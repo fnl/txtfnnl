@@ -1,85 +1,47 @@
 package txtfnnl.uima.resource;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
-import org.apache.uima.resource.DataResource;
 import org.apache.uima.resource.ResourceInitializationException;
-import org.apache.uima.resource.SharedResourceObject;
 
 /**
- * A Entity String Map is a list of Entities mapped to a unique String each.
+ * An EntityStringMapResource provides one Set of Entities mapped to a unique
+ * key (String).
  * 
- * A entity string map should be a line-oriented data stream containing the
+ * An entity string map should be a line-oriented data stream containing the
  * following elements, separated by tabs:
  * <ol>
- *   <li>unique string ("key")</li>
- *   <li>Entity type string</li>
- *   <li>Entity namespace string</li>
- *   <li>Entity identifier string</li>
+ * <li>unique string ("key")</li>
+ * <li>Entity type string</li>
+ * <li>Entity namespace string</li>
+ * <li>Entity identifier string</li>
  * </ol>
+ * If there is more than one entity associated to a key string, multiple lines
+ * may be used, each starting with the same key.
+ * 
  * In the case of a TSV file, make sure that the data resource URL is prefixed
  * with the "file:" schema prefix.
  * 
  * @author Florian Leitner
  */
-public class EntityStringMapResource implements
-        StringMapResource<List<Entity>>, SharedResourceObject {
+public class EntityStringMapResource extends
+        LineBasedStringMapResource<Set<Entity>> {
 
-	private Map<String, List<Entity>> entityMap = new HashMap<String, List<Entity>>();
+	@Override
+	void parse(String[] items) throws ResourceInitializationException {
+		Entity entity;
 
-	/**
-	 * @see org.apache.uima.resource.SharedResourceObject#load(org.apache.uima.resource.DataResource)
-	 */
-	public void load(DataResource data) throws ResourceInitializationException {
-		InputStream inStr = null;
 		try {
-			// open input stream to data
-			inStr = data.getInputStream();
-			// read each line
-			BufferedReader reader = new BufferedReader(new InputStreamReader(
-			    inStr));
-			String line;
+			entity = new Entity(items[1], items[2], items[3]);
 
-			while ((line = reader.readLine()) != null) {
-				line = line.trim();
-				if (line.length() == 0)
-					continue;
-
-				String[] items = line.split("\\t");
-				Entity entity;
-				try {
-					entity = new Entity(items[1], items[2], items[3]);
-
-					if (!entityMap.containsKey(items[0]))
-						entityMap.put(items[0], new LinkedList<Entity>());
-				} catch (IndexOutOfBoundsException e) {
-					throw new ResourceInitializationException(
-					    new RuntimeException("illegal line: '" + line +
-					                         "' with " + items.length +
-					                         " fields"));
-				}
-				entityMap.get(items[0]).add(entity);
-			}
-		} catch (IOException e) {
-			throw new ResourceInitializationException(e);
-		} finally {
-			if (inStr != null) {
-				try {
-					inStr.close();
-				} catch (IOException e) {}
-			}
+			if (!resourceMap.containsKey(items[0]))
+				resourceMap.put(items[0], new HashSet<Entity>());
+		} catch (IndexOutOfBoundsException e) {
+			throw new ResourceInitializationException(new RuntimeException(
+			    "illegal line: '" + line + "' with " + items.length +
+			            " fields"));
 		}
+		resourceMap.get(items[0]).add(entity);
 	}
-
-	public List<Entity> get(String key) {
-		return entityMap.get(key);
-	}
-
 }

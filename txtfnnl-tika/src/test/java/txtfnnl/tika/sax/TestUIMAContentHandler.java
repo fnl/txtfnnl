@@ -10,13 +10,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import org.apache.tika.metadata.Metadata;
 import org.apache.uima.analysis_engine.AnalysisEngine;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.metadata.TypeSystemDescription;
 
 import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
 import org.easymock.EasyMock;
@@ -27,7 +27,6 @@ import org.uimafit.util.JCasUtil;
 
 import txtfnnl.tika.uima.TikaAnnotator;
 import txtfnnl.uima.cas.Property;
-import txtfnnl.uima.tcas.DocumentAnnotation;
 import txtfnnl.uima.tcas.StructureAnnotation;
 
 public class TestUIMAContentHandler {
@@ -44,6 +43,7 @@ public class TestUIMAContentHandler {
 	public void setUp() throws ResourceInitializationException {
 		mock = EasyMock.createMock(ContentHandler.class);
 		handler = new UIMAContentHandler(mock);
+		handler.setAnnotatorURI("testURI");
 		assertNull(handler.getView());
 		TypeSystemDescription typeSystemDescription = TypeSystemDescriptionFactory
 		    .createTypeSystemDescription("txtfnnl.uima.typeSystemDescriptor");
@@ -60,28 +60,10 @@ public class TestUIMAContentHandler {
 	}
 
 	@Test
-	public void testAddMetadata() {
-		Metadata metadata = new Metadata();
-		metadata.add("test_name", "test_value");
-		handler.addMetadata(metadata);
-		int count = 0;
-
-		for (DocumentAnnotation ann : JCasUtil.select(handler.getView(),
-		    DocumentAnnotation.class)) {
-			assertEquals(TikaAnnotator.URI, ann.getAnnotator());
-			assertEquals("test_name", ann.getNamespace());
-			assertEquals("test_value", ann.getIdentifier());
-			assertEquals(1.0, ann.getConfidence(), 0.0000001);
-			assertNull(ann.getProperties());
-			count++;
-		}
-
-		assertEquals(1, count);
-	}
-	
-	@Test
-	public void testGreekCharacers() {
-		handler.characters(new char[] { 'a', '\u0391', ' ', '\u03D7'}, 0, 4);
+	public void testGreekCharacers() throws SAXException {
+		GreekLetterContentHandler greek = new GreekLetterContentHandler(
+		    handler);
+		greek.characters(new char[] { 'a', '\u0391', ' ', '\u03D7' }, 0, 4);
 		handler.endDocument();
 		JCas jcas = handler.getView();
 		assertEquals("aAlpha kai", jcas.getDocumentText());
@@ -106,7 +88,7 @@ public class TestUIMAContentHandler {
 		    StructureAnnotation.class)) {
 			assertEquals(2, ann.getBegin());
 			assertEquals(7, ann.getEnd());
-			assertEquals(TikaAnnotator.URI, ann.getAnnotator());
+			assertEquals("testURI", ann.getAnnotator());
 			assertEquals("test_uri#", ann.getNamespace());
 			assertEquals("test_qname", ann.getIdentifier());
 			assertEquals(1.0, ann.getConfidence(), 0.0000001);

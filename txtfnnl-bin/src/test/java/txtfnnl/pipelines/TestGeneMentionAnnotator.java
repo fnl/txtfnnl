@@ -90,19 +90,20 @@ public class TestGeneMentionAnnotator {
 	@Test
 	public void testRunningThePipeline() throws IOException, UIMAException,
 	        ClassNotFoundException {
-		DisableLogging.enableLogging(Level.SEVERE);
 		File inputFile = new File("src/test/resources/pubmed.xml");
 		File outputDir = IOUtils.mkTmpDir();
 		assert inputFile.exists() : "test file does not exist";
 		File tmpDb = File.createTempFile("jdbc_resource_", null);
 		tmpDb.deleteOnExit();
 		String connectionUrl = "jdbc:h2:" + tmpDb.getCanonicalPath();
-		DisableLogging.enableLogging(Level.WARNING);
 		GeneMentionAnnotator gAnn = new GeneMentionAnnotator(
 		    new String[] { inputFile.getCanonicalPath() }, null, outputDir,
 		    "UTF-8", false, "namespace", File.createTempFile("gene_",
 		        ".map"), connectionUrl, null, null);
+		Level l = DisableLogging.disableLogging();
+		DisableLogging.enableLogging(Level.SEVERE);
 		gAnn.run();
+		DisableLogging.enableLogging(l);
 		File outputFile = new File(outputDir, "pubmed.xml.xmi");
 		assertTrue(outputFile.getCanonicalPath() + " does not exist",
 		    outputFile.exists());

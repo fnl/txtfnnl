@@ -76,12 +76,14 @@ public class SentenceSplitter {
 		        .valueOf(replaceFiles), SentenceLineWriter.PARAM_JOIN_LINES,
 		    Boolean.valueOf(joinLines));
 		if (characterEncoding == null)
-			tikaAED = AnalysisEngineFactory
-			    .createAnalysisEngineDescription("txtfnnl.uima.tikaAEDescriptor");
+			tikaAED = AnalysisEngineFactory.createAnalysisEngineDescription(
+			    "txtfnnl.uima.simpleTikaAEDescriptor",
+			    TikaAnnotator.PARAM_NORMALIZE_GREEK_CHARACTERS, Boolean.FALSE);
 		else
 			tikaAED = AnalysisEngineFactory.createAnalysisEngineDescription(
-			    "txtfnnl.uima.tikaAEDescriptor", TikaAnnotator.PARAM_ENCODING,
-			    characterEncoding);
+			    "txtfnnl.uima.simpleTikaAEDescriptor",
+			    TikaAnnotator.PARAM_ENCODING, characterEncoding,
+			    TikaAnnotator.PARAM_NORMALIZE_GREEK_CHARACTERS, Boolean.FALSE);
 		sentenceAED = AnalysisEngineFactory
 		    .createAnalysisEngineDescription("txtfnnl.uima.openNLPSentenceAEDescriptor");
 	}

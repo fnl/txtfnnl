@@ -8,7 +8,6 @@ import org.apache.uima.jcas.cas.TOP_Type;
 
 /** A free-form property structure for annotations.
  * Updated by JCasGen Fri Jun 22 11:12:48 CEST 2012
- * XML source: /Users/fleitner/Workspace/txtfnnl/txtfnnl-uima/src/main/resources/txtfnnl/uima/typeSystemDescriptor.xml
  * @generated */
 public class Property extends TOP {
   /** @generated

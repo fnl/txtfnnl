@@ -11,7 +11,6 @@ import org.apache.uima.jcas.cas.TOP_Type;
 
 /** TextAnnotations of semantic elements (PoS, named entities, etc.).
  * Updated by JCasGen Fri Jun 22 11:12:49 CEST 2012
- * XML source: /Users/fleitner/Workspace/txtfnnl/txtfnnl-uima/src/main/resources/txtfnnl/uima/typeSystemDescriptor.xml
  * @generated */
 public class SemanticAnnotation extends TextAnnotation {
   /** @generated

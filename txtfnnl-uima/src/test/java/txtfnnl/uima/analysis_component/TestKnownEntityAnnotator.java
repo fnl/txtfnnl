@@ -89,7 +89,7 @@ public class TestKnownEntityAnnotator {
 		out.close();
 		ExternalResourceFactory
 		    .createDependencyAndBind(annotatorDesc,
-		        KnownEntityAnnotator.MODEL_KEY_ENTITY_STRING_MAP,
+		        KnownEntityAnnotator.MODEL_KEY_EVIDENCE_STRING_MAP,
 		        EntityStringMapResource.class,
 		        "file:" + tmpMap.getCanonicalPath());
 

@@ -11,7 +11,6 @@ import org.apache.uima.jcas.cas.TOP_Type;
 
 /** Annotations on an entire SOFA.
  * Updated by JCasGen Fri Jun 22 11:12:48 CEST 2012
- * XML source: /Users/fleitner/Workspace/txtfnnl/txtfnnl-uima/src/main/resources/txtfnnl/uima/typeSystemDescriptor.xml
  * @generated */
 public class DocumentAnnotation extends SofaAnnotation {
   /** @generated

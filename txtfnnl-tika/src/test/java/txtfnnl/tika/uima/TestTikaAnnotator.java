@@ -2,6 +2,7 @@ package txtfnnl.tika.uima;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -11,6 +12,7 @@ import java.util.logging.Level;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.tika.metadata.Metadata;
 import org.apache.uima.UIMAException;
 import org.apache.uima.analysis_engine.AnalysisEngine;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
@@ -24,6 +26,7 @@ import org.uimafit.util.JCasUtil;
 
 import txtfnnl.uima.Views;
 import txtfnnl.uima.cas.Property;
+import txtfnnl.uima.tcas.DocumentAnnotation;
 import txtfnnl.uima.tcas.StructureAnnotation;
 
 public class TestTikaAnnotator {
@@ -87,7 +90,7 @@ public class TestTikaAnnotator {
 		    StructureAnnotation.class)) {
 			assertEquals(0, ann.getBegin());
 			assertEquals(4, ann.getEnd());
-			assertEquals(TikaAnnotator.URI, ann.getAnnotator());
+			assertEquals("http://txtfnnl/TikaAnnotator", ann.getAnnotator());
 			assertEquals("http://www.w3.org/1999/xhtml#", ann.getNamespace());
 			assertEquals("p", ann.getIdentifier());
 			assertEquals(1.0, ann.getConfidence(), 0.0000001);
@@ -102,6 +105,27 @@ public class TestTikaAnnotator {
 		assertEquals(1, count);
 	}
 
+	@Test
+	public void testHandleMetadata() {
+		Metadata metadata = new Metadata();
+		metadata.add("test_name", "test_value");
+		TikaAnnotator real = new TikaAnnotator();
+		real.handleMetadata(metadata, baseJCas);
+		int count = 0;
+
+		for (DocumentAnnotation ann : JCasUtil.select(baseJCas,
+		    DocumentAnnotation.class)) {
+			assertEquals(real.getAnnotatorURI(), ann.getAnnotator());
+			assertEquals("test_name", ann.getNamespace());
+			assertEquals("test_value", ann.getIdentifier());
+			assertEquals(1.0, ann.getConfidence(), 0.0000001);
+			assertNull(ann.getProperties());
+			count++;
+		}
+
+		assertEquals(1, count);
+	}
+	
 	@Test
 	public void testEncoding() throws CASRuntimeException, IOException,
 	        UIMAException {

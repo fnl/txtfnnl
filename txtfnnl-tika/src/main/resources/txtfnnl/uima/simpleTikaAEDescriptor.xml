@@ -2,9 +2,9 @@
 <analysisEngineDescription xmlns="http://uima.apache.org/resourceSpecifier">
   <frameworkImplementation>org.apache.uima.java</frameworkImplementation>
   <primitive>true</primitive>
-  <annotatorImplementationName>txtfnnl.tika.uima.TikaAnnotator</annotatorImplementationName>
+  <annotatorImplementationName>txtfnnl.tika.uima.SimpleTikaAnnotator</annotatorImplementationName>
   <analysisEngineMetaData>
-    <name>TikaAnnotator</name>
+    <name>SimpleTikaAnnotator</name>
     <description/>
     <version>1.0</version>
     <vendor>txtfnnl</vendor>
@@ -43,9 +43,7 @@
       <capability>
         <inputs/>
         <outputs>
-          <type allAnnotatorFeatures="true">txtfnnl.uima.cas.Property</type>
           <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.DocumentAnnotation</type>
-          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.StructureAnnotation</type>
         </outputs>
         <inputSofas>
           <sofaName>CONTENT_RAW</sofaName>

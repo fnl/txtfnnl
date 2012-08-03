@@ -51,19 +51,15 @@ public class GeneMentionAnnotator {
 	static final String DEFAULT_DATABASE = "gnamed";
 	static final String DEFAULT_GMAP_FILE = "doc2gene.map";
 	static final String[] SQL_QUERIES = new String[] {
-	    "SELECT protein_strings.value FROM gene_refs "
-	            + "LEFT OUTER JOIN genes2proteins "
-	            + "ON gene_refs.id = genes2proteins.gene_id "
-	            + "LEFT OUTER JOIN protein_strings "
-	            + "ON genes2proteins.protein_id = protein_strings.id "
-	            + "WHERE gene_refs.namespace=? "
-	            + "AND gene_refs.accession=? "
-	            + "AND protein_strings.cat IN ('name', 'symbol')",
-	    "SELECT gene_strings.value FROM gene_refs "
-	            + "LEFT OUTER JOIN gene_strings USING (id) "
-	            + "WHERE gene_refs.namespace=? "
-	            + "AND gene_refs.accession=? "
-	            + "AND gene_strings.cat IN ('name', 'symbol')" };
+	    "SELECT p.value FROM gene_refs AS g "
+	            + "JOIN genes2proteins AS g2p ON g.id = g2p.gene_id "
+	            + "JOIN protein_strings AS p ON g2p.protein_id = p.id "
+	            + "WHERE p.cat IN ('name', 'symbol') "
+	            + "AND g.namespace=? AND g.accession=?",
+	    "SELECT s.value FROM gene_refs AS r "
+	            + "JOIN gene_strings AS s USING (id) "
+	            + "WHERE s.cat IN ('name', 'symbol') "
+	            + "AND r.namespace=? AND r.accession=?" };
 
 	private GeneMentionAnnotator(File outputDir, String characterEncoding,
 	                             boolean replaceFiles, String namespace,
@@ -78,17 +74,19 @@ public class GeneMentionAnnotator {
 		    Boolean.valueOf(replaceFiles));
 
 		if (characterEncoding == null)
-			tikaAED = AnalysisEngineFactory
-			    .createAnalysisEngineDescription("txtfnnl.uima.tikaAEDescriptor");
+			tikaAED = AnalysisEngineFactory.createAnalysisEngineDescription(
+			    "txtfnnl.uima.simpleTikaAEDescriptor",
+			    TikaAnnotator.PARAM_NORMALIZE_GREEK_CHARACTERS, Boolean.TRUE);
 		else
 			tikaAED = AnalysisEngineFactory.createAnalysisEngineDescription(
-			    "txtfnnl.uima.tikaAEDescriptor", TikaAnnotator.PARAM_ENCODING,
-			    characterEncoding);
+			    "txtfnnl.uima.simpleTikaAEDescriptor",
+			    TikaAnnotator.PARAM_ENCODING, characterEncoding,
+			    TikaAnnotator.PARAM_NORMALIZE_GREEK_CHARACTERS, Boolean.TRUE);
 		knownEntityAED = AnalysisEngineFactory.createPrimitiveDescription(
 		    KnownEntityAnnotator.class, KnownEntityAnnotator.PARAM_NAMESPACE,
 		    namespace, KnownEntityAnnotator.PARAM_QUERIES, SQL_QUERIES);
 		ExternalResourceFactory.createDependencyAndBind(knownEntityAED,
-		    KnownEntityAnnotator.MODEL_KEY_ENTITY_STRING_MAP,
+		    KnownEntityAnnotator.MODEL_KEY_EVIDENCE_STRING_MAP,
 		    EntityStringMapResource.class,
 		    "file:" + geneMap.getCanonicalPath());
 		Class.forName("org.postgresql.Driver");

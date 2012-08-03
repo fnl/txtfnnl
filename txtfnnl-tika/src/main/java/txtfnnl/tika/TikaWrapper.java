@@ -178,6 +178,7 @@ public class TikaWrapper {
 		           mediaType.startsWith("application/xml")) {
 			handler = new XMLContentHandler(handler);
 			p = new UnembeddedXMLParser();
+			context.set(Parser.class, p);
 		} else {
 			handler = new CleanBodyContentHandler(handler);
 		}

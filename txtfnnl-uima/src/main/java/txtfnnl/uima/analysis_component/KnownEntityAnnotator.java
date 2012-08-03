@@ -1,8 +1,5 @@
 package txtfnnl.uima.analysis_component;
 
-import java.io.File;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,7 +9,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,20 +17,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_component.JCasAnnotator_ImplBase;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.resource.ResourceAccessException;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
-import org.apache.uima.util.Logger;
 
-import txtfnnl.uima.Views;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.resource.Entity;
-import txtfnnl.uima.resource.EntityStringMapResource;
 import txtfnnl.uima.resource.JdbcConnectionResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.utils.Offset;
@@ -70,18 +62,15 @@ import txtfnnl.utils.StringLengthComparator;
  * list of String names for a given namespace and identifier from the
  * <i>KnownEntities</i> by executing all <i>Queries</i>. The namespace/ID
  * pairs from the <i>KnownEntities</i> will be used as positional parameters
- * in the Queries (namespace first, then identifiers). For example:
+ * in the Queries (namespace first, then identifier!). For example:
  * 
  * <pre>
- *   SELECT entity_names.name FROM entities
- *     JOIN entity_names USING (id)
- *     WHERE entities.namespace = ? AND
- *           entities.id = ?
+ *   SELECT name FROM entities WHERE namespace=? AND identifier=?
  * </pre>
  * 
  * @author Florian Leitner
  */
-public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
+public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 
 	/** The namespace to use for all annotated entites. */
 	public static final String PARAM_NAMESPACE = "Namespace";
@@ -89,17 +78,11 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	/** The list of SQL queries to fetch the entity names. */
 	public static final String PARAM_QUERIES = "Queries";
 
-	/** The key used for the EntityStringMapResource. */
-	public static final String MODEL_KEY_ENTITY_STRING_MAP = "KnownEntities";
-
 	/** The key used for the JdbcConnectionResource. */
 	public static final String MODEL_KEY_JDBC_CONNECTION = "EntityNameDb";
 
 	/** The URL of this Annotator. */
 	public static final String URL = "http://txtfnnl/KnownEntityAnnotator";
-
-	/** The logger for this Annotator. */
-	Logger logger;
 
 	/** A separator between entity name tokens. */
 	static final String SEPARATOR = "[^\\p{L}\\p{Nd}\\p{Nl}]{,3}";
@@ -118,31 +101,20 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	/* internal state of the AE */
 	private String namespace = null; // PARAM_NAMESPACE
 	private String[] queries; // PARAM_QUERIES
-	private EntityStringMapResource documentEntityMap; // MODEL_KEY_ENTITY_STRING_MAP
 	private JdbcConnectionResource connector; // MODEL_KEY_JDBC_CONNECTION
-	private Connection conn; // the connection for MODEL_KEY_JDBC_CONNECTION
-	private int truePositives; // total TP count over all SOFAs
-	private int falseNegatives; // total FN count over all SOFAs
-	private int checksum; // to ensure FP/FN counts are correct
+	private Connection conn; // the connection from MODEL_KEY_JDBC_CONNECTION
 	private Set<Entity> unknownEntities; // entities not in the DB
-	private Map<Offset, Set<Entity>> matched; // avoids duplicate matches
 
 	@Override
 	public void initialize(UimaContext ctx)
 	        throws ResourceInitializationException {
 		super.initialize(ctx);
 
-		logger = ctx.getLogger();
-		truePositives = 0;
-		falseNegatives = 0;
-		checksum = 0;
 		unknownEntities = new HashSet<Entity>();
 		namespace = (String) ctx.getConfigParameterValue(PARAM_NAMESPACE);
 		queries = (String[]) ctx.getConfigParameterValue(PARAM_QUERIES);
 
 		try {
-			documentEntityMap = (EntityStringMapResource) ctx
-			    .getResourceObject(MODEL_KEY_ENTITY_STRING_MAP);
 			connector = (JdbcConnectionResource) ctx
 			    .getResourceObject(MODEL_KEY_JDBC_CONNECTION);
 		} catch (ResourceAccessException e) {
@@ -157,10 +129,6 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		    ResourceInitializationException.CONFIG_SETTING_ABSENT,
 		    PARAM_QUERIES);
 
-		ensureNotNull(documentEntityMap,
-		    ResourceInitializationException.NO_RESOURCE_FOR_PARAMETERS,
-		    MODEL_KEY_ENTITY_STRING_MAP);
-
 		ensureNotNull(connector,
 		    ResourceInitializationException.NO_RESOURCE_FOR_PARAMETERS,
 		    MODEL_KEY_JDBC_CONNECTION);
@@ -172,109 +140,66 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		}
 	}
 
-	private void ensureNotNull(Object o, String msg, Object... params)
-	        throws ResourceInitializationException {
-		if (o == null)
-			throw new ResourceInitializationException(msg, params);
-	}
-
-	/**
-	 * Logs the overall Entity recall.
-	 */
-	public void destroy() {
-		super.destroy();
-
-		int sum = truePositives + falseNegatives;
-		float recall = 100 * (float) truePositives / sum;
-		logger.log(Level.INFO,
-		    String.format("known entity annotation recall=%.2f%%", recall));
-
-		if (checksum != sum)
-			logger.log(Level.WARNING, "TP+FP=" + sum + ", expected " +
-			                          checksum);
-
-	}
-
 	@Override
-	public void process(JCas jcas) throws AnalysisEngineProcessException {
-		// Setup ...
-		JCas textCas;
-		JCas rawCas;
-		String documentId;
+	void process(String documentId, JCas textCas, Set<Entity> entities)
+	        throws AnalysisEngineProcessException {
+		int numEntities;
+		// Store a "registry" of found matches (to avoid "double tagging"
+		// if case-insensitive matching is attempted)
+		Map<Offset, Set<Entity>> matched = new HashMap<Offset, Set<Entity>>();
+		numEntities = entities.size();
+		checksum += numEntities;
 
-		try {
-			textCas = jcas.getView(Views.CONTENT_TEXT.toString());
-			rawCas = jcas.getView(Views.CONTENT_RAW.toString());
-			documentId = new File(new URI(rawCas.getSofaDataURI())).getName();
-		} catch (CASException e) {
-			throw new AnalysisEngineProcessException(e);
-		} catch (URISyntaxException e) {
-			throw new AnalysisEngineProcessException(e);
-		}
+		// Match the names of those entities to the document text
+		Map<Entity, Integer> matches = annotateEntities(entities, matched,
+		    documentId, textCas, CASE_SENSITIVE);
 
-		if (documentId.indexOf('.') > -1)
-			documentId = documentId.substring(0, documentId.lastIndexOf('.'));
+		if (matches != null) {
+			// Check missed matches: missed matches are either cases of no
+			// match at all or when less than 10% of the average number of
+			// matches/entity are found for that entity
+			int tp = entities.size();
+			int sum = 0;
 
-		// Fetch the list of known entities for this document
-		List<Entity> list = documentEntityMap.get(documentId);
+			for (int i : matches.values())
+				sum += i;
 
-		if (list == null || list.size() == 0) {
-			logger.log(
-			    Level.WARNING,
-			    "no entities mapped to doc '" + documentId + "' (" +
-			            rawCas.getSofaDataURI() + ")");
-		} else {
-			// Store a registry of done matches ([start, end]: entity)
-			matched = new HashMap<Offset, Set<Entity>>();
-			checksum += list.size();
+			int min = sum / matches.size() / 10;
+			Iterator<Entity> it = entities.iterator();
 
-			// Match the names of those entities to the document text
-			int[] matches = annotateEntities(list, documentId, textCas,
-			    CASE_SENSITIVE);
-
-			if (matches != null) {
-				// Check missed matches: missed matches are either cases of no
-				// match at all or when less than 10% of the average number of
-				// matches/entity are found for that entity
-				List<Entity> missed = new LinkedList<Entity>();
-				int tp = list.size();
-				int sum = 0;
-
-				for (int i : matches)
-					sum += i;
-
-				int min = sum / matches.length / 10;
-
-				for (int idx = 0; idx < matches.length; ++idx) {
-					if (matches[idx] <= min)
-						missed.add(list.get(idx));
-				}
-
-				// Try to find missed entities with a case-insensitive regex
-				if (missed.size() > 0) {
-					matches = annotateEntities(missed, documentId, textCas,
-					    CASE_INSENSITIVE);
-
-					if (matches != null) {
-						for (int idx = 0; idx > matches.length; ++idx) {
-							if (matches[idx] == 0) {
-								--tp;
-								logger.log(Level.INFO,
-								    "no names for " + missed.get(idx) +
-								            " found in doc '" + documentId +
-								            "' (" + rawCas.getSofaDataURI() +
-								            ")");
-							}
-						}
-					} else {
-						tp -= missed.size();
-					}
-				}
-				truePositives += tp;
-				falseNegatives += list.size() - tp;
-			} else {
-				falseNegatives += list.size();
+			while (it.hasNext()) {
+				if (matches.get(it.next()) > min)
+					it.remove();
 			}
+
+			// Try to find missed entities with a case-insensitive regex
+			if (entities.size() > 0) {
+				logger
+				    .log(
+				        Level.INFO,
+				        "case-insensitive matching for " +
+				                Arrays.toString(entities
+				                    .toArray(new Entity[] {})));
+				matches = annotateEntities(entities, matched, documentId,
+				    textCas, CASE_INSENSITIVE);
+
+				if (matches != null) {
+					for (Entity e : entities) {
+						if (matches.get(e) == 0) {
+							--tp;
+							logger.log(Level.INFO, "no names for " + e +
+							                       " found in doc '" +
+							                       documentId + "'");
+						}
+					}
+				} else {
+					tp -= entities.size();
+				}
+			}
+			truePositives += tp;
+			falseNegatives += numEntities - tp;
+		} else {
+			falseNegatives += numEntities;
 		}
 	}
 
@@ -282,21 +207,24 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	 * Annotate the names of all known entities in the text as
 	 * SemanticAnnotation spans.
 	 * 
-	 * @param list of Entities to match/find
+	 * @param entities to match/find
+	 * @param alreadyMatched entities at a given offset
 	 * @param documentId of the current CAS
 	 * @param textCas the actual SOFA to scan
 	 * @param patternFlags for the Java Pattern
-	 * @return the number of matches for each Entity in list (i.e., the int[]
-	 *         will be as long as the size of list)
+	 * @return the number of matches for each Entity in list or
+	 *         <code>null</code> if no matching could be done
 	 * @throws AnalysisEngineProcessException if the SQL query or the JDBC
 	 *         fails
 	 */
-	int[] annotateEntities(List<Entity> list, String documentId, JCas textCas,
-	                       int patternFlags)
-	        throws AnalysisEngineProcessException {
+	        Map<Entity, Integer>
+	        annotateEntities(Set<Entity> entities,
+	                         Map<Offset, Set<Entity>> alreadyMatched,
+	                         String documentId, JCas textCas, int patternFlags)
+	                throws AnalysisEngineProcessException {
 		// Create a mapping of all names to their entities in the list
-		Map<String, Set<Entity>> nameMap = generateNameMap(list);
-		int[] entityMatches = null;
+		Map<String, Set<Entity>> nameMap = generateNameMap(entities);
+		Map<Entity, Integer> entityMatches = null;
 
 		if (nameMap.size() == 0) {
 			if (patternFlags == CASE_SENSITIVE)
@@ -304,8 +232,8 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 				    "no known names for any entity in doc '" + documentId +
 				            "' found");
 		} else {
-			entityMatches = matchEntities(list, documentId, textCas,
-			    patternFlags, nameMap);
+			entityMatches = matchEntities(entities, documentId, textCas,
+			    patternFlags, nameMap, alreadyMatched);
 		}
 
 		// Return the counted matches for each entity
@@ -324,7 +252,7 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	 * @throws AnalysisEngineProcessException if the SQL query or JDBC used to
 	 *         fetch the names fails
 	 */
-	Map<String, Set<Entity>> generateNameMap(List<Entity> entities)
+	Map<String, Set<Entity>> generateNameMap(Set<Entity> entities)
 	        throws AnalysisEngineProcessException {
 		Map<String, Set<Entity>> nameMap = new HashMap<String, Set<Entity>>();
 
@@ -335,6 +263,7 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 			for (String name : getNames(e)) {
 				if (!nameMap.containsKey(name))
 					nameMap.put(name, new HashSet<Entity>());
+
 				nameMap.get(name).add(e);
 			}
 		}
@@ -384,23 +313,30 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 	 * Match the mapped names of all known entities in the text, annotating
 	 * them as SemanticAnnotation spans.
 	 * 
-	 * @param list of Entities to match/find
+	 * @param entities of Entities to match/find
 	 * @param documentId of the current CAS
 	 * @param textCas the actual SOFA to scan
 	 * @param patternFlags for the Java Pattern
 	 * @param nameMap mapping of all names to their entities
-	 * @return the number of matches for each Entity in list (i.e., the int[]
-	 *         will be as long as the size of list)
+	 * @param alreadyMatched entities at a given offset
+	 * @return the number of matches for each Entity in list
 	 */
-	int[] matchEntities(List<Entity> list, String documentId, JCas textCas,
-	                    int patternFlags, Map<String, Set<Entity>> nameMap) {
+	Map<Entity, Integer>
+	        matchEntities(Set<Entity> entities, String documentId,
+	                      JCas textCas, int patternFlags,
+	                      Map<String, Set<Entity>> nameMap,
+	                      Map<Offset, Set<Entity>> alreadyMatched) {
 		// Generate one "gigantic" regex from all names
 		Pattern regex = generateRegex(new ArrayList<String>(nameMap.keySet()),
 		    patternFlags);
 		String text = textCas.getDocumentText();
 		Matcher match = regex.matcher(text);
-		int[] entityMatches = new int[list.size()];
 		boolean caseInsensitiveMatching = (patternFlags == CASE_INSENSITIVE);
+		Map<Entity, Integer> matchCounts = new HashMap<Entity, Integer>(
+		    entities.size());
+
+		for (Entity e : entities)
+			matchCounts.put(e, Integer.valueOf(0));
 
 		/* As the regex contained versions of the name where any non- letter
 		 * or -digit character is allowed in between letter and digit
@@ -420,9 +356,9 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 				if (compressionMap.containsKey(compressedName)) {
 					// The issue: compressed names might merge
 					// "entity spaces"
-					Set<Entity> entities = compressionMap.get(compressedName);
+					Set<Entity> eSet = compressionMap.get(compressedName);
 					// This is why a separate compressionMap is used!
-					entities.addAll(nameMap.get(name));
+					eSet.addAll(nameMap.get(name));
 				} else {
 					compressionMap.put(compressedName, nameMap.get(name));
 				}
@@ -440,14 +376,14 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 			String name = match.group();
 			String lower = caseInsensitiveMatching ? name.toLowerCase() : null;
 			Map<String, Set<Entity>> map = nameMap;
-			Set<Entity> alreadyMatched;
+			Set<Entity> done;
 			Offset offset = new Offset(match.start(), match.end());
 
-			if (matched.containsKey(offset)) {
-				alreadyMatched = matched.get(offset);
+			if (alreadyMatched.containsKey(offset)) {
+				done = alreadyMatched.get(offset);
 			} else {
-				alreadyMatched = new HashSet<Entity>();
-				matched.put(offset, alreadyMatched);
+				done = new HashSet<Entity>();
+				alreadyMatched.put(offset, done);
 			}
 
 			if (!nameMap.containsKey(name) &&
@@ -460,17 +396,17 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 			}
 
 			if (map.containsKey(name)) {
-				annotateAll(list, textCas, entityMatches, match,
-				    alreadyMatched, map.get(name));
+				annotateAll(entities, textCas, offset, matchCounts, done,
+				    map.get(name));
 			} else if (lower != null && map.containsKey(lower)) {
-				annotateAll(list, textCas, entityMatches, match,
-				    alreadyMatched, map.get(lower));
+				annotateAll(entities, textCas, offset, matchCounts, done,
+				    map.get(lower));
 			} else {
 				logFailedMatch(documentId, nameMap, regex, text,
 				    compressionMap, name, offset);
 			}
 		}
-		return entityMatches;
+		return matchCounts;
 	}
 
 	/**
@@ -618,8 +554,8 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 		}
 	}
 
-	private void annotateAll(List<Entity> list, JCas textCas,
-	                         int[] entityMatches, Matcher match,
+	private void annotateAll(Set<Entity> list, JCas textCas, Offset span,
+	                         Map<Entity, Integer> matchCount,
 	                         Set<Entity> alreadyMatched, Set<Entity> entities) {
 		for (Entity e : entities) {
 			if (!alreadyMatched.contains(e)) {
@@ -631,8 +567,8 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 				ann.setNamespace(namespace);
 				ann.setIdentifier(e.getType());
 				ann.setConfidence(1.0);
-				ann.setBegin(match.start());
-				ann.setEnd(match.end());
+				ann.setBegin(span.start());
+				ann.setEnd(span.end());
 				// Add the original entity ns & id, so we can
 				// backtrace
 				Property ns = new Property(textCas);
@@ -647,7 +583,8 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 				ann.setProperties(properties);
 				ann.addToIndexes();
 				// Count a match for that entity
-				++entityMatches[list.indexOf(e)];
+				// Note: lots of auto-boxing...
+				matchCount.put(e, 1 + matchCount.get(e));
 				alreadyMatched.add(e);
 			}
 		}
@@ -685,5 +622,4 @@ public class KnownEntityAnnotator extends JCasAnnotator_ImplBase {
 			                       "' for doc '" + documentId + "'");
 		}
 	}
-
 }
