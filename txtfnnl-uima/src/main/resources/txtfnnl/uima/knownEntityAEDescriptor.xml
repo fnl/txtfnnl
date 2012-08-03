@@ -17,7 +17,7 @@
         <mandatory>true</mandatory>
       </configurationParameter>
       <configurationParameter>
-        <name>Namespace</name>
+        <name>EntityNamespace</name>
         <description>The namespace for the entity annotations.</description>
         <type>String</type>
         <multiValued>false</multiValued>
@@ -74,17 +74,17 @@
         </value>
       </nameValuePair>
       <nameValuePair>
-        <name>Namespace</name>
-        <value>
-          <string>http://purl.org/entity/</string>
-        </value>
-      </nameValuePair>
-      <nameValuePair>
         <name>Queries</name>
         <value>
           <array>
             <string>SELECT name FROM table WHERE namespace = ? AND identifier = ?</string>
           </array>
+        </value>
+      </nameValuePair>
+      <nameValuePair>
+        <name>EntityNamespace</name>
+        <value>
+          <string>http://purl.org/entity/</string>
         </value>
       </nameValuePair>
     </configurationParameterSettings>

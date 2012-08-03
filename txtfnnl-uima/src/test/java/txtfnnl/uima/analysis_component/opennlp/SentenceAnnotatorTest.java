@@ -1,4 +1,4 @@
-package txtfnnl.opennlp.uima.sentdetect;
+package txtfnnl.uima.analysis_component.opennlp;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -22,6 +22,7 @@ import org.uimafit.testing.util.DisableLogging;
 import org.uimafit.util.JCasUtil;
 
 import txtfnnl.uima.Views;
+import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 
 public class SentenceAnnotatorTest {

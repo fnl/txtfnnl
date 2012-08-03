@@ -1,4 +1,4 @@
-package txtfnnl.opennlp.uima.sentdetect;
+package txtfnnl.uima.collection.opennlp;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -23,12 +23,13 @@ import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
 import txtfnnl.uima.Views;
+import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 import txtfnnl.utils.IOUtils;
 
 /**
  * A CAS consumer that writes plain-text lines, adding line separators after
- * the character(s) {@link txtfnnl.opennlp.uima.sentdetect.SentenceAnnotator}
+ * the character(s) {@link txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator}
  * detected as sentence terminals.
  * 
  * Mandatory parameters:

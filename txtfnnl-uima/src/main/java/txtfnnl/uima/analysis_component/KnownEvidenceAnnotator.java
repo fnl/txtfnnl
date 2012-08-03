@@ -155,6 +155,6 @@ public abstract class KnownEvidenceAnnotator<Evidence> extends
 	 *        resource
 	 * @throws AnalysisEngineProcessException
 	 */
-	abstract void process(String documentId, JCas textCas, Evidence evidence)
+	abstract void process(String documentId, JCas textJCas, Evidence evidence)
 	        throws AnalysisEngineProcessException;
 }

@@ -155,7 +155,7 @@ public class TestKnownEntityAnnotator {
 		    SemanticAnnotation.class)) {
 			assertEquals(offset, ann.getBegin());
 			assertEquals(offset + ENTITY_NAME.length(), ann.getEnd());
-			assertEquals(KnownEntityAnnotator.URL, ann.getAnnotator());
+			assertEquals(KnownEntityAnnotator.URI, ann.getAnnotator());
 			assertEquals(SEMANTIC_ANNOTATION_NAMESPACE, ann.getNamespace());
 			assertEquals(SEMANTIC_ANNOTATION_IDENTIFIER, ann.getIdentifier());
 			assertEquals(1.0, ann.getConfidence(), 0.000001);

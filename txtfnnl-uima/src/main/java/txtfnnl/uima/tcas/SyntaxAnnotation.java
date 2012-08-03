@@ -7,12 +7,20 @@ import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.JCasRegistry;
 import org.apache.uima.jcas.cas.TOP_Type;
 
+import txtfnnl.utils.Offset;
+
 
 
 /** TextAnnotations of syntactic elements (text segements such as sentences, tokens, etc.).
  * Updated by JCasGen Fri Jun 22 11:12:49 CEST 2012
  * @generated */
 public class SyntaxAnnotation extends TextAnnotation {
+	
+	public SyntaxAnnotation(JCas jcas, Offset offset) {
+		super(jcas, offset);
+	}
+
+
   /** @generated
    * @ordered 
    */

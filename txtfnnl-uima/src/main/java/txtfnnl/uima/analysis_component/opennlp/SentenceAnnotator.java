@@ -1,4 +1,4 @@
-package txtfnnl.opennlp.uima.sentdetect;
+package txtfnnl.uima.analysis_component.opennlp;
 
 import opennlp.tools.sentdetect.SentenceDetectorME;
 import opennlp.tools.sentdetect.SentenceModel;
@@ -96,7 +96,8 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 	 * In other words, this is the default value for the
 	 * {@link UimaUtil#SENTENCE_TYPE_PARAMETER}.
 	 */
-	public static final String SENTENCE_TYPE_NAME = "txtfnnl.uima.tcas.SyntaxAnnotation";
+	public static final String SENTENCE_TYPE_NAME = SyntaxAnnotation.class
+	    .getName();
 
 	/**
 	 * Load the sentence detector model resource and initialize the model
@@ -151,7 +152,7 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 	 * 
 	 * @param jcas to iterate over
 	 * @param typeName fully qualified name of the used sentence annotation
-	 *        type
+	 *        type (the default would be {@link #SENTENCE_TYPE_NAME})
 	 * @return a sentence annotation iterator
 	 */
 	public static FSIterator<Annotation> getSentenceIterator(JCas jcas,

@@ -32,11 +32,6 @@
   	</dependency>
   	<dependency>
   		<groupId>txtfnnl</groupId>
-  		<artifactId>txtfnnl-opennlp</artifactId>
-  		<version>0.2</version>
-  	</dependency>
-  	<dependency>
-  		<groupId>txtfnnl</groupId>
   		<artifactId>txtfnnl-utils</artifactId>
   		<version>0.2</version>
   	</dependency>

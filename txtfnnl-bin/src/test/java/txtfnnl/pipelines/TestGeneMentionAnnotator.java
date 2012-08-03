@@ -4,6 +4,10 @@ import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.logging.Level;
 
 import org.junit.Test;
@@ -89,13 +93,26 @@ public class TestGeneMentionAnnotator {
 
 	@Test
 	public void testRunningThePipeline() throws IOException, UIMAException,
-	        ClassNotFoundException {
+	        ClassNotFoundException, SQLException {
 		File inputFile = new File("src/test/resources/pubmed.xml");
 		File outputDir = IOUtils.mkTmpDir();
 		assert inputFile.exists() : "test file does not exist";
 		File tmpDb = File.createTempFile("jdbc_resource_", null);
 		tmpDb.deleteOnExit();
 		String connectionUrl = "jdbc:h2:" + tmpDb.getCanonicalPath();
+		Connection jdbc_resource = DriverManager.getConnection(connectionUrl);
+		Statement stmt = jdbc_resource.createStatement();
+		stmt.executeUpdate("CREATE TABLE gene_refs(id INT PRIMARY KEY,"
+                + "                    namespace VARCHAR,"
+                + "                    accession VARCHAR)");
+		stmt.executeUpdate("CREATE TABLE genes2proteins(gene_id INT,"
+                + "                    protein_id INT)");
+		stmt.executeUpdate("CREATE TABLE protein_strings(id INT PRIMARY KEY,"
+                + "                    cat VARCHAR,"
+                + "                    value VARCHAR)");
+		stmt.executeUpdate("CREATE TABLE gene_strings(id INT PRIMARY KEY,"
+                + "                    cat VARCHAR,"
+                + "                    value VARCHAR)");
 		GeneMentionAnnotator gAnn = new GeneMentionAnnotator(
 		    new String[] { inputFile.getCanonicalPath() }, null, outputDir,
 		    "UTF-8", false, "namespace", File.createTempFile("gene_",

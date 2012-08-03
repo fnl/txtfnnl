@@ -7,12 +7,17 @@ import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.JCasRegistry;
 import org.apache.uima.jcas.cas.TOP_Type;
 
+import txtfnnl.utils.Offset;
+
 
 
 /** TextAnnotations of semantic elements (PoS, named entities, etc.).
  * Updated by JCasGen Fri Jun 22 11:12:49 CEST 2012
  * @generated */
 public class SemanticAnnotation extends TextAnnotation {
+	public SemanticAnnotation(JCas jcas, Offset offset) {
+		super(jcas, offset);
+	}
   /** @generated
    * @ordered 
    */

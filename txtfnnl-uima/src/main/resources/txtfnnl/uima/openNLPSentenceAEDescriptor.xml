@@ -2,7 +2,7 @@
 <analysisEngineDescription xmlns="http://uima.apache.org/resourceSpecifier">
   <frameworkImplementation>org.apache.uima.java</frameworkImplementation>
   <primitive>true</primitive>
-  <annotatorImplementationName>txtfnnl.opennlp.uima.sentdetect.SentenceAnnotator</annotatorImplementationName>
+  <annotatorImplementationName>txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator</annotatorImplementationName>
   <analysisEngineMetaData>
     <name>OpenNLPSentenceAnnotator</name>
     <description>Apache OpenNLP-based sentence annotator.</description>

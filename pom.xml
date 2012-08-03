@@ -11,7 +11,6 @@
 	<modules>
 		<module>txtfnnl-tika</module>
 		<module>txtfnnl-uima</module>
-		<module>txtfnnl-opennlp</module>
 		<module>txtfnnl-bin</module>
 		<module>txtfnnl-utils</module>
 	</modules>

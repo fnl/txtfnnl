@@ -51,13 +51,13 @@ public class GeneMentionAnnotator {
 	static final String DEFAULT_DATABASE = "gnamed";
 	static final String DEFAULT_GMAP_FILE = "doc2gene.map";
 	static final String[] SQL_QUERIES = new String[] {
-	    "SELECT p.value FROM gene_refs AS g "
+	    "SELECT DISTINCT p.value FROM gene_refs AS g "
 	            + "JOIN genes2proteins AS g2p ON g.id = g2p.gene_id "
 	            + "JOIN protein_strings AS p ON g2p.protein_id = p.id "
 	            + "WHERE p.cat IN ('name', 'symbol') "
 	            + "AND g.namespace=? AND g.accession=?",
 	    "SELECT s.value FROM gene_refs AS r "
-	            + "JOIN gene_strings AS s USING (id) "
+	            + "JOIN gene_strings AS s ON r.id = s.id "
 	            + "WHERE s.cat IN ('name', 'symbol') "
 	            + "AND r.namespace=? AND r.accession=?" };
 

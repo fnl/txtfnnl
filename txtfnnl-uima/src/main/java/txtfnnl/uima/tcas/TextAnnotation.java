@@ -38,6 +38,14 @@ public class TextAnnotation extends Annotation {
 		return getOffset().contains(other.getOffset());
 	}
 
+	public TextAnnotation(JCas jcas, Offset offset) {
+		super(jcas);
+		setBegin(offset.start());
+		setEnd(offset.end());
+		readObject();
+		this.offset = offset;
+	}
+
 	/* ADDITIONS END */
 
 	/**

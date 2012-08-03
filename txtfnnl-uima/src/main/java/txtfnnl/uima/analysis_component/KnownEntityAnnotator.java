@@ -73,7 +73,7 @@ import txtfnnl.utils.StringLengthComparator;
 public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 
 	/** The namespace to use for all annotated entites. */
-	public static final String PARAM_NAMESPACE = "Namespace";
+	public static final String PARAM_NAMESPACE = "EntityNamespace";
 
 	/** The list of SQL queries to fetch the entity names. */
 	public static final String PARAM_QUERIES = "Queries";
@@ -81,8 +81,8 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 	/** The key used for the JdbcConnectionResource. */
 	public static final String MODEL_KEY_JDBC_CONNECTION = "EntityNameDb";
 
-	/** The URL of this Annotator. */
-	public static final String URL = "http://txtfnnl/KnownEntityAnnotator";
+	/** The URI of this Annotator. */
+	public static final String URI = "http://txtfnnl/KnownEntityAnnotator";
 
 	/** A separator between entity name tokens. */
 	static final String SEPARATOR = "[^\\p{L}\\p{Nd}\\p{Nl}]{,3}";
@@ -101,6 +101,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 	/* internal state of the AE */
 	private String namespace = null; // PARAM_NAMESPACE
 	private String[] queries; // PARAM_QUERIES
+	private PreparedStatement[] statements;
 	private JdbcConnectionResource connector; // MODEL_KEY_JDBC_CONNECTION
 	private Connection conn; // the connection from MODEL_KEY_JDBC_CONNECTION
 	private Set<Entity> unknownEntities; // entities not in the DB
@@ -133,8 +134,14 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 		    ResourceInitializationException.NO_RESOURCE_FOR_PARAMETERS,
 		    MODEL_KEY_JDBC_CONNECTION);
 
+		statements = new PreparedStatement[queries.length];
+		
 		try {
 			conn = connector.getConnection();
+
+			for (int idx = 0; idx < queries.length; ++idx)
+				statements[idx] = conn.prepareStatement(queries[idx],
+				    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 		} catch (SQLException e) {
 			throw new ResourceInitializationException(e);
 		}
@@ -174,12 +181,12 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 
 			// Try to find missed entities with a case-insensitive regex
 			if (entities.size() > 0) {
-				logger
-				    .log(
-				        Level.INFO,
-				        "case-insensitive matching for " +
-				                Arrays.toString(entities
-				                    .toArray(new Entity[] {})));
+				if (logger.isLoggable(Level.FINE))
+					logger.log(
+					    Level.FINE,
+					    "case-insensitive matching for " +
+					            Arrays.toString(entities
+					                .toArray(new Entity[] {})));
 				matches = annotateEntities(entities, matched, documentId,
 				    textCas, CASE_INSENSITIVE);
 
@@ -280,13 +287,10 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 	private Set<String> getNames(Entity entity)
 	        throws AnalysisEngineProcessException {
 		Set<String> names = new HashSet<String>();
-		PreparedStatement stmt;
 		ResultSet result;
 
-		for (String query : queries) {
+		for (PreparedStatement stmt : statements) {
 			try {
-				stmt = conn.prepareStatement(query,
-				    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 				stmt.setString(1, entity.getNamespace());
 				stmt.setString(2, entity.getIdentifier());
 				result = stmt.executeQuery();
@@ -562,20 +566,18 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 				// Annotate all entities that map to that name on
 				// the
 				// matched text span
-				SemanticAnnotation ann = new SemanticAnnotation(textCas);
-				ann.setAnnotator(URL);
+				SemanticAnnotation ann = new SemanticAnnotation(textCas, span);
 				ann.setNamespace(namespace);
 				ann.setIdentifier(e.getType());
+				ann.setAnnotator(URI);
 				ann.setConfidence(1.0);
-				ann.setBegin(span.start());
-				ann.setEnd(span.end());
 				// Add the original entity ns & id, so we can
 				// backtrace
 				Property ns = new Property(textCas);
-				ns.setName("namespace");
-				ns.setValue(e.getNamespace());
 				Property id = new Property(textCas);
+				ns.setName("namespace");
 				id.setName("identifier");
+				ns.setValue(e.getNamespace());
 				id.setValue(e.getIdentifier());
 				FSArray properties = new FSArray(textCas, 2);
 				properties.set(0, ns);

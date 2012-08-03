@@ -16,7 +16,7 @@ public class Entity {
 
 	private volatile int hashCode;
 
-	Entity(String type, String namespace, String id) {
+	public Entity(String type, String namespace, String id) {
 		this.type = type;
 		this.namespace = namespace;
 		this.identifier = id;

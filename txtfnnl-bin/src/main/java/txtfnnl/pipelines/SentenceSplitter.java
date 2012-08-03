@@ -24,11 +24,11 @@ import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.factory.CollectionReaderFactory;
 import org.uimafit.pipeline.SimplePipeline;
 
-import txtfnnl.opennlp.uima.sentdetect.SentenceAnnotator;
-import txtfnnl.opennlp.uima.sentdetect.SentenceLineWriter;
 import txtfnnl.tika.uima.TikaAnnotator;
+import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.collection.FileCollectionReader;
 import txtfnnl.uima.collection.FileSystemCollectionReader;
+import txtfnnl.uima.collection.opennlp.SentenceLineWriter;
 
 /**
  * A sentence extractor pipeline for (nearly arbitrary) input files.
@@ -48,7 +48,7 @@ public class SentenceSplitter {
 
 	/**
 	 * Instantiate the
-	 * {@link txtfnnl.opennlp.uima.sentdetect.SentenceLineWriter} CAS
+	 * {@link txtfnnl.uima.collection.opennlp.SentenceLineWriter} CAS
 	 * consumer.
 	 * 
 	 * @param outputDir optional output directory to use (otherwise output is
