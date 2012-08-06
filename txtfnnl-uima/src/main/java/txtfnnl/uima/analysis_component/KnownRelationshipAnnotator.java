@@ -18,6 +18,7 @@ import org.apache.uima.cas.FeaturePath;
 import org.apache.uima.cas.text.AnnotationIndex;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
+import org.apache.uima.jcas.cas.TOP;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ResourceInitializationException;
 
@@ -38,7 +39,7 @@ import txtfnnl.uima.tcas.SyntaxAnnotation;
  * <li>The :identifier annotation must represent the Entity type value</li>
  * <li>The first Property value must hold the Entity namespace value</li>
  * <li>The second Property value must hold the Entity identifier value</li>
- * </ul> 
+ * </ul>
  * 
  * Parameter settings:
  * <ul>
@@ -93,11 +94,44 @@ public class KnownRelationshipAnnotator extends
 	 * The namespace used to annotate Entities.
 	 * 
 	 * Should be set as an AE descriptor parameter with the name
-	 * {@link KnownRelationshipAnnotator#PARAM_NAMESPACE}.
+	 * {@link KnownRelationshipAnnotator#PARAM_ENTITY_NAMESPACE}.
 	 * */
 	private String entityNamespace;
 
+	/**
+	 * The namespace used to annotate Relationships.
+	 * 
+	 * Should be set as an AE descriptor parameter with the name
+	 * {@link KnownRelationshipAnnotator#PARAM_RELATIONSHIP_NAMESPACE}.
+	 * */
 	private String relationshipNamespace;
+
+	/**
+	 * Create an iterator over
+	 * {@link txtfnnl.uima.tcas.RelationshipAnnotation} annotation types of
+	 * some given namespace.
+	 * 
+	 * @param jcas with the annotations
+	 * @param namespace to filter on (<code>null</code> to use all)
+	 * @return an iterator over RelationshipAnnotation elements
+	 */
+	public static FSIterator<TOP>
+	        getRelationshipIterator(JCas jcas, String namespace) {
+		FSIterator<TOP> annIt = jcas.getJFSIndexRepository().getAllIndexedFS(RelationshipAnnotation.type);
+
+		if (namespace != null) {
+			Feature nsFeat = jcas.getTypeSystem().getFeatureByFullName(
+			    RelationshipAnnotation.class.getName() + ":namespace");
+			ConstraintFactory cf = jcas.getConstraintFactory();
+			FeaturePath nsPath = jcas.createFeaturePath();
+			nsPath.addFeature(nsFeat);
+			FSStringConstraint nsCons = cf.createStringConstraint();
+			nsCons.equals(namespace);
+			FSMatchConstraint nsEmbed = cf.embedConstraint(nsPath, nsCons);
+			annIt = jcas.createFilteredIterator(annIt, nsEmbed);
+		}
+		return annIt;
+	}
 
 	@Override
 	public void initialize(UimaContext ctx)

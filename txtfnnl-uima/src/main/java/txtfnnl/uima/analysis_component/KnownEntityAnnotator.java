@@ -1,5 +1,14 @@
 package txtfnnl.uima.analysis_component;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -24,11 +33,11 @@ import org.apache.uima.resource.ResourceAccessException;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 
+import txtfnnl.uima.Offset;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.resource.Entity;
 import txtfnnl.uima.resource.JdbcConnectionResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
-import txtfnnl.utils.Offset;
 import txtfnnl.utils.StringLengthComparator;
 
 /**
@@ -135,7 +144,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 		    MODEL_KEY_JDBC_CONNECTION);
 
 		statements = new PreparedStatement[queries.length];
-		
+
 		try {
 			conn = connector.getConnection();
 
@@ -623,5 +632,71 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 			logger.log(Level.FINE, "regex='" + regex.pattern() +
 			                       "' for doc '" + documentId + "'");
 		}
+	}
+
+	public static File
+	        createFromRelationshipMap(File relMap, String separator)
+	                throws ResourceInitializationException {
+		InputStream inStr = null;
+		BufferedWriter outStr = null;
+		String line;
+		File output;
+
+		try {
+			// open input stream to data
+			inStr = new FileInputStream(relMap);
+			BufferedReader reader = new BufferedReader(new InputStreamReader(
+			    inStr));
+
+			// open an output stream
+			output = File.createTempFile("gene_", ".map");
+			output.deleteOnExit();
+			outStr = new BufferedWriter(new OutputStreamWriter(
+			    new FileOutputStream(output)));
+
+			// read each Relationship line and convert to single Entity lines
+			while ((line = reader.readLine()) != null) {
+				line = line.trim();
+				if (line.length() == 0)
+					continue;
+
+				String[] items = line.split(separator);
+
+				if ((items.length - 1) % 3 != 0)
+					new ResourceInitializationException(new AssertionError(
+					    "illegal line: '" + line + "' with " + items.length +
+					            " fields"));
+
+				int numEntities = (items.length - 1) / 3;
+
+				for (int idx = 0; idx < numEntities; ++idx) {
+					outStr.write(items[0]);
+					outStr.write(separator);
+
+					for (int i = 0; i < 3; ++i) {
+						outStr.write(items[1 + idx * 3 + i]);
+						
+						if (i != 2)
+							outStr.write(separator);
+					}
+
+					outStr.write("\n");
+				}
+			}
+		} catch (IOException e2) {
+			throw new ResourceInitializationException(e2);
+		} finally {
+			if (inStr != null) {
+				try {
+					inStr.close();
+				} catch (IOException e) {}
+			}
+			if (outStr != null) {
+				try {
+					outStr.close();
+				} catch (IOException e) {}
+			}
+		}
+		return output;
 	}
 }

@@ -85,6 +85,7 @@ help () {
     echo "pipelines:";
     echo "  ss    - split sentences";
     echo "  gma   - annotate known gene mentions";
+    echo "  gre   - extract sentences with (potential) gene relationships";
     echo;
     echo "Use 'txtfnnl <pipeline> --help' to learn more about each pipeline.";
     echo "(c) Florian Leitner 2012. All rights reserved. Version" $VERSION;
@@ -96,6 +97,7 @@ if [ $# -gt 0 ]; then
     case $cmd in
         ss) java txtfnnl.pipelines.SentenceSplitter "$@";;
         gma) java txtfnnl.pipelines.GeneMentionAnnotator "$@";;
+        gre) java txtfnnl.pipelines.GeneRelationshipExtractor "$@";;
         -v) echo txtfnnl-$VERSION.1;;
         --version) echo txtfnnl-$VERSION.1;;
         -h) help; exit 0;;

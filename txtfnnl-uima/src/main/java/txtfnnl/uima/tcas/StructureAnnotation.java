@@ -6,7 +6,7 @@ import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.JCasRegistry;
 import org.apache.uima.jcas.cas.TOP_Type;
 
-import txtfnnl.utils.Offset;
+import txtfnnl.uima.Offset;
 
 /**
  * TextAnnotations of text structure (sections, paragraphs, headings,

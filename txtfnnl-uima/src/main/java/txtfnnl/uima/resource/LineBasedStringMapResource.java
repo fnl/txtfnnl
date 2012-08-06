@@ -21,13 +21,15 @@ import org.apache.uima.resource.SharedResourceObject;
 public abstract class LineBasedStringMapResource<V> implements
         SharedResourceObject, StringMapResource<V> {
 
+	public static final String DEFAULT_SEPARATOR = "\t";
+	
 	protected Map<String, V> resourceMap = new HashMap<String, V>();
 	protected String line;
 
 	/**
 	 * The separator used on each line to separate relevant items.
 	 */
-	String separator = "\\t";
+	String separator = DEFAULT_SEPARATOR;
 
 	/* (non-Javadoc)
 	 * 

@@ -2,16 +2,12 @@ package txtfnnl.pipelines;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.logging.Level;
-import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 import opennlp.uima.util.UimaUtil;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
@@ -21,13 +17,9 @@ import org.apache.uima.collection.CollectionReaderDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 
 import org.uimafit.factory.AnalysisEngineFactory;
-import org.uimafit.factory.CollectionReaderFactory;
 import org.uimafit.pipeline.SimplePipeline;
 
-import txtfnnl.tika.uima.TikaAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
-import txtfnnl.uima.collection.FileCollectionReader;
-import txtfnnl.uima.collection.FileSystemCollectionReader;
 import txtfnnl.uima.collection.opennlp.SentenceLineWriter;
 
 /**
@@ -39,7 +31,7 @@ import txtfnnl.uima.collection.opennlp.SentenceLineWriter;
  * 
  * @author Florian Leitner
  */
-public class SentenceSplitter {
+public class SentenceSplitter implements Pipeline {
 
 	CollectionReaderDescription collectionReader;
 	AnalysisEngineDescription tikaAED;
@@ -65,6 +57,8 @@ public class SentenceSplitter {
 	private SentenceSplitter(File outputDir, String characterEncoding,
 	                         boolean replaceFiles, boolean joinLines)
 	        throws IOException, UIMAException {
+		tikaAED = PipelineUtils.getTikaAnnotator(false, characterEncoding);
+		
 		sentenceLineWriter = AnalysisEngineFactory.createPrimitiveDescription(
 		    SentenceLineWriter.class, UimaUtil.SENTENCE_TYPE_PARAMETER,
 		    SentenceAnnotator.SENTENCE_TYPE_NAME,
@@ -75,15 +69,6 @@ public class SentenceSplitter {
 		    SentenceLineWriter.PARAM_OVERWRITE_FILES, Boolean
 		        .valueOf(replaceFiles), SentenceLineWriter.PARAM_JOIN_LINES,
 		    Boolean.valueOf(joinLines));
-		if (characterEncoding == null)
-			tikaAED = AnalysisEngineFactory.createAnalysisEngineDescription(
-			    "txtfnnl.uima.simpleTikaAEDescriptor",
-			    TikaAnnotator.PARAM_NORMALIZE_GREEK_CHARACTERS, Boolean.FALSE);
-		else
-			tikaAED = AnalysisEngineFactory.createAnalysisEngineDescription(
-			    "txtfnnl.uima.simpleTikaAEDescriptor",
-			    TikaAnnotator.PARAM_ENCODING, characterEncoding,
-			    TikaAnnotator.PARAM_NORMALIZE_GREEK_CHARACTERS, Boolean.FALSE);
 		sentenceAED = AnalysisEngineFactory
 		    .createAnalysisEngineDescription("txtfnnl.uima.openNLPSentenceAEDescriptor");
 	}
@@ -115,13 +100,8 @@ public class SentenceSplitter {
 		this(outputDirectory, characterEncoding, replaceFiles, joinLines);
 		assert inputDirectory.isDirectory() && inputDirectory.canRead() : inputDirectory
 		    .getAbsolutePath() + " is not a (readable) directory";
-		collectionReader = CollectionReaderFactory.createDescription(
-		    FileSystemCollectionReader.class,
-		    FileSystemCollectionReader.PARAM_DIRECTORY,
-		    inputDirectory.getCanonicalPath(),
-		    FileSystemCollectionReader.PARAM_MIME_TYPE, mimeType,
-		    FileSystemCollectionReader.PARAM_RECURSIVE,
-		    Boolean.valueOf(recurseDirectory));
+		collectionReader = PipelineUtils.getCollectionReader(inputDirectory,
+		    mimeType, recurseDirectory);
 	}
 
 	/**
@@ -146,9 +126,8 @@ public class SentenceSplitter {
 	                        boolean replaceFiles, boolean joinLines)
 	        throws IOException, UIMAException {
 		this(outputDirectory, characterEncoding, replaceFiles, joinLines);
-		collectionReader = CollectionReaderFactory.createDescription(
-		    FileCollectionReader.class, FileCollectionReader.PARAM_FILES,
-		    inputFiles, FileCollectionReader.PARAM_MIME_TYPE, mimeType);
+		collectionReader = PipelineUtils.getCollectionReader(inputFiles,
+		    mimeType);
 	}
 
 	/**
@@ -169,46 +148,19 @@ public class SentenceSplitter {
 	 *        information.
 	 */
 	public static void main(String[] arguments) {
-		try {
-			if (System.getProperty("java.util.logging.config.file") == null)
-				LogManager.getLogManager().readConfiguration(
-				    Thread.currentThread().getClass()
-				        .getResourceAsStream("/logging.properties"));
-		} catch (SecurityException ex) {
-			System.err.println("SecurityException while configuring logging");
-			System.err.println(ex.getMessage());
-		} catch (IOException ex) {
-			System.err.println("IOException while configuring logging");
-			System.err.println(ex.getMessage());
-		}
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
 		File outputDirectory = null;
 		File inputDirectory = null;
-		Logger l = Logger.getLogger(SentenceSplitter.class.getName() +
-		                            ".main()");
-		Logger rootLogger = Logger.getLogger("");
 		Options opts = new Options();
-		SentenceSplitter extractor;
+		Pipeline extractor;
 
-		opts.addOption("h", "help", false, "show this help document");
 		opts.addOption("o", "output-directory", true,
 		    "output directory for writing files [STDOUT]");
-		opts.addOption("e", "encoding", true,
-		    "set an encoding for output files [" + Charset.defaultCharset() +
-		            "]");
-		opts.addOption("m", "mime-type", true,
-		    "define one MIME type for all input files [Tika.detect]");
-		opts.addOption("r", "recursive", false,
-		    "include files in all sub-directories of input directory [false]");
-		opts.addOption("x", "replace-files", false,
-		    "replace files in the output directory if they exist [false]");
 		opts.addOption("j", "join-lines", false,
 		    "replace newline chars within sentences with spaces [false]");
-		opts.addOption("v", "verbose", false, "log FINE-level messages [WARN]");
-		opts.addOption("i", "info", false, "log INFO-level messages [WARN]");
-		opts.addOption("q", "quiet", false,
-		    "log SEVERE-level messages only [WARN]");
+
+		PipelineUtils.addLogAndHelpOptions(opts);
 
 		try {
 			cmd = parser.parse(opts, arguments);
@@ -218,28 +170,16 @@ public class SentenceSplitter {
 			System.exit(1); // == exit ==
 		}
 
+		Logger l = PipelineUtils.loggingSetup(
+		    SentenceSplitter.class.getName(), cmd, opts,
+		    "txtfnnl ss [options] <directory|files...>\n");
+
 		String[] inputFiles = cmd.getArgs();
-		boolean replace = cmd.hasOption('x');
-		boolean recursive = cmd.hasOption('r');
+		boolean recursive = cmd.hasOption('R');
+		String encoding = cmd.getOptionValue('E');
+		String mimeType = cmd.getOptionValue('M');
+		boolean replace = cmd.hasOption('X');
 		boolean joinLines = cmd.hasOption('j');
-		String mimeType = cmd.getOptionValue('m');
-		String encoding = cmd.getOptionValue('e');
-
-		if (cmd.hasOption('h') || inputFiles.length == 0) {
-			HelpFormatter formatter = new HelpFormatter();
-			formatter.printHelp("txtfnnl ss [options] <directory|files...>\n",
-			    opts);
-			System.out
-			    .println("\n(c) Florian Leitner 2012. All rights reserved.");
-			System.exit(cmd.hasOption('h') ? 0 : 1); // == exit ==
-		}
-
-		if (cmd.hasOption('q'))
-			rootLogger.setLevel(Level.SEVERE);
-		else if (cmd.hasOption('v'))
-			rootLogger.setLevel(Level.FINE);
-		else if (!cmd.hasOption('i'))
-			rootLogger.setLevel(Level.WARNING);
 
 		if (cmd.hasOption('o')) {
 			outputDirectory = new File(cmd.getOptionValue('o'));

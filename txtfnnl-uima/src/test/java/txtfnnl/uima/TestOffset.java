@@ -1,8 +1,10 @@
-package txtfnnl.utils;
+package txtfnnl.uima;
 
 import static org.junit.Assert.*;
 
 import org.junit.Test;
+
+import txtfnnl.uima.Offset;
 
 public class TestOffset {
 

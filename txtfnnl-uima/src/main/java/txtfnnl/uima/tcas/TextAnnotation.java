@@ -7,8 +7,9 @@ import org.apache.uima.jcas.cas.TOP_Type;
 
 import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.jcas.tcas.Annotation;
+
+import txtfnnl.uima.Offset;
 import txtfnnl.uima.cas.Property;
-import txtfnnl.utils.Offset;
 
 /**
  * Annotations on a specific text span. Updated by JCasGen Fri Jun 22 11:12:49

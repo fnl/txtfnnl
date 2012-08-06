@@ -5,15 +5,11 @@ package txtfnnl.pipelines;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
@@ -22,25 +18,19 @@ import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.collection.CollectionReaderDescription;
 
 import org.uimafit.factory.AnalysisEngineFactory;
-import org.uimafit.factory.CollectionReaderFactory;
 import org.uimafit.factory.ExternalResourceFactory;
 import org.uimafit.pipeline.SimplePipeline;
 
-import txtfnnl.tika.uima.TikaAnnotator;
 import txtfnnl.uima.analysis_component.KnownEntityAnnotator;
-import txtfnnl.uima.collection.FileCollectionReader;
-import txtfnnl.uima.collection.FileSystemCollectionReader;
-import txtfnnl.uima.collection.FileSystemXmiWriter;
 import txtfnnl.uima.resource.EntityStringMapResource;
 import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
-import txtfnnl.utils.IOUtils;
 
 /**
  * 
  * 
  * @author Florian Leitner
  */
-public class GeneMentionAnnotator {
+public class GeneMentionAnnotator implements Pipeline {
 
 	CollectionReaderDescription collectionReader;
 	AnalysisEngineDescription tikaAED;
@@ -66,22 +56,11 @@ public class GeneMentionAnnotator {
 	                             File geneMap, String dbUrl, String dbUser,
 	                             String dbPass) throws IOException,
 	        UIMAException, ClassNotFoundException {
-		xmiWriter = AnalysisEngineFactory.createPrimitiveDescription(
-		    FileSystemXmiWriter.class, FileSystemXmiWriter.PARAM_ENCODING,
-		    characterEncoding, FileSystemXmiWriter.PARAM_OUTPUT_DIRECTORY,
-		    outputDir.getCanonicalPath(),
-		    FileSystemXmiWriter.PARAM_OVERWRITE_FILES,
-		    Boolean.valueOf(replaceFiles));
-
-		if (characterEncoding == null)
-			tikaAED = AnalysisEngineFactory.createAnalysisEngineDescription(
-			    "txtfnnl.uima.simpleTikaAEDescriptor",
-			    TikaAnnotator.PARAM_NORMALIZE_GREEK_CHARACTERS, Boolean.TRUE);
-		else
-			tikaAED = AnalysisEngineFactory.createAnalysisEngineDescription(
-			    "txtfnnl.uima.simpleTikaAEDescriptor",
-			    TikaAnnotator.PARAM_ENCODING, characterEncoding,
-			    TikaAnnotator.PARAM_NORMALIZE_GREEK_CHARACTERS, Boolean.TRUE);
+		tikaAED = PipelineUtils.getTikaAnnotator(true,
+		    characterEncoding);
+		xmiWriter = PipelineUtils.getXmiFileWriter(outputDir,
+		    characterEncoding, replaceFiles);
+		
 		knownEntityAED = AnalysisEngineFactory.createPrimitiveDescription(
 		    KnownEntityAnnotator.class, KnownEntityAnnotator.PARAM_NAMESPACE,
 		    namespace, KnownEntityAnnotator.PARAM_QUERIES, SQL_QUERIES);
@@ -109,15 +88,8 @@ public class GeneMentionAnnotator {
 	        UIMAException, ClassNotFoundException {
 		this(outputDirectory, characterEncoding, replaceFiles, namespace,
 		    geneMap, dbUrl, dbUser, dbPass);
-		assert inputDirectory.isDirectory() && inputDirectory.canRead() : inputDirectory
-		    .getAbsolutePath() + " is not a (readable) directory";
-		collectionReader = CollectionReaderFactory.createDescription(
-		    FileSystemCollectionReader.class,
-		    FileSystemCollectionReader.PARAM_DIRECTORY,
-		    inputDirectory.getCanonicalPath(),
-		    FileSystemCollectionReader.PARAM_MIME_TYPE, mimeType,
-		    FileSystemCollectionReader.PARAM_RECURSIVE,
-		    Boolean.valueOf(recurseDirectory));
+		collectionReader = PipelineUtils.getCollectionReader(inputDirectory,
+		    mimeType, recurseDirectory);
 	}
 
 	public GeneMentionAnnotator(String[] inputFiles, String mimeType,
@@ -129,9 +101,8 @@ public class GeneMentionAnnotator {
 	        UIMAException, ClassNotFoundException {
 		this(outputDirectory, characterEncoding, replaceFiles, namespace,
 		    geneMap, dbUrl, dbUser, dbPass);
-		collectionReader = CollectionReaderFactory.createDescription(
-		    FileCollectionReader.class, FileCollectionReader.PARAM_FILES,
-		    inputFiles, FileCollectionReader.PARAM_MIME_TYPE, mimeType);
+		collectionReader = PipelineUtils.getCollectionReader(inputFiles,
+		    mimeType);
 	}
 
 	/**
@@ -152,59 +123,29 @@ public class GeneMentionAnnotator {
 	 *        information.
 	 */
 	public static void main(String[] arguments) {
-		try {
-			if (System.getProperty("java.util.logging.config.file") == null)
-				LogManager.getLogManager().readConfiguration(
-				    Thread.currentThread().getClass()
-				        .getResourceAsStream("/logging.properties"));
-		} catch (SecurityException ex) {
-			System.err.println("SecurityException while configuring logging");
-			System.err.println(ex.getMessage());
-		} catch (IOException ex) {
-			System.err.println("IOException while configuring logging");
-			System.err.println(ex.getMessage());
-		}
 		CommandLine cmd = null;
 		CommandLineParser parser = new PosixParser();
 		File geneMap;
 		File inputDirectory = null;
 		File outputDirectory;
-		GeneMentionAnnotator annotator;
-		Logger l = Logger.getLogger(SentenceSplitter.class.getName() +
-		                            ".main()");
-		Logger rootLogger = Logger.getLogger("");
+		Pipeline annotator;
 		Options opts = new Options();
 		String dbUrl;
-		String enc = Charset.defaultCharset().toString();
-
-		if (IOUtils.isMacOSX())
-			enc = "UTF-8";
 
 		opts.addOption("d", "db-name", true, "name of the 'gnamed' DB [" +
 		                                     DEFAULT_DATABASE + "]");
-		opts.addOption("e", "encoding", true,
-		    "set an encoding for output files [" + enc + "]");
-		opts.addOption("g", "gene-map", true, "name of the gene map file [" +
+		opts.addOption("m", "gene-map", true, "name of the gene map file [" +
 		                                      DEFAULT_GMAP_FILE + "]");
-		opts.addOption("h", "help", false, "show this help document");
-		opts.addOption("i", "info", false, "log INFO-level messages [WARN]");
-		opts.addOption("m", "mime-type", true,
-		    "define one MIME type for all input files [Tika.detect]");
 		opts.addOption("n", "namespace", true,
 		    "namespace of the gene annotations [" + DEFAULT_NAMESPACE + "]");
 		opts.addOption("p", "db-password", true,
 		    "password for the DB server (if any is needed)");
-		opts.addOption("q", "quiet", false,
-		    "log SEVERE-level messages only [WARN]");
-		opts.addOption("r", "recursive", false,
-		    "include files in all sub-directories of input directory [false]");
 		opts.addOption("s", "db-server", true,
 		    "hostname of the DB server (incl. port) [localhost]");
 		opts.addOption("u", "db-username", true,
 		    "username for the DB server (if any is needed)");
-		opts.addOption("v", "verbose", false, "log FINE-level messages [WARN]");
-		opts.addOption("x", "replace-files", false,
-		    "replace files in the output directory if they exist [false]");
+
+		PipelineUtils.addLogAndHelpOptions(opts);
 
 		try {
 			cmd = parser.parse(opts, arguments);
@@ -214,27 +155,21 @@ public class GeneMentionAnnotator {
 			System.exit(1); // == exit ==
 		}
 
+		Logger l = PipelineUtils.loggingSetup(
+		    GeneMentionAnnotator.class.getName(), cmd, opts,
+		    "txtfnnl gma [options] <output dir> <input dir|files...>\n");
+
 		String[] inputFiles = cmd.getArgs();
+		boolean recursive = cmd.hasOption('R');
+		String encoding = cmd.getOptionValue('E');
+		String mimeType = cmd.getOptionValue('M');
+		boolean replace = cmd.hasOption('X');
 		String dbName = cmd.getOptionValue('d');
-		String encoding = cmd.getOptionValue('e');
-		String geneMapPath = cmd.getOptionValue('g');
-		String mimeType = cmd.getOptionValue('m');
+		String geneMapPath = cmd.getOptionValue('m');
 		String namespace = cmd.getOptionValue('n');
 		String dbPass = cmd.getOptionValue('p');
-		boolean recursive = cmd.hasOption('r');
 		String dbHost = cmd.getOptionValue('s');
 		String dbUser = cmd.getOptionValue('u');
-		boolean replace = cmd.hasOption('x');
-
-		if (cmd.hasOption('h') || inputFiles.length == 0) {
-			HelpFormatter formatter = new HelpFormatter();
-			formatter.printHelp(
-			    "txtfnnl gma [options] <output dir> <input dir|files...>\n",
-			    opts);
-			System.out
-			    .println("\n(c) Florian Leitner 2012. All rights reserved.");
-			System.exit(cmd.hasOption('h') ? 0 : 1); // == exit ==
-		}
 
 		if (inputFiles.length == 1) {
 			System.err.println("too few arguments (" + inputFiles.length +
@@ -243,15 +178,6 @@ public class GeneMentionAnnotator {
 		}
 		outputDirectory = new File(inputFiles[0]);
 		inputFiles = Arrays.copyOfRange(inputFiles, 1, inputFiles.length);
-
-		if (cmd.hasOption('q'))
-			rootLogger.setLevel(Level.SEVERE);
-		else if (cmd.hasOption('v'))
-			rootLogger.setLevel(Level.FINE);
-		else if (!cmd.hasOption('i'))
-			rootLogger.setLevel(Level.WARNING);
-
-		l.log(Level.FINE, "logging setup complete");
 
 		if (namespace == null)
 			namespace = DEFAULT_NAMESPACE;
@@ -325,5 +251,4 @@ public class GeneMentionAnnotator {
 
 		System.exit(0);
 	}
-
 }
