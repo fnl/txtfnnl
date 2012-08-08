@@ -49,7 +49,7 @@ public class RelationshipStringMapResource extends
 
 		if (!resourceMap.containsKey(items[0]))
 			resourceMap.put(items[0], new LinkedList<Set<Entity>>());
-
+		
 		resourceMap.get(items[0]).add(entities);
 
 	}

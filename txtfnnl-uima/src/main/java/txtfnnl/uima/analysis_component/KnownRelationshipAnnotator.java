@@ -21,6 +21,7 @@ import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.jcas.cas.TOP;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.util.Level;
 
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.resource.Entity;
@@ -229,13 +230,16 @@ public class KnownRelationshipAnnotator extends
 					annotateRelationship(entitySet, textJCas, entityMap,
 					    sentenceAnn);
 				} else {
+					List<Set<Entity>> done = new LinkedList<Set<Entity>>();
+					
 					for (pos = numRels; pos-- > 0;) {
 						Set<Entity> rel = relationships.get(pos);
 
-						if (entitySet.containsAll(rel)) {
+						if (entitySet.containsAll(rel) && !done.contains(rel)) {
 							found[pos] = 1;
 							annotateRelationship(rel, textJCas, entityMap,
 							    sentenceAnn);
+							done.add(rel);
 						}
 					}
 				}
