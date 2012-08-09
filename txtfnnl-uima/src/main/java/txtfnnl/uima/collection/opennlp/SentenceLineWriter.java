@@ -29,8 +29,9 @@ import txtfnnl.utils.IOUtils;
 
 /**
  * A CAS consumer that writes plain-text lines, adding line separators after
- * the character(s) {@link txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator}
- * detected as sentence terminals.
+ * the character(s)
+ * {@link txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator} detected
+ * as sentence terminals.
  * 
  * Mandatory parameters:
  * <ul>
@@ -278,6 +279,10 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 	}
 
 	/**
+	 * Sets the handlers for this CAS used by the call to
+	 * {@link #write(String)} according to the initial setup parameter
+	 * choices.
+	 * 
 	 * @param jCas
 	 * @throws CASException
 	 * @throws IOException

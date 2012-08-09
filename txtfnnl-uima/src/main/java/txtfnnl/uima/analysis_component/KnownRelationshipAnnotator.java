@@ -21,7 +21,6 @@ import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.jcas.cas.TOP;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ResourceInitializationException;
-import org.apache.uima.util.Level;
 
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.resource.Entity;

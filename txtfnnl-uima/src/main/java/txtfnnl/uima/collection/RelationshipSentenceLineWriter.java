@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -219,6 +221,14 @@ public final class RelationshipSentenceLineWriter extends
 			if (encoding != null)
 				logger.log(Level.INFO, "set STDOUT to use '" + encoding +
 				                       "' encoding");
+
+			System.out.println("<!DOCTYPE html>\n<html>\n<head>\n<meta " +
+			                   "http-equiv=\"Content-Type\" " +
+			                   "content=\"text/html; charset=" +
+			                   ((encoding == null)
+			                           ? Charset.defaultCharset()
+			                           : encoding) +
+			                   "\" />\n</head>\n<body>\n<ol>");
 		}
 
 		Boolean overwriteFilesVal = (Boolean) ctx
@@ -227,13 +237,6 @@ public final class RelationshipSentenceLineWriter extends
 		if (overwriteFilesVal != null && overwriteFilesVal)
 			overwriteFiles = true;
 
-		System.out.println("<!DOCTYPE html>\n<html>\n<head>\n<meta " +
-		                   "http-equiv=\"Content-Type\" " +
-		                   "content=\"text/html; charset=" +
-		                   ((encoding == null)
-		                           ? Charset.defaultCharset()
-		                           : encoding) +
-		                   "\" />\n</head>\n<body>\n<ol>\n");
 		counter = 0;
 	}
 
@@ -243,19 +246,24 @@ public final class RelationshipSentenceLineWriter extends
 	@Override
 	public void process(CAS cas) throws AnalysisEngineProcessException {
 		JCas textJCas, rawJCas;
-		String sofaURI;
+		String sofaURI, documentId;
 
 		try {
 			textJCas = cas.getView(Views.CONTENT_TEXT.toString()).getJCas();
 			rawJCas = cas.getView(Views.CONTENT_RAW.toString()).getJCas();
 			setStream(rawJCas);
+			sofaURI = rawJCas.getSofaDataURI();
+			documentId = new File(new URI(sofaURI)).getName();
 		} catch (CASException e) {
 			throw new AnalysisEngineProcessException(e);
 		} catch (IOException e) {
 			throw new AnalysisEngineProcessException(e);
+		} catch (URISyntaxException e) {
+			throw new AnalysisEngineProcessException(e);
 		}
-
-		sofaURI = rawJCas.getSofaDataURI();
+		
+		if (documentId.indexOf('.') > -1)
+			documentId = documentId.substring(0, documentId.lastIndexOf('.'));
 
 		FSIterator<TOP> relationshipIt = KnownRelationshipAnnotator
 		    .getRelationshipIterator(textJCas, relationshipNamespace);
@@ -265,18 +273,18 @@ public final class RelationshipSentenceLineWriter extends
 		// {entity_offset: {entity_type: [entity_ann, ...]}}
 		Map<Offset, Map<String, Set<Entity>>> entityMappings = new HashMap<Offset, Map<String, Set<Entity>>>();
 
+		// collect and group all relationship annotations
 		while (relationshipIt.hasNext()) {
 			RelationshipAnnotation relAnn = (RelationshipAnnotation) relationshipIt
 			    .next();
 			Offset sentOff = ((SyntaxAnnotation) relAnn.getSources(0))
 			    .getOffset();
-			List<Map<String, Set<Offset>>> relationshipList;
+			List<Map<String, Set<Offset>>> relationshipList = relationshipMappings
+			    .get(sentOff);
 			Map<String, Set<Offset>> relationship = new HashMap<String, Set<Offset>>();
 			FSArray entityAnnFS = relAnn.getTargets();
 
-			if (relationshipMappings.containsKey(sentOff)) {
-				relationshipList = relationshipMappings.get(sentOff);
-			} else {
+			if (relationshipList == null) {
 				relationshipList = new LinkedList<Map<String, Set<Offset>>>();
 				relationshipMappings.put(sentOff, relationshipList);
 			}
@@ -288,29 +296,26 @@ public final class RelationshipSentenceLineWriter extends
 				    entityAnn.getProperties(0).getValue(), entityAnn
 				        .getProperties(1).getValue());
 				Offset entityOff = entityAnn.getOffset();
+				Map<String, Set<Entity>> entityTypeMap = entityMappings
+				    .get(entityOff);
+				Set<Offset> offsets = relationship.get(entity.getType());
 				Set<Entity> entitySet;
-				Map<String, Set<Entity>> entityTypeMap;
-				Set<Offset> offsets;
 
-				if (relationship.containsKey(entity.getType())) {
-					offsets = relationship.get(entity.getType());
-				} else {
+				if (offsets == null) {
 					offsets = new HashSet<Offset>();
 					relationship.put(entity.getType(), offsets);
 				}
 
 				offsets.add(entityOff);
 
-				if (entityMappings.containsKey(entityOff)) {
-					entityTypeMap = entityMappings.get(entityOff);
-				} else {
+				if (entityTypeMap == null) {
 					entityTypeMap = new HashMap<String, Set<Entity>>();
 					entityMappings.put(entityOff, entityTypeMap);
 				}
 
-				if (entityTypeMap.containsKey(entity.getType())) {
-					entitySet = entityTypeMap.get(entity.getType());
-				} else {
+				entitySet = entityTypeMap.get(entity.getType());
+
+				if (entitySet == null) {
 					entitySet = new HashSet<Entity>();
 					entityTypeMap.put(entity.getType(), entitySet);
 				}
@@ -322,13 +327,14 @@ public final class RelationshipSentenceLineWriter extends
 				relationshipList.add(relationship);
 		}
 
-		nextSent: for (Offset sentOff : relationshipMappings.keySet()) {
+		// write out all relationship sentences with their entity annotations
+		for (Offset sentOff : relationshipMappings.keySet()) {
 			nextRel: for (Map<String, Set<Offset>> relationship : relationshipMappings
 			    .get(sentOff)) {
 				Queue<Integer> entityEndQueue = new PriorityQueue<Integer>();
 				Offset lastOffset = null;
 				StringBuilder sentence = new StringBuilder(
-				    "<li class='sentence'>");
+				    "<li class='sentence' title='" + documentId + "'>");
 				int pos = sentOff.start();
 				SortedSet<Offset> sortedEntityOffsets = new TreeSet<Offset>();
 
@@ -339,10 +345,15 @@ public final class RelationshipSentenceLineWriter extends
 					if (lastOffset != null &&
 					    lastOffset.end() > entityOff.start() &&
 					    lastOffset.end() < entityOff.end()) {
-						logger.log(Level.WARNING,
-						    "ignored relationship with partially overlapping "
-						            + "annotations {0} and {1} in ''{2}''",
-						    new Object[] { lastOffset, entityOff, sofaURI });
+						logger
+						    .log(
+						        Level.WARNING,
+						        "ignored relationship with partially overlapping "
+						                + "annotations {0} and {1} in ''{2}''",
+						        new Object[] {
+						            lastOffset,
+						            entityOff,
+						            documentId });
 						logger.log(Level.FINE,
 						    "ignored relationship was in ''{0}''",
 						    text.substring(sentOff.start(), sentOff.end()));
@@ -385,23 +396,12 @@ public final class RelationshipSentenceLineWriter extends
 					pos = appendClosingTag(sentence, text, pos, entityEndQueue);
 
 				sentence.append(clean(text, pos, sentOff.end()));
+				sentence.append('\n');
 
-				// skip sentences that do not fit on a single line
-				// because they most likely are not real sentences
-				if (sentence.toString().indexOf('\n') != -1) {
-					logger.log(Level.FINE,
-					    "skipping multi-line sentence in ''{0}''", sofaURI);
-					logger.log(Level.FINER, "sentence was ''{0}''",
-					    text.substring(sentOff.start(), sentOff.end()));
-					continue nextSent;
-				} else {
-					sentence.append('\n');
-
-					try {
-						write(sentence.toString());
-					} catch (IOException e) {
-						throw new AnalysisEngineProcessException(e);
-					}
+				try {
+					write(sentence.toString());
+				} catch (IOException e) {
+					throw new AnalysisEngineProcessException(e);
 				}
 			}
 		}
@@ -413,23 +413,26 @@ public final class RelationshipSentenceLineWriter extends
 		}
 	}
 
+	/**
+	 * Destroy the AE and print the closing tags to STDOUT (if used).
+	 */
 	public void destroy() {
 		super.destroy();
 
 		if (printToStdout)
-			System.out.println("</ol>\n</body>\n</html>\n");
+			System.out.println("</ol>\n</body>\n</html>");
 	}
 
-	private int appendClosingTag(StringBuilder sentence, String text, int pos,
-	                             Queue<Integer> entityEndQueue) {
-		int endPos = entityEndQueue.poll();
-		sentence.append(clean(text, pos, endPos));
-		sentence.append("</span>");
-		pos = endPos;
-		return pos;
-	}
-
-	private String clean(String text, int begin, int end) {
+	/**
+	 * Remove multiple spaces, replace single line breaks, and escape HTML
+	 * from a substring within a text.
+	 * 
+	 * @param text with substring to extract and clean
+	 * @param begin of substring in text to extract and clean
+	 * @param end of substring in text to extract and clean
+	 * @return
+	 */
+	String clean(String text, int begin, int end) {
 		return escapeHTML(replaceSingleBreaksAndSpaces(replaceAndTrimMultipleSpaces(text
 		    .substring(begin, end))));
 	}
@@ -528,4 +531,14 @@ public final class RelationshipSentenceLineWriter extends
 		if (printToStdout)
 			System.out.print(text);
 	}
+
+	private int appendClosingTag(StringBuilder sentence, String text, int pos,
+	                             Queue<Integer> entityEndQueue) {
+		int endPos = entityEndQueue.poll();
+		sentence.append(clean(text, pos, endPos));
+		sentence.append("</span>");
+		pos = endPos;
+		return pos;
+	}
+
 }

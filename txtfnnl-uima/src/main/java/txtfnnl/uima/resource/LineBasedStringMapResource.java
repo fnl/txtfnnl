@@ -38,7 +38,7 @@ public abstract class LineBasedStringMapResource<V> implements
 	 * .resource.DataResource) */
 	public void load(DataResource data) throws ResourceInitializationException {
 		InputStream inStr = null;
-
+		
 		try {
 			// open input stream to data
 			inStr = data.getInputStream();

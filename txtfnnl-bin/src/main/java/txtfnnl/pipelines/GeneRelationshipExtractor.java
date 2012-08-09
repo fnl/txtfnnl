@@ -31,7 +31,6 @@ import txtfnnl.uima.resource.EntityStringMapResource;
 import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
 import txtfnnl.uima.resource.LineBasedStringMapResource;
 import txtfnnl.uima.resource.RelationshipStringMapResource;
-import txtfnnl.uima.resource.StringMapResource;
 
 /**
  * 
@@ -55,14 +54,18 @@ public class GeneRelationshipExtractor implements Pipeline {
 
 	private GeneRelationshipExtractor(File outputDir,
 	                                  String characterEncoding,
-	                                  boolean overwriteFiles, String entityNs,
+	                                  boolean overwriteFiles,
+	                                  boolean splitLine, String entityNs,
 	                                  String relationshipNs, File geneMap,
 	                                  File relMap, String dbUrl,
 	                                  String dbUser, String dbPass)
 	        throws IOException, UIMAException, ClassNotFoundException {
 		tikaAED = PipelineUtils.getTikaAnnotator(true, characterEncoding);
-		sentenceAED = AnalysisEngineFactory
-		    .createAnalysisEngineDescription("txtfnnl.uima.openNLPSentenceAEDescriptor");
+		sentenceAED = AnalysisEngineFactory.createAnalysisEngineDescription(
+		    "txtfnnl.uima.openNLPSentenceAEDescriptor",
+		    SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, (splitLine
+		            ? "single"
+		            : "multi"));
 		sentenceWriter = AnalysisEngineFactory.createPrimitiveDescription(
 		    RelationshipSentenceLineWriter.class,
 		    UimaUtil.SENTENCE_TYPE_PARAMETER,
@@ -106,12 +109,13 @@ public class GeneRelationshipExtractor implements Pipeline {
 	                                 boolean recurseDirectory,
 	                                 File outputDirectory,
 	                                 String characterEncoding,
-	                                 boolean replaceFiles, String entityNs,
-	                                 String relNs, File geneMap, File relMap,
-	                                 String dbUrl, String dbUser, String dbPass)
+	                                 boolean replaceFiles, boolean splitLine,
+	                                 String entityNs, String relNs,
+	                                 File geneMap, File relMap, String dbUrl,
+	                                 String dbUser, String dbPass)
 	        throws IOException, UIMAException, ClassNotFoundException {
-		this(outputDirectory, characterEncoding, replaceFiles, entityNs,
-		    relNs, geneMap, relMap, dbUrl, dbUser, dbPass);
+		this(outputDirectory, characterEncoding, replaceFiles, splitLine,
+		    entityNs, relNs, geneMap, relMap, dbUrl, dbUser, dbPass);
 		collectionReader = PipelineUtils.getCollectionReader(inputDirectory,
 		    mimeType, recurseDirectory);
 	}
@@ -119,12 +123,13 @@ public class GeneRelationshipExtractor implements Pipeline {
 	public GeneRelationshipExtractor(String[] inputFiles, String mimeType,
 	                                 File outputDirectory,
 	                                 String characterEncoding,
-	                                 boolean replaceFiles, String entityNs,
-	                                 String relNs, File geneMap, File relMap,
-	                                 String dbUrl, String dbUser, String dbPass)
+	                                 boolean replaceFiles, boolean splitLine,
+	                                 String entityNs, String relNs,
+	                                 File geneMap, File relMap, String dbUrl,
+	                                 String dbUser, String dbPass)
 	        throws IOException, UIMAException, ClassNotFoundException {
-		this(outputDirectory, characterEncoding, replaceFiles, entityNs,
-		    relNs, geneMap, relMap, dbUrl, dbUser, dbPass);
+		this(outputDirectory, characterEncoding, replaceFiles, splitLine,
+		    entityNs, relNs, geneMap, relMap, dbUrl, dbUser, dbPass);
 		collectionReader = PipelineUtils.getCollectionReader(inputFiles,
 		    mimeType);
 	}
@@ -162,6 +167,8 @@ public class GeneRelationshipExtractor implements Pipeline {
 		opts.addOption("e", "entity-namespace", true,
 		    "namespace of the gene annotations [" + DEFAULT_ENITY_NAMESPACE +
 		            "]");
+		opts.addOption("l", "line-split", false,
+		    "split sentences at single newlines [multi-newlines only]");
 		opts.addOption("m", "rel-map", true,
 		    "name of the relationship mappings file [" +
 		            DEFAULT_RELATIONSHIP_FILE + "]");
@@ -198,6 +205,7 @@ public class GeneRelationshipExtractor implements Pipeline {
 		boolean replace = cmd.hasOption('X');
 		String dbName = cmd.getOptionValue('d');
 		String entityNamespace = cmd.getOptionValue('e');
+		boolean splitLine = cmd.hasOption('l');
 		String relMapPath = cmd.getOptionValue('m');
 		String dbPass = cmd.getOptionValue('p');
 		String relNamespace = cmd.getOptionValue('n');
@@ -268,14 +276,14 @@ public class GeneRelationshipExtractor implements Pipeline {
 
 			if (inputDirectory == null)
 				annotator = new GeneRelationshipExtractor(inputFiles,
-				    mimeType, outputDirectory, encoding, replace,
+				    mimeType, outputDirectory, encoding, replace, splitLine,
 				    entityNamespace, relNamespace, geneMap, relMap, dbUrl,
 				    dbUser, dbPass);
 			else
 				annotator = new GeneRelationshipExtractor(inputDirectory,
 				    mimeType, recursive, outputDirectory, encoding, replace,
-				    entityNamespace, relNamespace, geneMap, relMap, dbUrl,
-				    dbUser, dbPass);
+				    splitLine, entityNamespace, relNamespace, geneMap, relMap,
+				    dbUrl, dbUser, dbPass);
 
 			annotator.run();
 		} catch (UIMAException e) {

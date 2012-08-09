@@ -1,5 +1,13 @@
 package txtfnnl.uima.analysis_component.opennlp;
 
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import opennlp.tools.sentdetect.SentenceDetectorME;
 import opennlp.tools.sentdetect.SentenceModel;
 import opennlp.tools.util.Span;
@@ -22,6 +30,7 @@ import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ResourceAccessException;
 import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.util.Level;
 
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
@@ -63,6 +72,24 @@ import txtfnnl.uima.tcas.SyntaxAnnotation;
  */
 public final class SentenceAnnotator extends AbstractSentenceDetector {
 
+	/** The annotator's URI (for the annotations) set by this AE. */
+	public static final String URI = "http://opennlp.apache.org";
+
+	/** The namespace to use for all annotations. */
+	public static final String NAMESPACE = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
+
+	/** The identifier to use for all annotations. */
+	public static final String IDENTIFIER = "Sentence";
+
+	/** The fully qualified sentence model name String. */
+	public static final String PARAM_MODEL_NAME = UimaUtil.MODEL_PARAMETER;
+
+	/** Optional parameter: either "single" or "multi". */
+	public static final String PARAM_SPLIT_ON_NEWLINE = "SplitOnNewline";
+
+	static final Pattern REGEX_MULTI_LINEBREAK = Pattern
+	    .compile("(?:\\r?\\n\\s*){2,}");
+
 	/** The OpenNLP sentence detector. */
 	private SentenceDetectorME sentenceDetector;
 
@@ -78,17 +105,12 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 	/** The namespace feature of the sentence annotation type. */
 	private Feature namespaceFeature;
 
-	/** The annotator's URI (for the annotations) set by this AE. */
-	public static final String URI = "http://opennlp.apache.org";
+	/* settings from PARAM_SPLIT_ON_NEWLINE */
+	private boolean splitOnSingleNewline = false;
+	private boolean splitOnMultiNewline = false;
+	private int[] sentenceIndex;
 
-	/** The namespace to use for all annotations. */
-	public static final String NAMESPACE = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
-
-	/** The identifier to use for all annotations. */
-	public static final String IDENTIFIER = "Sentence";
-
-	/** The fully qualified sentence model name String. */
-	public static final String PARAM_MODEL_NAME = UimaUtil.MODEL_PARAMETER;
+	private Lock processLock = null;
 
 	/**
 	 * The default type name for the sentence annotation type.
@@ -124,6 +146,23 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 		}
 
 		sentenceDetector = new SentenceDetectorME(model);
+		processLock = new ReentrantLock();
+
+		String splitMode = (String) ctx
+		    .getConfigParameterValue(PARAM_SPLIT_ON_NEWLINE);
+
+		if (splitMode == null) {
+			// do nothing
+		} else if (splitMode.equals("single")) {
+			splitOnSingleNewline = true;
+		} else if (splitMode.equals("multi")) {
+			splitOnMultiNewline = true;
+		} else {
+			throw new ResourceInitializationException(new AssertionError(
+			    "parameter '" + PARAM_SPLIT_ON_NEWLINE +
+			            "' value must be 'single' or 'multi' (was '" +
+			            splitMode + "')"));
+		}
 	}
 
 	/**
@@ -143,7 +182,13 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 	 */
 	@Override
 	public void process(CAS cas) throws AnalysisEngineProcessException {
-		super.process(cas.getView(Views.CONTENT_TEXT.toString()));
+		processLock.lock();
+
+		try {
+			super.process(cas.getView(Views.CONTENT_TEXT.toString()));
+		} finally {
+			processLock.unlock();
+		}
 	}
 
 	/**
@@ -188,7 +233,106 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 	 */
 	@Override
 	protected Span[] detectSentences(String text) {
-		return sentenceDetector.sentPosDetect(text);
+		Span[] spans = sentenceDetector.sentPosDetect(text);
+		List<Integer> indices = new ArrayList<Integer>();
+		List<Span> allSpans = new LinkedList<Span>();
+		int idx = 0;
+		int incr = 1;
+		int[] pos_start = new int[] { 0, 0 };
+
+		if (splitOnSingleNewline && spans.length > 0) {
+			pos_start[1] = spans[0].getStart();
+
+			while ((idx = text.indexOf('\n', pos_start[1])) != -1) {
+				if (idx == pos_start[1]) {
+					pos_start[1] += 1;
+					continue;
+				} else if (text.substring(pos_start[1], idx).trim().length() == 0) {
+					pos_start[1] = idx;
+					continue;
+				}
+				splitSpans(spans, indices, allSpans, pos_start, idx, incr);
+
+				if (pos_start[0] == spans.length)
+					break;
+			}
+
+			spans = cleanUpSpans(pos_start, spans, allSpans, indices);
+		} else if (splitOnMultiNewline && spans.length > 0) {
+			Matcher match = REGEX_MULTI_LINEBREAK.matcher(text);
+			pos_start[1] = spans[0].getStart();
+
+			while (match.find()) {
+				idx = match.start();
+				incr = match.end() - idx;
+				splitSpans(spans, indices, allSpans, pos_start, idx, incr);
+				
+				if (pos_start[0] == spans.length)
+					break;
+			}
+
+			spans = cleanUpSpans(pos_start, spans, allSpans, indices);
+		} else {
+			for (int i = 0; i < spans.length; ++i)
+				indices.add(i);
+		}
+
+		sentenceIndex = toArray(indices);
+		assert sentenceIndex.length == spans.length;
+		return spans;
+	}
+
+	private void splitSpans(Span[] spans, List<Integer> indices,
+                            List<Span> allSpans, int[] pos_start, int idx,
+                            int incr) {
+	    while (pos_start[0] < spans.length) {
+	    	if (idx <= spans[pos_start[0]].getStart()) {
+	    		pos_start[1] = spans[pos_start[0]].getStart();
+	    		break;
+	    	} else if (idx > spans[pos_start[0]].getEnd()) {
+	    		indices.add(pos_start[0]);
+
+	    		if (pos_start[1] < spans[pos_start[0]].getEnd())
+	    			allSpans.add(new Span(pos_start[1],
+	    			    spans[pos_start[0]].getEnd(),
+	    			    spans[pos_start[0]].getType()));
+
+	    		if (pos_start[0] + 1 < spans.length)
+	    			pos_start[1] = spans[++pos_start[0]].getStart();
+	    		else
+	    			pos_start[0] += 1;
+	    	} else {
+	    		indices.add(pos_start[0]);
+	    		allSpans.add(new Span(pos_start[1], idx,
+	    		    spans[pos_start[0]].getType()));
+	    		pos_start[1] = idx + incr;
+	    		break;
+	    	}
+	    }
+    }
+
+	private Span[] cleanUpSpans(int[] pos_start, Span[] spans,
+	                            List<Span> allSpans, List<Integer> indices) {
+		while (pos_start[0] < spans.length) {
+			indices.add(pos_start[0]);
+			allSpans.add(new Span(pos_start[1], spans[pos_start[0]].getEnd(),
+			    spans[pos_start[0]].getType()));
+
+			if (++pos_start[0] < spans.length)
+				pos_start[1] = spans[pos_start[0]].getStart();
+		}
+
+		spans = allSpans.toArray(new Span[allSpans.size()]);
+		return spans;
+	}
+
+	private int[] toArray(List<Integer> indices) {
+		int[] array = new int[indices.size()];
+
+		for (int i = 0; i < array.length; ++i)
+			array[i] = indices.get(i);
+
+		return array;
 	}
 
 	/**
@@ -203,8 +347,12 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 		    .getSentenceProbabilities();
 
 		for (int i = 0; i < sentences.length; i++) {
+			int j = sentenceIndex[i];
+			logger.log(Level.FINE, "S{0}: ''{1}''", new Object[] {
+			    i,
+			    sentences[i].getCoveredText() });
 			sentences[i].setDoubleValue(confidenceFeature,
-			    sentenceProbabilities[i]);
+			    sentenceProbabilities[j]);
 			sentences[i].setStringValue(annotatorFeature, URI);
 			sentences[i].setStringValue(namespaceFeature, NAMESPACE);
 			sentences[i].setStringValue(identifierFeature, IDENTIFIER);
