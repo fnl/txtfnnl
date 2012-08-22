@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<analysisEngineDescription xmlns="http://uima.apache.org/resourceSpecifier">
+  <frameworkImplementation>org.apache.uima.java</frameworkImplementation>
+  <primitive>true</primitive>
+  <annotatorImplementationName>txtfnnl.uima.analysis_component.LinkGrammarAnnotator</annotatorImplementationName>
+  <analysisEngineMetaData>
+    <name>linkGrammarAEDescriptor</name>
+    <description>Add LinkGrammar constituent tree annotations to all annotated sentences.</description>
+    <version>1.0</version>
+    <vendor>txtfnnl</vendor>
+    <configurationParameters>
+      <configurationParameter>
+        <name>DictionariesPath</name>
+        <description>path to the LinkGrammar dictionaries </description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>ParseSeconds</name>
+        <description>number of seconds the LinkGrammar parser may try to work on a sentence</description>
+        <type>Integer</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+      <configurationParameter>
+        <name>opennlp.uima.SentenceType</name>
+        <description>name of the sentence annotation type</description>
+        <type>String</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
+    </configurationParameters>
+    <configurationParameterSettings/>
+    <typeSystemDescription>
+      <imports>
+        <import name="txtfnnl.uima.typeSystemDescriptor"/>
+      </imports>
+    </typeSystemDescription>
+    <typePriorities/>
+    <fsIndexCollection/>
+    <capabilities>
+      <capability>
+        <inputs>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.SyntaxAnnotation</type>
+        </inputs>
+        <outputs>
+          <type allAnnotatorFeatures="true">txtfnnl.uima.tcas.SyntaxAnnotation</type>
+        </outputs>
+        <inputSofas>
+          <sofaName>CONTENT_TEXT</sofaName>
+        </inputSofas>
+        <languagesSupported/>
+      </capability>
+    </capabilities>
+    <operationalProperties>
+      <modifiesCas>true</modifiesCas>
+      <multipleDeploymentAllowed>true</multipleDeploymentAllowed>
+      <outputsNewCASes>false</outputsNewCASes>
+    </operationalProperties>
+  </analysisEngineMetaData>
+  <resourceManagerConfiguration/>
+</analysisEngineDescription>
