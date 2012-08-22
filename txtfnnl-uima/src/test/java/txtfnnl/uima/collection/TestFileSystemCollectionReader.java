@@ -47,7 +47,7 @@ public class TestFileSystemCollectionReader {
 		jCasMock = EasyMock.createMock(JCas.class);
 		basePath = "file:" + (new File(".")).getCanonicalPath() +
 		           "/src/test/resources/";
-		
+
 		setGetNextMockExpectations(basePath + "test.html");
 	}
 
@@ -56,7 +56,8 @@ public class TestFileSystemCollectionReader {
 		fileSystemReader.close();
 	}
 
-	private void setGetNextMockExpectations(String path) throws CASException {
+	private void setGetNextMockExpectations(String path)
+	        throws CASException {
 		expect(baseCasMock.createView(Views.CONTENT_RAW.toString()))
 		    .andReturn(rawCasMock);
 		expect(rawCasMock.getJCas()).andReturn(jCasMock);
@@ -76,7 +77,7 @@ public class TestFileSystemCollectionReader {
 			}
 		}
 	}
-	
+
 	private void replayAll() {
 		replay(baseCasMock);
 		replay(rawCasMock);

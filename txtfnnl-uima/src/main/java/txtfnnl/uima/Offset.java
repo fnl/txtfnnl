@@ -36,11 +36,15 @@ public class Offset implements Comparable<Offset> {
 			    "uneven number of offset values");
 
 		int last = values[0];
+		
+		if (last < 0)
+			throw new IllegalArgumentException(
+			    "offset value < 0 (" + last + ")");
 
 		for (int idx = 1; idx < values.length; ++idx) {
 			if (values[idx] <= last)
 				throw new IllegalArgumentException(
-				    "offset values not ascending");
+				    "offset values [" + last + ", " + values[idx] + "] not ascending");
 
 			last = values[idx];
 		}

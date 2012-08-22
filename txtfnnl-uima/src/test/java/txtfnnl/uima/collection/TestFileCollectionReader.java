@@ -102,7 +102,7 @@ public class TestFileCollectionReader {
 	public void testHasNext() throws CollectionException, IOException,
 	        CASException {
 		assertTrue(fileSystemReader.hasNext());
-
+		
 		setGetNextMockExpectations(basePath + "test-subdir/test-sub.html");
 		replayAll();
 		doGetNext(2);

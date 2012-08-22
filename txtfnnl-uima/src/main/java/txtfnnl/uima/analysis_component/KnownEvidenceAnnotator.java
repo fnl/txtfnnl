@@ -67,6 +67,13 @@ public abstract class KnownEvidenceAnnotator<Evidence> extends
 			throw new ResourceInitializationException(e);
 		}
 
+		if (documentEvidenceMap.size() == 0)
+			logger.log(Level.WARNING, "no evidences loaded by resource {0}",
+			    this.getClass().getSimpleName());
+		else
+			logger.log(Level.INFO, "loaded evidence for {0} documents",
+				documentEvidenceMap.size());
+
 		ensureNotNull(documentEvidenceMap,
 		    ResourceInitializationException.NO_RESOURCE_FOR_PARAMETERS,
 		    MODEL_KEY_EVIDENCE_STRING_MAP);
@@ -118,7 +125,8 @@ public abstract class KnownEvidenceAnnotator<Evidence> extends
 		try {
 			textCas = jcas.getView(Views.CONTENT_TEXT.toString());
 			rawCas = jcas.getView(Views.CONTENT_RAW.toString());
-			documentId = new File(new URI(rawCas.getSofaDataURI())).getName();
+			documentId = new File(new URI(rawCas.getSofaDataURI()).getPath())
+			    .getName();
 		} catch (CASException e) {
 			throw new AnalysisEngineProcessException(e);
 		} catch (URISyntaxException e) {
