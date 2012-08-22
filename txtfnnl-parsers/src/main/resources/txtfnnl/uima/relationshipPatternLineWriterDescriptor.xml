@@ -2,12 +2,12 @@
 <analysisEngineDescription xmlns="http://uima.apache.org/resourceSpecifier">
   <frameworkImplementation>org.apache.uima.java</frameworkImplementation>
   <primitive>true</primitive>
-  <annotatorImplementationName>txtfnnl.uima.collection.opennlp.SentenceLineWriter</annotatorImplementationName>
+  <annotatorImplementationName>txtfnnl.uima.collection.RelationshipPatternLineWriter</annotatorImplementationName>
   <analysisEngineMetaData>
-    <name>RelationshipSentenceLineWriter</name>
-    <description>Write sentences containing semantic relationships to an output stream, separating each sentence by newline.
+    <name>RelationshipPatternLineWriter</name>
+    <description>Write sentence snippets ("patterns") containing syntactic relationships between entities to an output stream, separating each pattern by newline.
 
-In general, these annotations should be RelationshipAnnotation types holding a single SyntaxAnnotation (the sentence) as source and any number of SemanticAnnotation types (the entities mentioned in the sentence forming a relation) as targets.</description>
+In general, these annotations should be RelationshipAnnotation types holding a single SyntaxAnnotation (the sentence) as source and any number of SemanticAnnotation types (the entities mentioned in the sentence, forming the relation) as targets.</description>
     <version>1.0</version>
     <vendor>txtfnnl</vendor>
     <configurationParameters>
