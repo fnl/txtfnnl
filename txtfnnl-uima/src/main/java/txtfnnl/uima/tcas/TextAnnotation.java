@@ -1,6 +1,8 @@
 /* First created by JCasGen Wed Jun 06 13:10:16 CEST 2012 */
 package txtfnnl.uima.tcas;
 
+import java.util.Comparator;
+
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.JCasRegistry;
 import org.apache.uima.jcas.cas.TOP_Type;
@@ -18,6 +20,39 @@ import txtfnnl.uima.cas.Property;
  * @generated
  */
 public class TextAnnotation extends Annotation {
+	
+	public static final Comparator<TextAnnotation> TEXT_ANNOTATION_COMPARATOR 
+    = new Comparator<TextAnnotation>() {
+
+		public int compare(TextAnnotation ta1, TextAnnotation ta2) {
+			if (ta1 == null || ta2 == null) {
+				if (ta1 == null && ta2 == null) {
+					return 0;
+				} else if (ta1 == null) {
+					return 1;
+				} else {
+					return -1;
+				}
+			} else if (ta1.getBegin() < ta2.getBegin()) {
+				return -1;
+			} else if (ta1.getBegin() > ta2.getBegin()) {
+				return 1;
+			} else {
+				if (ta1.getEnd() < ta2.getEnd()) {
+					return 1;
+				} else if (ta1.getEnd() > ta2.getEnd()) {
+					return -1;
+				} else {
+					int r = ta1.getNamespace().compareTo(ta2.getNamespace());
+					
+					if (r == 0)
+						r = ta1.getIdentifier().compareTo(ta2.getIdentifier());
+					
+					return r;
+				}
+			}
+		}
+	};
 
 	/* ADDITIONS START */
 	private Offset offset = null;
