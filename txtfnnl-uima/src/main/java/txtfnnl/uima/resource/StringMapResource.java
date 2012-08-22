@@ -1,5 +1,7 @@
 package txtfnnl.uima.resource;
 
+import java.util.Iterator;
+
 /**
  * A resource specification that uses String keys to return (arbitrary) values.
  *
@@ -14,4 +16,20 @@ public interface StringMapResource<V> {
 	 * @return the value V mapped to the key
 	 */
 	public V get(String key);
+	
+	/**
+	 * Return the number of keys.
+	 * 
+	 * @return the number of keys known by this resource.
+	 */
+	public int size();
+
+	
+	/**
+	 * Fetch an iterator for the keys.
+	 * 
+	 * @return a key iterator
+	 */
+	public Iterator<String> iterator();
+	
 }

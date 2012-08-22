@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.uima.resource.DataResource;
@@ -48,6 +49,7 @@ public abstract class LineBasedStringMapResource<V> implements
 
 			while ((line = reader.readLine()) != null) {
 				line = line.trim();
+				
 				if (line.length() == 0)
 					continue;
 
@@ -81,4 +83,11 @@ public abstract class LineBasedStringMapResource<V> implements
 		return resourceMap.get(key);
 	}
 
+	public int size() {
+		return resourceMap.size();
+	}
+	
+	public Iterator<String> iterator() {
+		return resourceMap.keySet().iterator();
+	}
 }
