@@ -18,7 +18,12 @@
     </plugins>
   </build>
   <artifactId>txtfnnl-parsers</artifactId>
-  <description>A UIMA AE using the Link Grammar Parser. Requires LGP installed as a Maven Project with the Java JNI bindings enabled.</description>
+  <description>UIMA AE using external parsers.
+
+Currently supported parsers are:
+
+* LinkGrammar
+http://www.abisource.com/projects/link-grammar/</description>
   <dependencies>
     <dependency>
         <groupId>org.linkgrammar</groupId>
@@ -37,4 +42,5 @@
     	<scope>test</scope>
     </dependency>
   </dependencies>
+  <name>txtfnnl-parsers</name>
 </project>

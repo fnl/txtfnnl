@@ -24,24 +24,46 @@ In addition, the following direct dependencies exist:
 
 - `uimaFIT <http://code.google.com/p/uimafit/>`_ 1.4 for testing and the
   **txtfnnl-bin** module
-- for the gene mention annotations (``gma``), a gnamed_ DB has to be
-  available on the network, which in turn (by default) requires
+- for making gene mention annotations (via the ``ema`` pipeline), a gnamed_ DB
+  has to be available on the network, which in turn (by default) requires
   `PostgreSQL <http://www.postgresql.org/>`_ 8.4+; the tests for this part
   of txtfnnl furthermore use the `H2 <http://www.h2database.com/>`_
   in-memory DB.
+- for the **txtfnnl-parsers** module, the relevant parsers need to be
+  downloaded and installed, including the creation of Maven artifacts.
+  Right now, the only supported parser is `LinkGrammar <http://www.link.cs.cmu.edu/link/>`_
 
 Installation
 ------------
 
+Before installing **txtfnnl** itself, the additional (independent) parsers
+should be installed. The following parsers are supported by **txtfnnl**:
+
+`LinkGrammar <http://www.abisource.com/projects/link-grammar/>`_ 4.7.6 (or similar)
+  After downloading, unpacking, building, and installation (usually, just a
+  curl-tar-configure-make loop) and assuming the default installation into
+  ``/usr/local``, nothing else needs to be configured. However, the following
+  Maven command needs to be executed to create a "mavenized artifact" from the
+  `JNI <http://en.wikipedia.org/wiki/Java_Native_Interface>`_ (Java Native
+  Interface) JAR file wrapping the C parser::
+  
+    mvn install:install-file -Dfile=linkgrammar-4.7.6.jar -Dversion=4.7.6 \
+    -DgroupId=org.linkgrammar -DartifactId=linkgrammar  -Dpackaging=jar 
+
 Execute ``mvn install`` in the TLD.
 **txtfnnl** is known to work on Apple OSX, Ubuntu and CentOS.
-The framework requires the use of Java 1.5 or later.
+The framework requires the use of Java 1.5 or later (tested on 1.5 and 1.6).
+
+After installing the Maven project, the ``txtfnnl`` shell script in the
+**txtfnnl-bin** module can be put anywhere on the system PATH. If non-
+standard locations were used for the parsers, the correct ``java.library.path``
+setting should be configured in the script's ``JAVA_LIB_PATH`` variable.
 
 Usage
 -----
 
 To use the pipelines from the command line, execute the ``txtfnnl`` script in
-the **txtfnnl-bin** module directory (and/or place/copy it on/to your PATH).
+the **txtfnnl-bin** module directory (or copy it to your PATH).
 The script expects to find the local Maven repository either in
 ``~/.m2/repository`` or otherwise defined as the environment variable 
 ``M2_REPO``.
@@ -50,10 +72,18 @@ Currently, the following pipelines are available:
 
 - ``ss`` splits any kind of data Tika can extract plain-text from into 
   sentences, one per line.
-- ``gma`` annotates known gene mentions on documents by supplying a mapping of
-  input file names (w/o the sufffix) to gene identifiers (type, namespace,
-  identifier), looking up the names for those gene IDs in a gnamed_ DB, and
-  matching any of those names in the extracted plain-text.
+- ``ema`` annotates known entity mentions on documents by supplying a mapping
+  of input file names (w/o sufffix) to entity identifiers (type, namespace,
+  identifier), looking up the names for those entity IDs in a DB, and
+  matching any of those names in the extracted plain-text. Example use: for
+  gene mention annotations using gnamed_
+- ``rpe`` extracts relationship patterns between named entities in a known
+  relationship. A relationship is defined as one or more entity IDs (as for
+  ``ema``) together with the input file name and is supposed to be contained
+  within a single sentence. If a sentence with all required entities is found,
+  a number of patterns used to syntactically combine the entities are
+  extracted. Each pattern is printed on a single line and patterns for
+  different sentences are separated by an empty line.
 
 License
 -------
