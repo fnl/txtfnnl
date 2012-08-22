@@ -233,11 +233,17 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 	 */
 	@Override
 	protected Span[] detectSentences(String text) {
+		// "original" sentence spans
 		Span[] spans = sentenceDetector.sentPosDetect(text);
+		// index of each "original" sentence span in spans
 		List<Integer> indices = new ArrayList<Integer>();
+		// will be populated with the modified spans
 		List<Span> allSpans = new LinkedList<Span>();
+		// current sentence span index
 		int idx = 0;
-		int incr = 1;
+		// offset/span increment when splitting sentences
+		int splitSize = 1;
+		// position of ??? and start of current span
 		int[] pos_start = new int[] { 0, 0 };
 
 		if (splitOnSingleNewline && spans.length > 0) {
@@ -251,7 +257,7 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 					pos_start[1] = idx;
 					continue;
 				}
-				splitSpans(spans, indices, allSpans, pos_start, idx, incr);
+				splitSpans(spans, indices, allSpans, pos_start, idx, splitSize);
 
 				if (pos_start[0] == spans.length)
 					break;
@@ -264,9 +270,9 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 
 			while (match.find()) {
 				idx = match.start();
-				incr = match.end() - idx;
-				splitSpans(spans, indices, allSpans, pos_start, idx, incr);
-				
+				splitSize = match.end() - idx;
+				splitSpans(spans, indices, allSpans, pos_start, idx, splitSize);
+
 				if (pos_start[0] == spans.length)
 					break;
 			}
@@ -278,38 +284,45 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 		}
 
 		sentenceIndex = toArray(indices);
-		assert sentenceIndex.length == spans.length;
+		
+		if (sentenceIndex.length != spans.length)
+			throw new AssertionError("found " + sentenceIndex.length +
+			                         "sentences, expected " + spans.length);
+		
 		return spans;
 	}
 
 	private void splitSpans(Span[] spans, List<Integer> indices,
-                            List<Span> allSpans, int[] pos_start, int idx,
-                            int incr) {
-	    while (pos_start[0] < spans.length) {
-	    	if (idx <= spans[pos_start[0]].getStart()) {
-	    		pos_start[1] = spans[pos_start[0]].getStart();
-	    		break;
-	    	} else if (idx > spans[pos_start[0]].getEnd()) {
-	    		indices.add(pos_start[0]);
+	                        List<Span> allSpans, int[] pos_start, int idx,
+	                        int splitSize) {
+		while (pos_start[0] < spans.length) {
+			if (idx <= spans[pos_start[0]].getStart()) {
+				pos_start[1] = spans[pos_start[0]].getStart();
+				break;
+			} else if (idx > spans[pos_start[0]].getEnd()) {
+				indices.add(pos_start[0]);
 
-	    		if (pos_start[1] < spans[pos_start[0]].getEnd())
-	    			allSpans.add(new Span(pos_start[1],
-	    			    spans[pos_start[0]].getEnd(),
-	    			    spans[pos_start[0]].getType()));
+				if (pos_start[1] < spans[pos_start[0]].getEnd())
+					allSpans.add(new Span(pos_start[1], spans[pos_start[0]]
+					    .getEnd(), spans[pos_start[0]].getType()));
 
-	    		if (pos_start[0] + 1 < spans.length)
-	    			pos_start[1] = spans[++pos_start[0]].getStart();
-	    		else
-	    			pos_start[0] += 1;
-	    	} else {
-	    		indices.add(pos_start[0]);
-	    		allSpans.add(new Span(pos_start[1], idx,
-	    		    spans[pos_start[0]].getType()));
-	    		pos_start[1] = idx + incr;
-	    		break;
-	    	}
-	    }
-    }
+				if (pos_start[0] + 1 < spans.length)
+					pos_start[1] = spans[++pos_start[0]].getStart();
+				else
+					pos_start[0] += 1;
+			} else {
+				indices.add(pos_start[0]);
+				allSpans.add(new Span(pos_start[1], idx, spans[pos_start[0]]
+				    .getType()));
+				pos_start[1] = idx + splitSize;
+				
+				if (idx == spans[pos_start[0]].getEnd())
+					++pos_start[0];
+				
+				break;
+			}
+		}
+	}
 
 	private Span[] cleanUpSpans(int[] pos_start, Span[] spans,
 	                            List<Span> allSpans, List<Integer> indices) {

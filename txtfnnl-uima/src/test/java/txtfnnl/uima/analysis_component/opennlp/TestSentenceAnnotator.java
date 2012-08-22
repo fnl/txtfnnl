@@ -48,11 +48,27 @@ public class TestSentenceAnnotator {
 	}
 
 	@Test
+	public void testDefaultMultilineSplit() throws UIMAException, IOException {
+		sentenceAnnotator = AnalysisEngineFactory.createAnalysisEngine(
+		    "txtfnnl.uima.openNLPSentenceAEDescriptor",
+		    SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, "multi");
+		processTest("This is a closed sentence.", "\n\n");
+	}
+
+	@Test
 	public void testMultilineSplit() throws UIMAException, IOException {
 		sentenceAnnotator = AnalysisEngineFactory.createAnalysisEngine(
 		    "txtfnnl.uima.openNLPSentenceAEDescriptor",
 		    SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, "multi");
 		processTest("This is an open sentence", "\n\t\n");
+	}
+
+	@Test
+	public void testDefaultLineSplit() throws UIMAException, IOException {
+		sentenceAnnotator = AnalysisEngineFactory.createAnalysisEngine(
+		    "txtfnnl.uima.openNLPSentenceAEDescriptor",
+		    SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, "single");
+		processTest("This is a closed sentence.", "\n\n");
 	}
 
 	@Test

@@ -28,7 +28,7 @@ import txtfnnl.uima.collection.opennlp.SentenceLineWriter;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 import txtfnnl.utils.IOUtils;
 
-public class SentenceLineWriterTest {
+public class TestSentenceLineWriter {
 
 	public static final String DESCRIPTOR = "txtfnnl.uima.openNLPSentenceLineWriterDescriptor";
 
