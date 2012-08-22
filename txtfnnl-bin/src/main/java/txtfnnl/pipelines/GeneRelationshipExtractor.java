@@ -25,8 +25,9 @@ import org.uimafit.pipeline.SimplePipeline;
 
 import txtfnnl.uima.analysis_component.KnownEntityAnnotator;
 import txtfnnl.uima.analysis_component.KnownRelationshipAnnotator;
+import txtfnnl.uima.analysis_component.LinkGrammarAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
-import txtfnnl.uima.collection.RelationshipSentenceLineWriter;
+import txtfnnl.uima.collection.RelationshipPatternLineWriter;
 import txtfnnl.uima.resource.EntityStringMapResource;
 import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
 import txtfnnl.uima.resource.LineBasedStringMapResource;
@@ -44,10 +45,11 @@ public class GeneRelationshipExtractor implements Pipeline {
 	AnalysisEngineDescription sentenceAED;
 	AnalysisEngineDescription knownEntityAED;
 	AnalysisEngineDescription knownRelationshipAED;
-	AnalysisEngineDescription sentenceWriter;
+	AnalysisEngineDescription parserAED;
+	AnalysisEngineDescription patternWriter;
 
 	static final String DEFAULT_ENITY_NAMESPACE = GeneMentionAnnotator.DEFAULT_NAMESPACE;
-	static final String DEFAULT_RELATIONSHIP_NAMESPACE = "http://purl.org/relationship/";
+	static final String DEFAULT_RELATIONSHIP_NAMESPACE = "rel:";
 	static final String DEFAULT_DATABASE = "gnamed";
 	static final String DEFAULT_RELATIONSHIP_FILE = "doc2rel.map";
 	static final String[] SQL_QUERIES = GeneMentionAnnotator.SQL_QUERIES;
@@ -66,16 +68,20 @@ public class GeneRelationshipExtractor implements Pipeline {
 		    SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, (splitLine
 		            ? "single"
 		            : "multi"));
-		sentenceWriter = AnalysisEngineFactory.createPrimitiveDescription(
-		    RelationshipSentenceLineWriter.class,
+		parserAED = AnalysisEngineFactory.createPrimitiveDescription(
+		        LinkGrammarAnnotator.class,
+		        UimaUtil.SENTENCE_TYPE_PARAMETER,
+		        SentenceAnnotator.SENTENCE_TYPE_NAME);
+		patternWriter = AnalysisEngineFactory.createPrimitiveDescription(
+		    RelationshipPatternLineWriter.class,
 		    UimaUtil.SENTENCE_TYPE_PARAMETER,
 		    SentenceAnnotator.SENTENCE_TYPE_NAME,
-		    RelationshipSentenceLineWriter.PARAM_OUTPUT_DIRECTORY,
+		    RelationshipPatternLineWriter.PARAM_OUTPUT_DIRECTORY,
 		    ((outputDir == null) ? null : outputDir.getCanonicalPath()),
-		    RelationshipSentenceLineWriter.PARAM_RELATIONSHIP_NAMESPACE,
-		    relationshipNs, RelationshipSentenceLineWriter.PARAM_ENCODING,
+		    RelationshipPatternLineWriter.PARAM_RELATIONSHIP_NAMESPACE,
+		    relationshipNs, RelationshipPatternLineWriter.PARAM_ENCODING,
 		    characterEncoding,
-		    RelationshipSentenceLineWriter.PARAM_OVERWRITE_FILES,
+		    RelationshipPatternLineWriter.PARAM_OVERWRITE_FILES,
 		    Boolean.valueOf(overwriteFiles));
 
 		knownEntityAED = AnalysisEngineFactory.createPrimitiveDescription(
@@ -96,6 +102,8 @@ public class GeneRelationshipExtractor implements Pipeline {
 
 		knownRelationshipAED = AnalysisEngineFactory
 		    .createPrimitiveDescription(KnownRelationshipAnnotator.class,
+		        KnownRelationshipAnnotator.PARAM_REMOVE_SENTENCE_ANNOTATIONS,
+		        Boolean.TRUE,
 		        KnownRelationshipAnnotator.PARAM_ENTITY_NAMESPACE, entityNs,
 		        KnownRelationshipAnnotator.PARAM_RELATIONSHIP_NAMESPACE,
 		        relationshipNs);
@@ -142,7 +150,7 @@ public class GeneRelationshipExtractor implements Pipeline {
 	 */
 	public void run() throws UIMAException, IOException {
 		SimplePipeline.runPipeline(collectionReader, tikaAED, sentenceAED,
-		    knownEntityAED, knownRelationshipAED, sentenceWriter);
+		    knownEntityAED, knownRelationshipAED, parserAED, patternWriter);
 	}
 
 	/**

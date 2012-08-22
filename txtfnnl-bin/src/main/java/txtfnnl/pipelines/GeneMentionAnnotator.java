@@ -37,7 +37,7 @@ public class GeneMentionAnnotator implements Pipeline {
 	AnalysisEngineDescription knownEntityAED;
 	AnalysisEngineDescription xmiWriter;
 
-	static final String DEFAULT_NAMESPACE = "http://purl.org/bio-entity/";
+	static final String DEFAULT_NAMESPACE = "entity:";
 	static final String DEFAULT_DATABASE = "gnamed";
 	static final String DEFAULT_GMAP_FILE = "doc2gene.map";
 	static final String[] SQL_QUERIES = new String[] {
