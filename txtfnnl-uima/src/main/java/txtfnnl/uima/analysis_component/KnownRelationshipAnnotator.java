@@ -81,6 +81,9 @@ public class KnownRelationshipAnnotator extends
 	/** The namespace used by the Entity annotations. */
 	public static final String PARAM_ENTITY_NAMESPACE = KnownEntityAnnotator.PARAM_NAMESPACE;
 
+	/** Remove sentence annotations that contain no relationship. */
+	public static final String PARAM_REMOVE_SENTENCE_ANNOTATIONS = "RemoveSentenceAnnotations";
+
 	/**
 	 * The name of the sentence annotation type.
 	 * 
@@ -107,6 +110,15 @@ public class KnownRelationshipAnnotator extends
 	private String relationshipNamespace;
 
 	/**
+	 * Flag indicating if sentence annotations without relationships should
+	 * be removed from the CAS.
+	 * 
+	 * Should be set as an AE descriptor parameter with the name
+	 * {@link KnownRelationshipAnnotator#PARAM_REMOVE_SENTENCE_ANNOTATIONS}.
+	 */
+	private boolean removeSentenceAnnotations = false;
+
+	/**
 	 * Create an iterator over
 	 * {@link txtfnnl.uima.tcas.RelationshipAnnotation} annotation types of
 	 * some given namespace.
@@ -115,9 +127,10 @@ public class KnownRelationshipAnnotator extends
 	 * @param namespace to filter on (<code>null</code> to use all)
 	 * @return an iterator over RelationshipAnnotation elements
 	 */
-	public static FSIterator<TOP>
-	        getRelationshipIterator(JCas jcas, String namespace) {
-		FSIterator<TOP> annIt = jcas.getJFSIndexRepository().getAllIndexedFS(RelationshipAnnotation.type);
+	public static FSIterator<TOP> getRelationshipIterator(JCas jcas,
+	                                                      String namespace) {
+		FSIterator<TOP> annIt = jcas.getJFSIndexRepository().getAllIndexedFS(
+		    RelationshipAnnotation.type);
 
 		if (namespace != null) {
 			Feature nsFeat = jcas.getTypeSystem().getFeatureByFullName(
@@ -154,6 +167,11 @@ public class KnownRelationshipAnnotator extends
 		ensureNotNull(relationshipNamespace,
 		    ResourceInitializationException.CONFIG_SETTING_ABSENT,
 		    PARAM_RELATIONSHIP_NAMESPACE);
+
+		Boolean rsaBoolean = (Boolean) ctx
+		    .getConfigParameterValue(PARAM_REMOVE_SENTENCE_ANNOTATIONS);
+		removeSentenceAnnotations = (rsaBoolean != null && rsaBoolean
+		    .booleanValue()) ? true : false;
 	}
 
 	/**
@@ -174,6 +192,8 @@ public class KnownRelationshipAnnotator extends
 		int numRels = relationships.size();
 		int[] found = new int[numRels];
 		checksum += numRels;
+		boolean hadRelations = false;
+		List<SyntaxAnnotation> remove = new LinkedList<SyntaxAnnotation>();
 
 		// Fetch the sentence iterator and the entity annotation index
 		FSIterator<Annotation> sentenceIt = SentenceAnnotator
@@ -194,6 +214,7 @@ public class KnownRelationshipAnnotator extends
 
 		// Iterate over every sentence
 		while (sentenceIt.hasNext()) {
+			hadRelations = false;
 			SyntaxAnnotation sentenceAnn = (SyntaxAnnotation) sentenceIt
 			    .next();
 			FSIterator<Annotation> semanticAnnIt = semanticAnnIdx
@@ -228,9 +249,10 @@ public class KnownRelationshipAnnotator extends
 					found[pos] = 1;
 					annotateRelationship(entitySet, textJCas, entityMap,
 					    sentenceAnn);
+					hadRelations = true;
 				} else {
 					List<Set<Entity>> done = new LinkedList<Set<Entity>>();
-					
+
 					for (pos = numRels; pos-- > 0;) {
 						Set<Entity> rel = relationships.get(pos);
 
@@ -239,9 +261,19 @@ public class KnownRelationshipAnnotator extends
 							annotateRelationship(rel, textJCas, entityMap,
 							    sentenceAnn);
 							done.add(rel);
+							hadRelations = true;
 						}
 					}
 				}
+			}
+			
+			if (!hadRelations && removeSentenceAnnotations)
+				remove.add(sentenceAnn);
+		}
+		
+		if (removeSentenceAnnotations) {
+			for (SyntaxAnnotation sentenceAnn : remove) {
+				textJCas.removeFsFromIndexes(sentenceAnn);
 			}
 		}
 		setCounters(numRels, found);
