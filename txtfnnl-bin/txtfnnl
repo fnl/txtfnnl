@@ -9,6 +9,8 @@ VERSION=0.2;
 ###################
 
 MAVEN_REPO=${M2_REPO:-~/.m2/repository};
+JAVA_LIB_PATH=/usr/local/lib; # currently, only location of link-grammar-java
+LINK_GRAMMAR_VERSION=4.7.6
 
 #################
 ## environment ##
@@ -63,6 +65,7 @@ $MAVEN_REPO/org/gagravarr/vorbis-java-core/0.1/vorbis-java-core-0.1-tests.jar:\
 $MAVEN_REPO/org/gagravarr/vorbis-java-core/0.1/vorbis-java-core-0.1.jar:\
 $MAVEN_REPO/org/gagravarr/vorbis-java-tika/0.1/vorbis-java-tika-0.1.jar:\
 $MAVEN_REPO/org/hamcrest/hamcrest-core/1.1/hamcrest-core-1.1.jar:\
+$MAVEN_REPO/org/linkgrammar/linkgrammar/$LINK_GRAMMAR_VERSION/linkgrammar-$LINK_GRAMMAR_VERSION.jar:\
 $MAVEN_REPO/org/objenesis/objenesis/1.2/objenesis-1.2.jar:\
 $MAVEN_REPO/org/slf4j/slf4j-api/1.5.6/slf4j-api-1.5.6.jar:\
 $MAVEN_REPO/org/springframework/spring-core/3.0.3.RELEASE/spring-core-3.0.3.RELEASE.jar:\
@@ -71,6 +74,7 @@ $MAVEN_REPO/postgresql/postgresql/9.1-901-1.jdbc4/postgresql-9.1-901-1.jdbc4.jar
 $MAVEN_REPO/rome/rome/0.9/rome-0.9.jar:\
 $MAVEN_REPO/txtfnnl/txtfnnl-bin/$VERSION/txtfnnl-bin-$VERSION.jar:\
 $MAVEN_REPO/txtfnnl/txtfnnl-opennlp/$VERSION/txtfnnl-opennlp-$VERSION.jar:\
+$MAVEN_REPO/txtfnnl/txtfnnl-parsers/$VERSION/txtfnnl-parsers-$VERSION.jar:\
 $MAVEN_REPO/txtfnnl/txtfnnl-tika/$VERSION/txtfnnl-tika-$VERSION.jar:\
 $MAVEN_REPO/txtfnnl/txtfnnl-uima/$VERSION/txtfnnl-uima-$VERSION.jar:\
 $MAVEN_REPO/txtfnnl/txtfnnl-utils/$VERSION/txtfnnl-utils-$VERSION.jar;
@@ -97,7 +101,7 @@ if [ $# -gt 0 ]; then
     case $cmd in
         ss) java txtfnnl.pipelines.SentenceSplitter "$@";;
         gma) java txtfnnl.pipelines.GeneMentionAnnotator "$@";;
-        gre) java txtfnnl.pipelines.GeneRelationshipExtractor "$@";;
+        gre) java -Djava.library.path=$JAVA_LIB_PATH txtfnnl.pipelines.GeneRelationshipExtractor "$@";;
         -v) echo txtfnnl-$VERSION.1;;
         --version) echo txtfnnl-$VERSION.1;;
         -h) help; exit 0;;

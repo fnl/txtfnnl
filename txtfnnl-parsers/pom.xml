@@ -1,0 +1,40 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <artifactId>txtfnnl</artifactId>
+    <groupId>txtfnnl</groupId>
+    <version>0.2</version>
+    <relativePath>..</relativePath>
+  </parent>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>-Djava.library.path=/usr/local/lib</argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <artifactId>txtfnnl-parsers</artifactId>
+  <description>A UIMA AE using the Link Grammar Parser. Requires LGP installed as a Maven Project with the Java JNI bindings enabled.</description>
+  <dependencies>
+    <dependency>
+        <groupId>org.linkgrammar</groupId>
+        <artifactId>linkgrammar</artifactId>
+        <version>4.7.6</version>
+    </dependency>
+    <dependency>
+    	<groupId>txtfnnl</groupId>
+    	<artifactId>txtfnnl-uima</artifactId>
+    	<version>0.2</version>
+    </dependency>
+    <dependency>
+    	<groupId>com.h2database</groupId>
+    	<artifactId>h2</artifactId>
+    	<version>1.3.166</version>
+    	<scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>
