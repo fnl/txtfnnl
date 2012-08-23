@@ -26,12 +26,13 @@ In addition, the following direct dependencies exist:
   **txtfnnl-bin** module
 - for making gene mention annotations (via the ``ema`` pipeline), a gnamed_ DB
   has to be available on the network, which in turn (by default) requires
-  `PostgreSQL <http://www.postgresql.org/>`_ 8.4+; the tests for this part
-  of txtfnnl furthermore use the `H2 <http://www.h2database.com/>`_
+  `PostgreSQL <http://www.postgresql.org/>`_ 8.4+; the tests for the entity
+  annotator of txtfnnl furthermore use the `H2 <http://www.h2database.com/>`_
   in-memory DB.
 - for the **txtfnnl-parsers** module, the relevant parsers need to be
-  downloaded and installed, including the creation of Maven artifacts.
-  Right now, the only supported parser is `LinkGrammar <http://www.link.cs.cmu.edu/link/>`_
+  downloaded, installed, and visible on the system ``$PATH``.
+  Right now, the only supported parser is
+  `LinkGrammar <http://www.link.cs.cmu.edu/link/>`_
 
 Installation
 ------------
@@ -39,23 +40,19 @@ Installation
 Before installing **txtfnnl** itself, the additional (independent) parsers
 should be installed. The following parsers are supported by **txtfnnl**:
 
-`LinkGrammar <http://www.abisource.com/projects/link-grammar/>`_ 4.7.6 (or similar)
+`LinkGrammar <http://www.abisource.com/projects/link-grammar/>`_
   After downloading, unpacking, building, and installation (usually, just a
-  curl-tar-configure-make loop) and assuming the default installation into
-  ``/usr/local``, nothing else needs to be configured. However, the following
-  Maven command needs to be executed to create a "mavenized artifact" from the
-  `JNI <http://en.wikipedia.org/wiki/Java_Native_Interface>`_ (Java Native
-  Interface) JAR file wrapping the C parser::
+  curl-tar-configure-make-install loop) and assuming the default installation
+  into ``/usr/local``, nothing else needs to be configured (parser version
+  known to work with this AE wrapper: 4.7.6).
   
-    mvn install:install-file -Dfile=linkgrammar-4.7.6.jar -Dversion=4.7.6 \
-    -DgroupId=org.linkgrammar -DartifactId=linkgrammar  -Dpackaging=jar 
-
-Execute ``mvn install`` in the TLD.
-**txtfnnl** is known to work on Apple OSX, Ubuntu and CentOS.
+All other dependencies will be resolved by Maven (if you have a working
+Internet connection). To "install" **txtfnnl** itself, execute ``mvn install``
+in the TLD. **txtfnnl** is known to work on Apple OSX, Ubuntu and CentOS.
 The framework requires the use of Java 1.5 or later (tested on 1.5 and 1.6).
 
 After installing the Maven project, the ``txtfnnl`` shell script in the
-**txtfnnl-bin** module can be put anywhere on the system PATH. If non-
+**txtfnnl-bin** module can be put anywhere on the system ``$PATH``. If non-
 standard locations were used for the parsers, the correct ``java.library.path``
 setting should be configured in the script's ``JAVA_LIB_PATH`` variable.
 

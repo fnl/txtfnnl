@@ -9,8 +9,6 @@ VERSION=0.2;
 ###################
 
 MAVEN_REPO=${M2_REPO:-~/.m2/repository};
-JAVA_LIB_PATH=/usr/local/lib; # currently, only location of link-grammar-java
-LINK_GRAMMAR_VERSION=4.7.6
 
 #################
 ## environment ##
@@ -65,7 +63,6 @@ $MAVEN_REPO/org/gagravarr/vorbis-java-core/0.1/vorbis-java-core-0.1-tests.jar:\
 $MAVEN_REPO/org/gagravarr/vorbis-java-core/0.1/vorbis-java-core-0.1.jar:\
 $MAVEN_REPO/org/gagravarr/vorbis-java-tika/0.1/vorbis-java-tika-0.1.jar:\
 $MAVEN_REPO/org/hamcrest/hamcrest-core/1.1/hamcrest-core-1.1.jar:\
-$MAVEN_REPO/org/linkgrammar/linkgrammar/$LINK_GRAMMAR_VERSION/linkgrammar-$LINK_GRAMMAR_VERSION.jar:\
 $MAVEN_REPO/org/objenesis/objenesis/1.2/objenesis-1.2.jar:\
 $MAVEN_REPO/org/slf4j/slf4j-api/1.5.6/slf4j-api-1.5.6.jar:\
 $MAVEN_REPO/org/springframework/spring-core/3.0.3.RELEASE/spring-core-3.0.3.RELEASE.jar:\
@@ -88,8 +85,8 @@ help () {
     echo;
     echo "pipelines:";
     echo "  ss    - split sentences";
-    echo "  gma   - annotate known gene mentions";
-    echo "  gre   - extract sentences with (potential) gene relationships";
+    echo "  ema   - annotate known entity mentions";
+    echo "  rpe   - extract patterns with (potential) entity relationships";
     echo;
     echo "Use 'txtfnnl <pipeline> --help' to learn more about each pipeline.";
     echo "(c) Florian Leitner 2012. All rights reserved. Version" $VERSION;
@@ -100,8 +97,8 @@ if [ $# -gt 0 ]; then
     shift;
     case $cmd in
         ss) java txtfnnl.pipelines.SentenceSplitter "$@";;
-        gma) java txtfnnl.pipelines.GeneMentionAnnotator "$@";;
-        gre) java -Djava.library.path=$JAVA_LIB_PATH txtfnnl.pipelines.GeneRelationshipExtractor "$@";;
+        ema) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
+        rpe) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;
         -v) echo txtfnnl-$VERSION.1;;
         --version) echo txtfnnl-$VERSION.1;;
         -h) help; exit 0;;

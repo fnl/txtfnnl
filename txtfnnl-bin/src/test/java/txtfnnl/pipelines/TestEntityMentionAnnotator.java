@@ -23,15 +23,15 @@ import txtfnnl.uima.collection.FileSystemCollectionReader;
 import txtfnnl.uima.collection.FileSystemXmiWriter;
 import txtfnnl.utils.IOUtils;
 
-public class TestGeneMentionAnnotator {
+public class TestEntityMentionAnnotator {
 
 	@Test
 	public void testDirectoryReaderSetup() throws IOException, UIMAException,
 	        ClassNotFoundException {
 		File inputDir = IOUtils.mkTmpDir();
-		GeneMentionAnnotator gAnn = new GeneMentionAnnotator(inputDir,
+		EntityMentionAnnotator gAnn = new EntityMentionAnnotator(inputDir,
 		    "mime type", false, IOUtils.mkTmpDir(), null, true, null,
-		    File.createTempFile("gene_", ".map"), "TODO", null, null);
+		    File.createTempFile("gene_", ".map"), null, "TODO", null, null);
 		ConfigurationParameterSettings cps = gAnn.collectionReader
 		    .getCollectionReaderMetaData().getConfigurationParameterSettings();
 
@@ -47,10 +47,10 @@ public class TestGeneMentionAnnotator {
 	public void testFileReaderSetup() throws IOException, UIMAException,
 	        ClassNotFoundException {
 		File inputFile = File.createTempFile("input_", ".txt");
-		GeneMentionAnnotator gAnn = new GeneMentionAnnotator(
+		EntityMentionAnnotator gAnn = new EntityMentionAnnotator(
 		    new String[] { inputFile.getCanonicalPath() }, "mime type",
 		    IOUtils.mkTmpDir(), null, true, null, File.createTempFile("gene_",
-		        ".map"), "TODO", null, null);
+		        ".map"), null, "TODO", null, null);
 		ConfigurationParameterSettings cps = gAnn.collectionReader
 		    .getCollectionReaderMetaData().getConfigurationParameterSettings();
 
@@ -64,9 +64,10 @@ public class TestGeneMentionAnnotator {
 	public void testXmiWriterSetup() throws IOException, UIMAException,
 	        ClassNotFoundException {
 		File outputDir = IOUtils.mkTmpDir();
-		GeneMentionAnnotator gAnn = new GeneMentionAnnotator(IOUtils.mkTmpDir(),
-		    null, true, outputDir, "encoding", false, null,
-		    File.createTempFile("gene_", ".map"), "TODO", null, null);
+		EntityMentionAnnotator gAnn = new EntityMentionAnnotator(
+		    IOUtils.mkTmpDir(), null, true, outputDir, "encoding", false,
+		    null, File.createTempFile("gene_", ".map"), null, "TODO", null,
+		    null);
 		ConfigurationParameterSettings cps = gAnn.xmiWriter
 		    .getAnalysisEngineMetaData().getConfigurationParameterSettings();
 
@@ -81,9 +82,10 @@ public class TestGeneMentionAnnotator {
 	@Test
 	public void testAnalysisEngineSetup() throws IOException, UIMAException,
 	        ClassNotFoundException {
-		GeneMentionAnnotator gAnn = new GeneMentionAnnotator(IOUtils.mkTmpDir(),
-		    null, true, IOUtils.mkTmpDir(), null, true, "namespace",
-		    File.createTempFile("gene_", ".map"), "TODO", null, null);
+		EntityMentionAnnotator gAnn = new EntityMentionAnnotator(
+		    IOUtils.mkTmpDir(), null, true, IOUtils.mkTmpDir(), null, true,
+		    "namespace", File.createTempFile("gene_", ".map"), null, "TODO",
+		    null, null);
 		ConfigurationParameterSettings cps = gAnn.knownEntityAED
 		    .getAnalysisEngineMetaData().getConfigurationParameterSettings();
 
@@ -103,20 +105,21 @@ public class TestGeneMentionAnnotator {
 		Connection jdbc_resource = DriverManager.getConnection(connectionUrl);
 		Statement stmt = jdbc_resource.createStatement();
 		stmt.executeUpdate("CREATE TABLE gene_refs(id INT PRIMARY KEY,"
-                + "                    namespace VARCHAR,"
-                + "                    accession VARCHAR)");
+		                   + "                    namespace VARCHAR,"
+		                   + "                    accession VARCHAR)");
 		stmt.executeUpdate("CREATE TABLE genes2proteins(gene_id INT,"
-                + "                    protein_id INT)");
+		                   + "                    protein_id INT)");
 		stmt.executeUpdate("CREATE TABLE protein_strings(id INT PRIMARY KEY,"
-                + "                    cat VARCHAR,"
-                + "                    value VARCHAR)");
+		                   + "                    cat VARCHAR,"
+		                   + "                    value VARCHAR)");
 		stmt.executeUpdate("CREATE TABLE gene_strings(id INT PRIMARY KEY,"
-                + "                    cat VARCHAR,"
-                + "                    value VARCHAR)");
-		GeneMentionAnnotator gAnn = new GeneMentionAnnotator(
+		                   + "                    cat VARCHAR,"
+		                   + "                    value VARCHAR)");
+		EntityMentionAnnotator gAnn = new EntityMentionAnnotator(
 		    new String[] { inputFile.getCanonicalPath() }, null, outputDir,
-		    "UTF-8", false, "namespace", File.createTempFile("gene_",
-		        ".map"), connectionUrl, null, null);
+		    "UTF-8", false, "namespace", File.createTempFile("gene_", ".map"),
+		    EntityMentionAnnotator.DEFAULT_SQL_QUERIES, connectionUrl, null,
+		    null);
 		Level l = DisableLogging.disableLogging();
 		DisableLogging.enableLogging(Level.SEVERE);
 		gAnn.run();

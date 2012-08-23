@@ -4,12 +4,14 @@
 package txtfnnl.pipelines;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
@@ -24,13 +26,14 @@ import org.uimafit.pipeline.SimplePipeline;
 import txtfnnl.uima.analysis_component.KnownEntityAnnotator;
 import txtfnnl.uima.resource.EntityStringMapResource;
 import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
+import txtfnnl.utils.IOUtils;
 
 /**
  * 
  * 
  * @author Florian Leitner
  */
-public class GeneMentionAnnotator implements Pipeline {
+public class EntityMentionAnnotator implements Pipeline {
 
 	CollectionReaderDescription collectionReader;
 	AnalysisEngineDescription tikaAED;
@@ -39,8 +42,8 @@ public class GeneMentionAnnotator implements Pipeline {
 
 	static final String DEFAULT_NAMESPACE = "entity:";
 	static final String DEFAULT_DATABASE = "gnamed";
-	static final String DEFAULT_GMAP_FILE = "doc2gene.map";
-	static final String[] SQL_QUERIES = new String[] {
+	static final String DEFAULT_GMAP_FILE = "doc2entity.map";
+	static final String[] DEFAULT_SQL_QUERIES = new String[] {
 	    "SELECT DISTINCT p.value FROM gene_refs AS g "
 	            + "JOIN genes2proteins AS g2p ON g.id = g2p.gene_id "
 	            + "JOIN protein_strings AS p ON g2p.protein_id = p.id "
@@ -51,23 +54,22 @@ public class GeneMentionAnnotator implements Pipeline {
 	            + "WHERE s.cat IN ('name', 'symbol') "
 	            + "AND r.namespace=? AND r.accession=?" };
 
-	private GeneMentionAnnotator(File outputDir, String characterEncoding,
-	                             boolean replaceFiles, String namespace,
-	                             File geneMap, String dbUrl, String dbUser,
-	                             String dbPass) throws IOException,
-	        UIMAException, ClassNotFoundException {
-		tikaAED = PipelineUtils.getTikaAnnotator(true,
-		    characterEncoding);
+	private EntityMentionAnnotator(File outputDir, String characterEncoding,
+	                               boolean replaceFiles, String namespace,
+	                               File entityMap, String[] queries,
+	                               String dbUrl, String dbUser, String dbPass)
+	        throws IOException, UIMAException, ClassNotFoundException {
+		tikaAED = PipelineUtils.getTikaAnnotator(true, characterEncoding);
 		xmiWriter = PipelineUtils.getXmiFileWriter(outputDir,
 		    characterEncoding, replaceFiles);
-		
+
 		knownEntityAED = AnalysisEngineFactory.createPrimitiveDescription(
 		    KnownEntityAnnotator.class, KnownEntityAnnotator.PARAM_NAMESPACE,
-		    namespace, KnownEntityAnnotator.PARAM_QUERIES, SQL_QUERIES);
+		    namespace, KnownEntityAnnotator.PARAM_QUERIES, queries);
 		ExternalResourceFactory.createDependencyAndBind(knownEntityAED,
 		    KnownEntityAnnotator.MODEL_KEY_EVIDENCE_STRING_MAP,
 		    EntityStringMapResource.class,
-		    "file:" + geneMap.getCanonicalPath());
+		    "file:" + entityMap.getCanonicalPath());
 		Class.forName("org.postgresql.Driver");
 		ExternalResourceFactory.createDependencyAndBind(knownEntityAED,
 		    KnownEntityAnnotator.MODEL_KEY_JDBC_CONNECTION,
@@ -78,29 +80,29 @@ public class GeneMentionAnnotator implements Pipeline {
 		    JdbcConnectionResourceImpl.PARAM_PASSWORD, dbPass);
 	}
 
-	public GeneMentionAnnotator(File inputDirectory, String mimeType,
-	                            boolean recurseDirectory,
-	                            File outputDirectory,
-	                            String characterEncoding,
-	                            boolean replaceFiles, String namespace,
-	                            File geneMap, String dbUrl, String dbUser,
-	                            String dbPass) throws IOException,
-	        UIMAException, ClassNotFoundException {
+	public EntityMentionAnnotator(File inputDirectory, String mimeType,
+	                              boolean recurseDirectory,
+	                              File outputDirectory,
+	                              String characterEncoding,
+	                              boolean replaceFiles, String namespace,
+	                              File entityMap, String[] queries,
+	                              String dbUrl, String dbUser, String dbPass)
+	        throws IOException, UIMAException, ClassNotFoundException {
 		this(outputDirectory, characterEncoding, replaceFiles, namespace,
-		    geneMap, dbUrl, dbUser, dbPass);
+		    entityMap, queries, dbUrl, dbUser, dbPass);
 		collectionReader = PipelineUtils.getCollectionReader(inputDirectory,
 		    mimeType, recurseDirectory);
 	}
 
-	public GeneMentionAnnotator(String[] inputFiles, String mimeType,
-	                            File outputDirectory,
-	                            String characterEncoding,
-	                            boolean replaceFiles, String namespace,
-	                            File geneMap, String dbUrl, String dbUser,
-	                            String dbPass) throws IOException,
-	        UIMAException, ClassNotFoundException {
+	public EntityMentionAnnotator(String[] inputFiles, String mimeType,
+	                              File outputDirectory,
+	                              String characterEncoding,
+	                              boolean replaceFiles, String namespace,
+	                              File entityMap, String[] queries,
+	                              String dbUrl, String dbUser, String dbPass)
+	        throws IOException, UIMAException, ClassNotFoundException {
 		this(outputDirectory, characterEncoding, replaceFiles, namespace,
-		    geneMap, dbUrl, dbUser, dbPass);
+		    entityMap, queries, dbUrl, dbUser, dbPass);
 		collectionReader = PipelineUtils.getCollectionReader(inputFiles,
 		    mimeType);
 	}
@@ -117,7 +119,7 @@ public class GeneMentionAnnotator implements Pipeline {
 	}
 
 	/**
-	 * Execute a known gene entity annotation pipeline.
+	 * Execute a known entity annotator pipeline.
 	 * 
 	 * @param arguments command line arguments; see --help for more
 	 *        information.
@@ -125,7 +127,7 @@ public class GeneMentionAnnotator implements Pipeline {
 	public static void main(String[] arguments) {
 		CommandLine cmd = null;
 		CommandLineParser parser = new PosixParser();
-		File geneMap;
+		File entityMap;
 		File inputDirectory = null;
 		File outputDirectory;
 		Pipeline annotator;
@@ -134,10 +136,16 @@ public class GeneMentionAnnotator implements Pipeline {
 
 		opts.addOption("d", "db-name", true, "name of the 'gnamed' DB [" +
 		                                     DEFAULT_DATABASE + "]");
-		opts.addOption("m", "gene-map", true, "name of the gene map file [" +
+		opts.addOption("m", "entity-map", true, "name of the entity map file [" +
 		                                      DEFAULT_GMAP_FILE + "]");
 		opts.addOption("n", "namespace", true,
-		    "namespace of the gene annotations [" + DEFAULT_NAMESPACE + "]");
+		    "namespace of the entity annotations [" + DEFAULT_NAMESPACE + "]");
+		opts.addOption("Q", "query-file", true, "file with SQL SELECT queries");
+		OptionBuilder.withLongOpt("query");
+		OptionBuilder.withArgName("SELECT");
+		OptionBuilder.hasArgs();
+		OptionBuilder.withDescription("one or more SQL SELECT queries");
+		opts.addOption(OptionBuilder.create('q'));
 		opts.addOption("p", "db-password", true,
 		    "password for the DB server (if any is needed)");
 		opts.addOption("s", "db-server", true,
@@ -156,18 +164,20 @@ public class GeneMentionAnnotator implements Pipeline {
 		}
 
 		Logger l = PipelineUtils.loggingSetup(
-		    GeneMentionAnnotator.class.getName(), cmd, opts,
+		    EntityMentionAnnotator.class.getName(), cmd, opts,
 		    "txtfnnl gma [options] <output dir> <input dir|files...>\n");
 
 		String[] inputFiles = cmd.getArgs();
-		boolean recursive = cmd.hasOption('R');
 		String encoding = cmd.getOptionValue('E');
 		String mimeType = cmd.getOptionValue('M');
+		String queryFileName = cmd.getOptionValue('Q');
+		boolean recursive = cmd.hasOption('R');
 		boolean replace = cmd.hasOption('X');
 		String dbName = cmd.getOptionValue('d');
-		String geneMapPath = cmd.getOptionValue('m');
+		String entityMapPath = cmd.getOptionValue('m');
 		String namespace = cmd.getOptionValue('n');
 		String dbPass = cmd.getOptionValue('p');
+		String[] queries = cmd.getOptionValues('q');
 		String dbHost = cmd.getOptionValue('s');
 		String dbUser = cmd.getOptionValue('u');
 
@@ -182,8 +192,8 @@ public class GeneMentionAnnotator implements Pipeline {
 		if (namespace == null)
 			namespace = DEFAULT_NAMESPACE;
 
-		if (geneMapPath == null)
-			geneMapPath = DEFAULT_GMAP_FILE;
+		if (entityMapPath == null)
+			entityMapPath = DEFAULT_GMAP_FILE;
 
 		if (dbName == null)
 			dbName = DEFAULT_DATABASE;
@@ -216,23 +226,57 @@ public class GeneMentionAnnotator implements Pipeline {
 			}
 		}
 
-		geneMap = new File(geneMapPath);
+		if (queryFileName != null) {
+			File queryFile = new File(queryFileName);
 
-		if (!geneMap.isFile() || !geneMap.canRead()) {
-			System.err.println("cannot read gene map file '" + geneMapPath +
+			if (!queryFile.isFile() || !queryFile.canRead()) {
+				System.err.println("query file '" + queryFile +
+				                   "' not a (readable) file");
+				System.exit(1); // == exit ==
+			}
+
+			String[] fileQueries = null;
+
+			try {
+				fileQueries = IOUtils.read(new FileInputStream(queryFile),
+				    encoding).split("\n");
+			} catch (Exception e) {
+				System.err.println("could not read query file '" + queryFile +
+				                   "': " + e.getMessage());
+				System.exit(1); // == exit ==
+			}
+
+			if (queries == null || queries.length == 0) {
+				queries = fileQueries;
+			} else {
+				String[] tmp = new String[queries.length + fileQueries.length];
+				System.arraycopy(queries, 0, tmp, 0, queries.length);
+				System.arraycopy(fileQueries, 0, tmp, queries.length,
+				    fileQueries.length);
+				queries = tmp;
+			}
+		}
+
+		entityMap = new File(entityMapPath);
+
+		if (!entityMap.isFile() || !entityMap.canRead()) {
+			System.err.println("cannot read entity map file '" + entityMapPath +
 			                   "'");
 			System.exit(1); // == exit ==
 		}
 
 		try {
+			if (queries == null || queries.length == 0)
+				queries = EntityMentionAnnotator.DEFAULT_SQL_QUERIES;
+
 			if (inputDirectory == null)
-				annotator = new GeneMentionAnnotator(inputFiles, mimeType,
-				    outputDirectory, encoding, replace, namespace, geneMap,
-				    dbUrl, dbUser, dbPass);
+				annotator = new EntityMentionAnnotator(inputFiles, mimeType,
+				    outputDirectory, encoding, replace, namespace, entityMap,
+				    queries, dbUrl, dbUser, dbPass);
 			else
-				annotator = new GeneMentionAnnotator(inputDirectory, mimeType,
-				    recursive, outputDirectory, encoding, replace, namespace,
-				    geneMap, dbUrl, dbUser, dbPass);
+				annotator = new EntityMentionAnnotator(inputDirectory,
+				    mimeType, recursive, outputDirectory, encoding, replace,
+				    namespace, entityMap, queries, dbUrl, dbUser, dbPass);
 
 			annotator.run();
 		} catch (UIMAException e) {
