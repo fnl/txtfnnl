@@ -246,7 +246,7 @@ class LinkParser {
 			first = false;
 
 			for (int i = 0; i < 4; ++i)
-				logger.log(Level.INFO, out.readLine());
+				logger.log(Level.FINE, out.readLine());
 		} else {
 			// empty line
 			String empty = out.readLine();
