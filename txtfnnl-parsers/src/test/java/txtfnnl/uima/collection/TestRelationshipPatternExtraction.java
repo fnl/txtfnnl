@@ -337,12 +337,12 @@ public class TestRelationshipPatternExtraction {
 		// included, at other times, not; so:
 		String pattern = "the oncogenic actions of [[entity:type-2]] extend beyond the "
 		                 + "activation of [[entity:type-1]] gene expression and "
-		                 + "telomerase activity.";
+		                 + "telomerase activity";
 		assertTrue(
 		    "Pattern\n'" + pattern + "'\nnot found in:\n" +
 		            prettyPrint(result),
-		    ("\n" + result).contains("\n" + pattern + "\n") ||
-		            ("\n" + result).contains("\nthat " + pattern + "\n"));
+		    ("\n" + result).contains("\n" + pattern) ||
+		            ("\n" + result).contains("\nthat " + pattern));
 	}
 
 	@Test

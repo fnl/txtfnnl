@@ -224,12 +224,14 @@ public class TestLinkGrammarAnnotator {
 		    .getAnnotationIndex(SyntaxAnnotation.type);
 		FSIterator<Annotation> it = SentenceAnnotator.getSentenceIterator(
 		    textJCas, SentenceAnnotator.SENTENCE_TYPE_NAME);
-		SyntaxAnnotation ann = (SyntaxAnnotation) it.next();
-		AnnotationTreeNode<Annotation> root = idx.tree(ann).getRoot();
-		assertEquals(root.get().getCoveredText(), 19, root.getChildCount());
-		ann = (SyntaxAnnotation) it.next();
-		root = idx.tree(ann).getRoot();
-		assertEquals(root.get().getCoveredText(), 2, root.getChildCount());
+		int count = 0;
+
+		while (it.hasNext()) {
+			ensureTreeStructure(idx, (SyntaxAnnotation) it.next());
+			++count;
+		}
+
+		assertEquals(2, count);
 	}
 
 	private void ensureTreeStructure(AnnotationIndex<Annotation> idx,
