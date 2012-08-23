@@ -319,6 +319,33 @@ public class TestRelationshipPatternExtraction {
 	}
 
 	@Test
+	public void testParsingLongPhrase() throws UIMAException, IOException,
+	        SQLException {
+		String sentence = "The inability of TERT overexpression to substitute "
+		                  + "for Myc in the REF cooperation assay, in "
+		                  + "conjunction with the previous observation that "
+		                  + "c-Myc can bypass replicative senesence despite "
+		                  + "substantial telomere loss ( Wang et al ., 1998 "
+		                  + "), suggests that the oncogenic actions of c-Myc "
+		                  + "extend beyond the activation of TERT gene "
+		                  + "expression and telomerase activity.";
+		addRelationship("TERT", "c-Myc");
+		finalizeSetUp();
+		JCas jcas = setUpJCas(sentence);
+		String result = process(jcas);
+		// the parser is not quite deterministic - sometimes, "that" is
+		// included, at other times, not; so:
+		String pattern = "the oncogenic actions of [[entity:type-2]] extend beyond the "
+		                 + "activation of [[entity:type-1]] gene expression and "
+		                 + "telomerase activity.";
+		assertTrue(
+		    "Pattern\n'" + pattern + "'\nnot found in:\n" +
+		            prettyPrint(result),
+		    ("\n" + result).contains("\n" + pattern + "\n") ||
+		            ("\n" + result).contains("\nthat " + pattern + "\n"));
+	}
+
+	@Test
 	public void testExtractionOfComplexPhrases() throws UIMAException,
 	        IOException, SQLException {
 		addRelationship("ENT1", "ENT2");

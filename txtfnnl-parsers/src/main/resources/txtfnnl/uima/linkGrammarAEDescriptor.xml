@@ -11,13 +11,13 @@
     <configurationParameters>
       <configurationParameter>
         <name>DictionariesPath</name>
-        <description>path to the LinkGrammar dictionaries </description>
+        <description>path to the LinkGrammar dictionaries</description>
         <type>String</type>
         <multiValued>false</multiValued>
         <mandatory>false</mandatory>
       </configurationParameter>
       <configurationParameter>
-        <name>ParseSeconds</name>
+        <name>TimeoutSeconds</name>
         <description>number of seconds the LinkGrammar parser may try to work on a sentence</description>
         <type>Integer</type>
         <multiValued>false</multiValued>
