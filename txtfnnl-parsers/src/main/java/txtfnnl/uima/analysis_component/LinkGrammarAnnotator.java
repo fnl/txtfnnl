@@ -117,8 +117,9 @@ class LinkParser {
 				BufferedReader buffer = new BufferedReader(reader);
 				String line = null;
 
+				// first three lines: dictionary path, version, and state msg
 				while ((line = buffer.readLine()) != null && !stop)
-					l.log((count++ < 3) ? Level.INFO : Level.WARNING,
+					l.log((count++ < 3) ? Level.FINE : Level.WARNING,
 					    line.trim());
 			} catch (ClosedByInterruptException e) {
 				l.log(Level.FINE, "link-parser error stream interrupted");
