@@ -371,4 +371,24 @@ public class TestRelationshipPatternExtraction {
 		               + "[[entity:type-2]] promoter in the nucleus", result);
 	}
 
+	@Test
+	public void testSkippingOfModifierPhrases() throws UIMAException,
+	        IOException, SQLException {
+		addRelationship("AAA-1", "BBB-2");
+		finalizeSetUp();
+		JCas jcas = setUpJCas("Inhibition of AAA-1 expression in positively "
+		                      + "HCT116 cells results in growth suppression "
+		                      + "in a BBB-2-dependent manner.");
+		String result = process(jcas);
+		System.out.println(result);
+		checkForResult(
+		    "Inhibition of [[entity:type-1]] expression results in growth "
+		            + "suppression in a [[entity:type-2]]-dependent manner",
+		    result);
+		checkForResult(
+		    "Inhibition of [[entity:type-1]] expression in HCT116 cells "
+		            + "results in growth suppression in a "
+		            + "[[entity:type-2]]-dependent manner", result);
+	}
+
 }

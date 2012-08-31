@@ -276,19 +276,27 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 		    .getTargets())) {
 			List<List<AnnotationTreeNode<Annotation>>> paths = findPaths(
 			    entities, root);
-			int commonNode = findCommonRoot(paths);
+			int commonNodeIdx = findCommonRoot(paths);
+			AnnotationTreeNode<Annotation> commonNode = (commonNodeIdx < 0)
+			        ? root
+			        : paths.get(0).get(commonNodeIdx);
 			LinkedList<Annotation> longSpans = longestCommonSpans(sentAnn,
-			    paths, commonNode);
+			    paths, commonNodeIdx);
 			Set<String> patterns = new HashSet<String>();
-			patterns.add(extractPattern(entities, longSpans));
-			List<LinkedList<Annotation>> shortSpans = shortestCommonSpans(
-			    entities, paths, commonNode, root);
+			List<LinkedList<Annotation>> allSpans = shortestCommonSpans(
+			    entities, paths, commonNodeIdx, root);
+			allSpans.add(longSpans);
 
-			for (LinkedList<Annotation> span : shortSpans)
+			for (LinkedList<Annotation> span : allSpans)
 				patterns.add(extractPattern(entities, span));
 
-			removeEntityNounPhrases(patterns, entities, longSpans, shortSpans,
-			    paths);
+			for (LinkedList<Annotation> spans : skippedModifierSpans(entities,
+			    new LinkedList<LinkedList<Annotation>>(allSpans), commonNode)) {
+				patterns.add(extractPattern(entities, spans));
+				allSpans.add(spans);
+			}
+
+			removeEntityNounPhrases(patterns, entities, allSpans, paths);
 
 			try {
 				for (String p : patterns) {
@@ -303,11 +311,19 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 		}
 	}
 
+	/**
+	 * 
+	 * @param patterns
+	 * @param entities
+	 * @param longSpans
+	 * @param spans
+	 * @param paths
+	 * @throws AnalysisEngineProcessException
+	 */
 	        void
 	        removeEntityNounPhrases(Set<String> patterns,
 	                                TextAnnotation[] entities,
-	                                LinkedList<Annotation> longSpans,
-	                                List<LinkedList<Annotation>> shortSpans,
+	                                List<LinkedList<Annotation>> spans,
 	                                List<List<AnnotationTreeNode<Annotation>>> paths)
 	                throws AnalysisEngineProcessException {
 		TextAnnotation[] clone = new TextAnnotation[entities.length];
@@ -329,17 +345,16 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 
 			tmp = entities[idx];
 			entities[idx] = clone[idx];
-			patterns.add(extractPattern(entities, longSpans));
 
-			for (LinkedList<Annotation> span : shortSpans)
+			// replace one NP
+			for (LinkedList<Annotation> span : spans)
 				patterns.add(extractPattern(entities, span));
 
 			entities[idx] = tmp;
 		}
 
-		patterns.add(extractPattern(clone, longSpans));
-
-		for (LinkedList<Annotation> span : shortSpans)
+		// replace all NPs
+		for (LinkedList<Annotation> span : spans)
 			patterns.add(extractPattern(clone, span));
 	}
 
@@ -582,6 +597,87 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 		return spans;
 	}
 
+	List<LinkedList<Annotation>>
+	        skippedModifierSpans(TextAnnotation[] entities,
+	                             List<LinkedList<Annotation>> allSpans,
+	                             AnnotationTreeNode<Annotation> commonNode) {
+		// TODO Auto-generated method stub
+		Offset[] entityOffsets = new Offset[entities.length];
+
+		for (int i = 0; i < entities.length; ++i)
+			entityOffsets[i] = entities[i].getOffset();
+
+		Set<Offset> skippableSpans = iterateSkippableSpans(entityOffsets,
+		    commonNode);
+		List<LinkedList<Annotation>> extraSpans = new LinkedList<LinkedList<Annotation>>();
+
+		for (LinkedList<Annotation> spans : allSpans) {
+
+			search: for (Offset skippable : skippableSpans) {
+				for (Annotation ann : spans) {
+					Offset target = ((TextAnnotation) ann).getOffset();
+					
+					if (target.contains(skippable)) {
+						LinkedList<Annotation> clone = new LinkedList<Annotation>(
+						    spans);
+						int idx = clone.indexOf(ann);
+						clone.remove(idx);
+						
+						if (!skippable.contains(target)) {
+							if (skippable.end() != target.end()) {
+								Annotation after = (Annotation) ann.clone();
+								after.setBegin(skippable.end());
+								clone.add(idx, after);
+							}
+							if (skippable.start() != target.start()) {
+								Annotation before = (Annotation) ann.clone();
+								before.setEnd(skippable.start());
+								clone.add(idx, before);
+							}
+						}
+						
+						extraSpans.add(clone);
+						continue search;
+					}
+				}
+
+			}
+		}
+
+		return extraSpans;
+	}
+
+	private Set<Offset>
+	        iterateSkippableSpans(Offset[] entities,
+	                              AnnotationTreeNode<Annotation> node) {
+		Set<Offset> spans = new HashSet<Offset>();
+		int numChildren = node.getChildCount();
+
+		for (int i = 0; i < numChildren; i++) {
+			AnnotationTreeNode<Annotation> child = node.getChild(i);
+			TextAnnotation span = (TextAnnotation) child.get();
+			String id = span.getIdentifier();
+
+			if ("PP".equals(id) || "ADJP".equals(id) || "ADVP".equals(id)) {
+				Offset off = span.getOffset();
+				boolean hasEntity = false;
+
+				for (Offset e : entities) {
+					if (off.contains(e)) {
+						hasEntity = true;
+						break;
+					}
+				}
+
+				if (!hasEntity)
+					spans.add(off);
+			}
+
+			spans.addAll(iterateSkippableSpans(entities, child));
+		}
+		return spans;
+	}
+
 	/**
 	 * 
 	 * @param sentAnn
@@ -620,7 +716,7 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 				if (p.size() == commonNode + 1)
 					incrementCommonNode = false;
 			}
-			
+
 			if (incrementCommonNode)
 				commonNode++;
 		}
