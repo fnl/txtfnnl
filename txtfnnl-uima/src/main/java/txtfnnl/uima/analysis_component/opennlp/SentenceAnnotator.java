@@ -152,11 +152,13 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 		    .getConfigParameterValue(PARAM_SPLIT_ON_NEWLINE);
 
 		if (splitMode == null) {
-			// do nothing
+			logger.log(Level.INFO, "no newline-based splitting");
 		} else if (splitMode.equals("single")) {
 			splitOnSingleNewline = true;
+			logger.log(Level.INFO, "splitting on single newlines");
 		} else if (splitMode.equals("multi")) {
 			splitOnMultiNewline = true;
+			logger.log(Level.INFO, "splitting on multi-newlines");
 		} else {
 			throw new ResourceInitializationException(new AssertionError(
 			    "parameter '" + PARAM_SPLIT_ON_NEWLINE +
