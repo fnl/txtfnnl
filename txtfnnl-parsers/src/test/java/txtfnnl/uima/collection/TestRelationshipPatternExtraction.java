@@ -376,7 +376,7 @@ public class TestRelationshipPatternExtraction {
 	        IOException, SQLException {
 		addRelationship("AAA-1", "BBB-2");
 		finalizeSetUp();
-		JCas jcas = setUpJCas("Inhibition of AAA-1 expression in positively "
+		JCas jcas = setUpJCas("Inhibition of AAA-1 expression in "
 		                      + "HCT116 cells results in growth suppression "
 		                      + "in a BBB-2-dependent manner.");
 		String result = process(jcas);
@@ -388,10 +388,6 @@ public class TestRelationshipPatternExtraction {
 		    "Inhibition of [[entity:type-1]] expression in HCT116 cells "
 		            + "results in growth suppression in a "
 		            + "[[entity:type-2]]-dependent manner", result);
-		checkForResult(
-		    "Inhibition of [[entity:type-1]] expression in positively HCT116 "
-		            + "cells results in growth suppression in a "
-		            + "[[entity:type-2]]-dependent manner.", result);
 	}
 
 	@Test
