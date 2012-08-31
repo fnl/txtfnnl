@@ -286,6 +286,9 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 			List<LinkedList<Annotation>> allSpans = shortestCommonSpans(
 			    entities, paths, commonNodeIdx, root);
 			allSpans.add(longSpans);
+			LinkedList<Annotation> sentSpan = new LinkedList<Annotation>();
+			sentSpan.add(sentAnn);
+			allSpans.add(sentSpan);
 
 			for (LinkedList<Annotation> span : allSpans)
 				patterns.add(extractPattern(entities, span));
@@ -296,7 +299,8 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 				allSpans.add(spans);
 			}
 
-			removeEntityNounPhrases(patterns, entities, allSpans, paths);
+			removeEntityNounPhrases(patterns, entities, allSpans, paths,
+			    commonNodeIdx);
 
 			try {
 				for (String p : patterns) {
@@ -318,19 +322,46 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	 * @param longSpans
 	 * @param spans
 	 * @param paths
+	 * @param commonNodeIdx
 	 * @throws AnalysisEngineProcessException
 	 */
 	        void
 	        removeEntityNounPhrases(Set<String> patterns,
 	                                TextAnnotation[] entities,
 	                                List<LinkedList<Annotation>> spans,
-	                                List<List<AnnotationTreeNode<Annotation>>> paths)
+	                                List<List<AnnotationTreeNode<Annotation>>> paths,
+	                                int commonNodeIdx)
 	                throws AnalysisEngineProcessException {
 		TextAnnotation[] clone = new TextAnnotation[entities.length];
 		TextAnnotation tmp;
 
 		for (int idx = 0; idx < entities.length; ++idx) {
 			List<AnnotationTreeNode<Annotation>> p = paths.get(idx);
+			int nodeIdx = -1;
+
+			for (AnnotationTreeNode<Annotation> node : p) {
+				if (++nodeIdx < commonNodeIdx)
+					continue;
+
+				TextAnnotation ann = (TextAnnotation) node.get();
+
+				if (ann.getIdentifier().equals("NP") &&
+				    (ann.getBegin() < entities[idx].getBegin() || ann.getEnd() > entities[idx]
+				        .getEnd())) {
+					clone[idx] = (TextAnnotation) entities[idx].clone();
+					clone[idx].setBegin(ann.getBegin());
+					clone[idx].setEnd(ann.getEnd());
+					tmp = entities[idx];
+					entities[idx] = clone[idx];
+
+					// replace one NP
+					for (LinkedList<Annotation> span : spans)
+						patterns.add(extractPattern(entities, span));
+
+					entities[idx] = tmp;
+				}
+			}
+
 			TextAnnotation leaf = (TextAnnotation) p.get(p.size() - 1).get();
 
 			if (leaf.getIdentifier().equals("NP") &&
@@ -616,13 +647,13 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 			search: for (Offset skippable : skippableSpans) {
 				for (Annotation ann : spans) {
 					Offset target = ((TextAnnotation) ann).getOffset();
-					
+
 					if (target.contains(skippable)) {
 						LinkedList<Annotation> clone = new LinkedList<Annotation>(
 						    spans);
 						int idx = clone.indexOf(ann);
 						clone.remove(idx);
-						
+
 						if (!skippable.contains(target)) {
 							if (skippable.end() != target.end()) {
 								Annotation after = (Annotation) ann.clone();
@@ -635,7 +666,7 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 								clone.add(idx, before);
 							}
 						}
-						
+
 						extraSpans.add(clone);
 						continue search;
 					}
@@ -970,7 +1001,23 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	}
 
 	private String replaceEmptyModifierPhrases(String text) {
-		return REGEX_EMPTY_MODIFIER.matcher(text).replaceAll(" ");
+		String replacement = REGEX_EMPTY_MODIFIER.matcher(text)
+		    .replaceAll(" ").replace(" , ", " ").trim();
+
+		if (replacement.endsWith(" ."))
+			replacement = replacement.substring(0, replacement.length() - 2)
+			    .trim();
+
+		if (replacement.endsWith(","))
+			replacement = replacement.substring(0, replacement.length() - 1)
+			    .trim();
+
+		if (!Character.isUpperCase(replacement.charAt(0)) &&
+		    replacement.endsWith("."))
+			replacement = replacement.substring(0, replacement.length() - 1)
+			    .trim();
+
+		return replacement;
 	}
 
 	/**

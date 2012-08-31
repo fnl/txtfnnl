@@ -536,12 +536,12 @@ public class TestRelationshipPatternLineWriter {
 		paths.add(makePath(rootNode, n3));
 		entities[0] = new TextAnnotation(jcas, 2, 3);
 		entities[1] = new TextAnnotation(jcas, 7, 8);
-		List<LinkedList<Annotation>> allSpans = writer.shortestCommonSpans(entities,
-		    paths, 0, rootNode);
+		List<LinkedList<Annotation>> allSpans = writer.shortestCommonSpans(
+		    entities, paths, 0, rootNode);
 		LinkedList<Annotation> spans = allSpans.get(allSpans.size() - 1);
 		assertEquals(2, spans.size());
-//		assertEquals(0, spans.get(0).getBegin());
-//		assertEquals(2, spans.get(0).getEnd());
+		// assertEquals(0, spans.get(0).getBegin());
+		// assertEquals(2, spans.get(0).getEnd());
 		assertEquals(2, spans.get(0).getBegin());
 		assertEquals(4, spans.get(0).getEnd());
 		assertEquals(6, spans.get(1).getBegin());
@@ -569,7 +569,7 @@ public class TestRelationshipPatternLineWriter {
 
 	@Test
 	public void testClean() {
-		assertEquals(" a \n\nb ", writer.clean(" \n  a  \n\n b\n "));
+		assertEquals("a \n\nb", writer.clean(" \n  a  \n\n b\n "));
 	}
 
 	@Test
@@ -585,7 +585,7 @@ public class TestRelationshipPatternLineWriter {
 		writer.printToStdout = true;
 		writer.process(relAnn, test, annIdx);
 		assertTrue(outputStream.toString(), outputStream.toString()
-		    .startsWith("[[ns:id]]" + test));
+		    .startsWith("[[ns:id]]" + test.substring(0, test.length() - 1)));
 	}
 
 	@Test

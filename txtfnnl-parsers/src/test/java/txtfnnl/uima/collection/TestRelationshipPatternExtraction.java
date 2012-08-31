@@ -380,7 +380,6 @@ public class TestRelationshipPatternExtraction {
 		                      + "HCT116 cells results in growth suppression "
 		                      + "in a BBB-2-dependent manner.");
 		String result = process(jcas);
-		System.out.println(result);
 		checkForResult(
 		    "Inhibition of [[entity:type-1]] expression results in growth "
 		            + "suppression in a [[entity:type-2]]-dependent manner",
@@ -389,6 +388,38 @@ public class TestRelationshipPatternExtraction {
 		    "Inhibition of [[entity:type-1]] expression in HCT116 cells "
 		            + "results in growth suppression in a "
 		            + "[[entity:type-2]]-dependent manner", result);
+		checkForResult(
+		    "Inhibition of [[entity:type-1]] expression in positively HCT116 "
+		            + "cells results in growth suppression in a "
+		            + "[[entity:type-2]]-dependent manner.", result);
 	}
 
+	@Test
+	public void testExtractionOfRelevantPhrases() throws UIMAException,
+	        IOException, SQLException {
+		addRelationship("AAA-1", "BBB-2");
+		finalizeSetUp();
+		JCas jcas = setUpJCas("We tested the effect of expressing HMG-I in "
+		                      + "S2 cells on activation of the BBB-2 promoter "
+		                      + "by ATF-2/c-Jun, IRFs, AAA-1 and "
+		                      + "coactivators.");
+		String result = process(jcas);
+		checkForResult("on activation of the [[entity:type-2]] "
+		               + "promoter by [[entity:type-1]]", result);
+	}
+
+	@Test
+	public void testExtractionOfRelevantPhrases2() throws UIMAException,
+	        IOException, SQLException {
+		addRelationship("AAA", "BBB");
+		finalizeSetUp();
+		JCas jcas = setUpJCas("Taken together, our data strongly suggest "
+		                      + "activation of the BBB promoter requires the "
+		                      + "cooperative assembly of a nucleoprotein "
+		                      + "complex containing p300/CBP, AAA/c-Jun, "
+		                      + "NF-kappaB and both IRF-3 and IRF-7.");
+		String result = process(jcas);
+		checkForResult("activation of the [[entity:type-2]] "
+		               + "promoter requires [[entity:type-1]]", result);
+	}
 }
