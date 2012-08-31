@@ -697,7 +697,7 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 		if (sentenceTypeName == null)
 			sentenceTypeName = SentenceAnnotator.SENTENCE_TYPE_NAME;
 
-		timeout = (parseSeconds == null) ? 5 : parseSeconds.intValue();
+		timeout = (parseSeconds == null) ? 10 : parseSeconds.intValue();
 
 		try {
 			parser = new LinkParser(dictionariesPath, timeout, logger);
@@ -801,6 +801,7 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 
 		if (constituentExpression != null) {
 			logger.log(Level.FINE, constituentExpression);
+//			logger.log(Level.WARNING, constituentExpression);
 			// de-normalize parenthesis to curly brackets, just as LGP
 			sentence = sentence.replace('(', '{').replace(')', '}');
 			ConstituentNode root = ConstituentNode
