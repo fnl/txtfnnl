@@ -111,6 +111,14 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	/** Define a particular output encoding String. */
 	public static final String PARAM_ENCODING = "Encoding";
 
+	/**
+	 * Define the maximum number of characters a pattern may contain.
+	 * 
+	 * If unset, all are printed, which is the same as setting this parameter
+	 * to 0.
+	 */
+	public static final String PARAM_MAX_PATTERN_LENGTH = "MaxPatternLength";
+
 	static final Pattern REGEX_SPACES = Pattern.compile("[ \\t\\v\\f]+");
 	static final Pattern REGEX_LINEBREAK_SPACE = Pattern.compile("(\\r?\\n) ");
 	static final Pattern REGEX_SINGLE_LINEBREAK = Pattern
@@ -126,6 +134,7 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	private boolean overwriteFiles = false;
 	private String encoding = null;
 	private Writer outputWriter;
+	private int maxPatternLength;
 
 	// annotator state (thread-independent)
 	private Logger logger;
@@ -146,6 +155,12 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 
 		relationshipNamespace = (String) ctx
 		    .getConfigParameterValue(PARAM_RELATIONSHIP_NAMESPACE);
+
+		Integer maxPatternLengthInteger = (Integer) ctx
+		    .getConfigParameterValue(PARAM_MAX_PATTERN_LENGTH);
+		maxPatternLength = (maxPatternLengthInteger == null)
+		        ? 0
+		        : maxPatternLengthInteger.intValue();
 
 		if (relationshipNamespace == null)
 			throw new ResourceInitializationException(
@@ -304,8 +319,11 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 
 			try {
 				for (String p : patterns) {
-					write(p);
-					write("\n");
+					if (maxPatternLength == 0 ||
+					    p.length() <= maxPatternLength) {
+						write(p);
+						write("\n");
+					}
 				}
 
 				write("\n");
@@ -875,39 +893,47 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 
 		for (Annotation a : spans) {
 			String text = a.getCoveredText();
-			int start = a.getBegin();
-			int begin = start;
-			int end = a.getEnd();
-			int finish = end;
+			final int begin = a.getBegin();
+			final int end = a.getEnd();
+			int start = begin;
 
-			// write entities before the current annotation span
+			// write entities starting before the current annotation span
 			while (entityIdx < entities.length &&
-			       entities[entityIdx].getBegin() <= a.getBegin()) {
-				if (entities[entityIdx].getEnd() > start) {
+			       entities[entityIdx].getBegin() <= start) {
+				// move the start position if the entity span reaches into
+				// the current text
+				if (entities[entityIdx].getEnd() > start)
 					start = entities[entityIdx].getEnd();
-				}
 
-				// add a space before the first inter-span entity if it
-				// is not proceeded by one itself.
 				if (closeTags == 0) {
+					// add a space before the first inter-span entity if the
+					// SB is not proceeded by one already
 					checkSpace(sb);
 				} else if (entities[entityIdx - 1].getEnd() <= entities[entityIdx]
 				    .getBegin()) {
+					// close entities before writing the next, non-overlapping
+					// entity
 					closeTags = writeCloseTags(sb, closeTags);
 				}
 
-				appendEntity(sb, entities[entityIdx++]);
-				closeTags++;
+				// but only write the entity if it ends before the current
+				// span
+				if (entities[entityIdx].getEnd() <= begin) {
+					appendEntity(sb, entities[entityIdx++]);
+					closeTags++;
+				} else {
+					break;
+				}
 			}
 
 			closeTags = writeCloseTags(sb, closeTags);
 
 			// write entities within the current annotations
 			while (entityIdx < entities.length &&
-			       entities[entityIdx].getBegin() < finish) {
-				end = entities[entityIdx].getBegin();
+			       entities[entityIdx].getBegin() < end) {
+				int stop = entities[entityIdx].getBegin();
 
-				if (end > start) {
+				if (stop > start) {
 					closeTags = writeCloseTags(sb, closeTags);
 
 					// add a space for newly started spans (start===begin) if
@@ -916,35 +942,47 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 					    !Character.isSpaceChar(text.charAt(start - begin)))
 						checkSpace(sb);
 
-					sb.append(text.substring(start - begin, end - begin));
+					sb.append(text.substring(start - begin, stop - begin));
 				}
 
-				start = entities[entityIdx].getEnd();
-				end = finish;
-				appendEntity(sb, entities[entityIdx++]);
-				closeTags++;
+				stop = entities[entityIdx].getEnd();
+
+				// move the start if necessary
+				if (stop > begin && stop > start)
+					start = stop;
+
+				// only write the entity if it ends within the current span
+				if (start <= end) {
+					appendEntity(sb, entities[entityIdx++]);
+					closeTags++;
+				} else {
+					break;
+				}
 			}
 			closeTags = writeCloseTags(sb, closeTags);
 
 			// add a space for newly started spans (start===begin) if
+			// the spans are not consecutive (lastOffset != begin) and
 			// the next span does not start with a space char itself
-			// and the spans are not consecutive (lastOffset != begin)
 			if (start == begin && lastOffset != begin &&
 			    !Character.isSpaceChar(text.charAt(start - begin)))
 				checkSpace(sb);
 
 			// write (the remainder of) the current annotation span
+			// if there is any uncovered text left (end > start)
 			if (end > start)
 				sb.append(text.substring(start - begin, end - begin));
 
-			// store the last offset to check for consecutive spans
-			lastOffset = finish;
+			// store the last offset to check for consecutive spans next turn
+			lastOffset = end;
 		}
 
+		// write out all remaining entities
 		while (entityIdx < entities.length) {
 			appendEntity(sb, entities[entityIdx++]);
 			closeTags++;
 		}
+		// and close tags
 		closeTags = writeCloseTags(sb, closeTags);
 		return clean(sb.toString().trim());
 	}

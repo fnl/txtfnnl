@@ -422,4 +422,21 @@ public class TestRelationshipPatternExtraction {
 		checkForResult("activation of the [[entity:type-2]] "
 		               + "promoter requires [[entity:type-1]]", result);
 	}
+
+	@Test
+	public void testExtractionOfRelevantPhrases3() throws UIMAException,
+	        IOException, SQLException {
+		addRelationship("AAA", "BBB");
+		finalizeSetUp();
+		JCas jcas = setUpJCas("The importance of these interactions was "
+		                      + "tested functionally and our results indicate "
+		                      + "that the balance of positive and negative "
+		                      + "interactions between IRF-1 and AAA/c-Jun or "
+		                      + "NF-kappaB prevented cooperative binding in "
+		                      + "the context of the BBB promoter.");
+		String result = process(jcas);
+		checkForResult(
+		    "[[entity:type-1]] prevented cooperative binding in the context "
+		            + "of the [[entity:type-2]] promoter", result);
+	}
 }

@@ -53,6 +53,13 @@ In general, these annotations should be RelationshipAnnotation types holding a s
         <multiValued>false</multiValued>
         <mandatory>true</mandatory>
       </configurationParameter>
+      <configurationParameter>
+        <name>MaxPatternLength</name>
+        <description>Define the maximum pattern length (in characters) that should be output. If unset, all are printed, which is the same as setting this parameter to 0 (zero).</description>
+        <type>Integer</type>
+        <multiValued>false</multiValued>
+        <mandatory>false</mandatory>
+      </configurationParameter>
     </configurationParameters>
     <configurationParameterSettings>
       <nameValuePair>
