@@ -75,10 +75,10 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 	/** The annotator's URI (for the annotations) set by this AE. */
 	public static final String URI = "http://opennlp.apache.org";
 
-	/** The namespace to use for all annotations. */
+	/** The namespace used for all annotations. */
 	public static final String NAMESPACE = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
 
-	/** The identifier to use for all annotations. */
+	/** The identifier used for all annotations. */
 	public static final String IDENTIFIER = "Sentence";
 
 	/** The fully qualified sentence model name String. */
@@ -191,6 +191,17 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 		} finally {
 			processLock.unlock();
 		}
+	}
+	
+	/**
+	 * Return an annotation iterator for sentence annotations on the given
+	 * CAS using the default sentence type name.
+	 * 
+	 * @param jcas to iterate over
+	 * @return a sentence annotation iterator
+	 */
+	public static FSIterator<Annotation> getSentenceIterator(JCas jcas) {
+		return getSentenceIterator(jcas, SENTENCE_TYPE_NAME);
 	}
 
 	/**
