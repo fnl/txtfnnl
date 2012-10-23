@@ -32,7 +32,33 @@ import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 
 /**
+ * An OpenNLP Token AE variant for the txtfnnl pipeline.
  * 
+ * Mandatory parameters (same as original parameters):
+ * <ul>
+ * <li>{@link #PARAM_MODEL_NAME} defines the tokenization model resource to use
+ * (e.g., "EnglishTokenModelResource")</li>
+ * </ul>
+ * 
+ * The token annotations (a
+ * {@link txtfnnl.uima.tcas.SyntaxAnnotation} type with a
+ * {@link txtfnnl.uima.analysis_component.opennlp.TokenAnnotator#NAMESPACE}
+ * namespace and a Penn tag as identifier) are added to the CAS. 
+ * 
+ * Optional parameters (inherited from OpenNLP):
+ * <table>
+ * <tr>
+ * <th>Type</th>
+ * <th>Name</th>
+ * <th>Description</th>
+ * </tr>
+ * <tr>
+ * <td>String</td>
+ * <td>{@link opennlp.uima.util.UimaUtil#SENTENCE_TYPE_PARAMETER}</td>
+ * <td>The sentence annotation type to use (defaults to
+ * {@link #SENTENCE_TYPE_NAME})</td>
+ * <tr>
+ * </table>
  * 
  * @author Florian Leitner
  */

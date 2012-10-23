@@ -31,7 +31,41 @@ import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 
 /**
+ * An OpenNLP PoS Tagger AE variant for the txtfnnl pipeline.
  * 
+ * Mandatory parameters (same as original parameters):
+ * <ul>
+ * <li>{@link #PARAM_MODEL_NAME} defines the PoS tagger model resource to use
+ * (e.g., "EnglishPartOfSpeechModelResource")</li>
+ * </ul>
+ * 
+ * The PoS tag values are added to the token annotations (a
+ * {@link txtfnnl.uima.tcas.SyntaxAnnotation} type with a
+ * {@link txtfnnl.uima.analysis_component.opennlp.TokenAnnotator#NAMESPACE}
+ * namespace), as two properties: the (Penn) PoS tag itself, and a confidence
+ * value. The names of these properties are defined in
+ * {@link #POS_TAG_VALUE_PROPERTY_NAME} and
+ * {@link #POS_TAG_CONFIDENCE_PROPERTY_NAME}. 
+ * 
+ * Optional parameters (inherited from OpenNLP):
+ * <table>
+ * <tr>
+ * <th>Type</th>
+ * <th>Name</th>
+ * <th>Description</th>
+ * </tr>
+ * <tr>
+ * <td>String</td>
+ * <td>{@link opennlp.uima.util.UimaUtil#SENTENCE_TYPE_PARAMETER}</td>
+ * <td>The sentence annotation type to use (defaults to
+ * {@link #SENTENCE_TYPE_NAME})</td>
+ * <tr>
+ * <tr>
+ * <td>Double</td>
+ * <td>{@link opennlp.uima.util.UimaUtil#BEAM_SIZE_PARAMETER</td>
+ * <td>Beam size for the PoS tag EM search.</td>
+ * </tr>
+ * </table>
  * 
  * @author Florian Leitner
  */
@@ -171,11 +205,11 @@ public class PartOfSpeechAnnotator extends JCasAnnotator_ImplBase {
 				buffer.add(properties);
 			}
 		}
-		
+
 		for (FSArray p : buffer)
 			p.addToIndexes(cas);
 	}
-	
+
 	static public String getPoSTag(SyntaxAnnotation token) {
 		Property p = token.getProperties(0);
 		assert POS_TAG_VALUE_PROPERTY_NAME == p.getName();

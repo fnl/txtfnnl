@@ -34,7 +34,38 @@ import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 
 /**
+ * An OpenNLP Chunker AE variant for the txtfnnl pipeline.
  * 
+ * Mandatory parameters (same as original parameters):
+ * <ul>
+ * <li>{@link #PARAM_MODEL_NAME} defines the chunker model resource to use
+ * (e.g., "EnglishChunkModelResource")</li>
+ * </ul>
+ * 
+ * The chunk annotations (a
+ * {@link txtfnnl.uima.tcas.SyntaxAnnotation} type with a
+ * {@link #NAMESPACE}
+ * namespace and a Penn phrase tag as identifier) are added to the CAS. 
+ * 
+ * Optional parameters (inherited from OpenNLP):
+ * <table>
+ * <tr>
+ * <th>Type</th>
+ * <th>Name</th>
+ * <th>Description</th>
+ * </tr>
+ * <tr>
+ * <td>String</td>
+ * <td>{@link opennlp.uima.util.UimaUtil#SENTENCE_TYPE_PARAMETER}</td>
+ * <td>The sentence annotation type to use (defaults to
+ * {@link #SENTENCE_TYPE_NAME})</td>
+ * <tr>
+ * <tr>
+ * <td>Double</td>
+ * <td>{@link opennlp.uima.util.UimaUtil#BEAM_SIZE_PARAMETER</td>
+ * <td>Beam size for the chunk tag EM search.</td>
+ * </tr>
+ * </table>
  * 
  * @author Florian Leitner
  */

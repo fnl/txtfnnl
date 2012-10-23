@@ -5,7 +5,7 @@
   <annotatorImplementationName>txtfnnl.uima.analysis_component.BioLemmatizerAnnotator</annotatorImplementationName>
   <analysisEngineMetaData>
     <name>BioLemmatizerAnnotator</name>
-    <description>An annotator wrapping the CCP BioLemmatizer developed by Liu, Christiansen, Baumgartner Jr and Verspoor.</description>
+    <description>An annotator wrapping the CCP BioLemmatizer developed by Liu, Christiansen, Baumgartner Jr and Verspoor. Requires the prior annotation with a tokenizer and a (Penn) PoS tagger.</description>
     <version>1.0</version>
     <vendor>txtfnnl</vendor>
     <configurationParameters searchStrategy="language_fallback">

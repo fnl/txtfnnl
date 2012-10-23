@@ -34,15 +34,36 @@ import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 
 /**
+ * An CCP BioLemmatizer AE variant for the txtfnnl pipeline.
  * 
+ * Mandatory parameters: NONE
+ * 
+ * The lemmata are added to the token annotations (a
+ * {@link txtfnnl.uima.tcas.SyntaxAnnotation} type with a
+ * {@link txtfnnl.uima.analysis_component.opennlp.TokenAnnotator#NAMESPACE}
+ * namespace), as properties with name {@link #LEMMA_PROPERTY_NAME}.
+ * 
+ * <b>Note that this annotator requires at least 1 GB ("-Xmx1G") of available
+ * runtime memory!</b>
+ * 
+ * Optional parameters (inherited from OpenNLP):
+ * <table>
+ * <tr>
+ * <th>Type</th>
+ * <th>Name</th>
+ * <th>Description</th>
+ * </tr>
+ * <tr>
+ * <td>String</td>
+ * <td>{@link opennlp.uima.util.UimaUtil#SENTENCE_TYPE_PARAMETER}</td>
+ * <td>The sentence annotation type to use (defaults to
+ * {@link #SENTENCE_TYPE_NAME})</td>
+ * <tr>
+ * </table>
  * 
  * @author Florian Leitner
  */
 public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
-
-	/* UNUSED The full path to the lexicon file (default uses the file
-	 * provided in the distribution of the BioLemmatizer). public static final
-	 * String PARAM_LEXICON_FILE = "LexiconFile"; */
 
 	/**
 	 * The fully qualified name of the sentence type (defaults to {
@@ -51,6 +72,18 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
 	public static final String PARAM_SENTENCE_TYPE_NAME = UimaUtil.SENTENCE_TYPE_PARAMETER;
 
 	public static final String LEMMA_PROPERTY_NAME = "lemma";
+
+	static public String getLemma(SyntaxAnnotation token) {
+		FSArray props = token.getProperties();
+
+		for (int i = props.size(); i-- > 0;) {
+			Property p = token.getProperties(i);
+			if (LEMMA_PROPERTY_NAME.equals(p.getName()))
+				return p.getValue();
+		}
+
+		return null;
+	}
 
 	protected Logger logger;
 
@@ -132,10 +165,9 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
 					lemma = lemmata.lemmasToString();
 
 					if (lemma.contains(LemmataEntry.lemmaSeparator)) {
-						logger
-						    .log(Level.WARNING, "no unique lemma for '" +
-						                        token + "' [" + posTag +
-						                        "]: " + lemmata.toString());
+						logger.log(Level.WARNING, "no unique lemma for '" +
+						                          token + "' [" + posTag +
+						                          "]: " + lemmata.toString());
 						lemma = token;
 					}
 				}
@@ -162,18 +194,6 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
 		for (FSArray p : addBuffer)
 			p.addToIndexes(cas);
 
-	}
-
-	static public String getLemma(SyntaxAnnotation token) {
-		FSArray props = token.getProperties();
-
-		for (int i = props.size(); i-- > 0;) {
-			Property p = token.getProperties(i);
-			if (LEMMA_PROPERTY_NAME.equals(p.getName()))
-				return p.getValue();
-		}
-
-		return null;
 	}
 
 	@Override
