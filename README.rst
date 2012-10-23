@@ -33,6 +33,8 @@ In addition, the following direct dependencies exist:
   downloaded, installed, and visible on the system ``$PATH``.
   Right now, the only supported parser is
   `LinkGrammar <http://www.link.cs.cmu.edu/link/>`_
+- for the lemmatization in **txtfnnl-uima**, the currently supplied tool is
+  the `BioLemmatizer <http://biolemmatizer.sourceforge.net/>`_ 1.1.
 
 Installation
 ------------
