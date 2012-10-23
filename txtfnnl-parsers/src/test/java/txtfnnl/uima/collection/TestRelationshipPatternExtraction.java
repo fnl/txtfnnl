@@ -391,6 +391,23 @@ public class TestRelationshipPatternExtraction {
 	}
 
 	@Test
+	public void testExtractionOfInnerSentences() throws UIMAException,
+	        IOException, SQLException {
+		String e1 = "ENT1";
+		String e2 = "ENT2";
+		String e3 = "ENT3";
+		addRelationship(e1, e2, e3);
+		String text = "This test shows how " + e1 +
+		              ", an experimental phrase, interacts with " + e2 +
+		              " and " + e3 + ".";
+		finalizeSetUp();
+		JCas jcas = setUpJCas(text);
+		String result = process(jcas);
+		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]] "
+		               + "and [[entity:type-3]]", result);
+	}
+
+	@Test
 	public void testExtractionOfRelevantPhrases() throws UIMAException,
 	        IOException, SQLException {
 		addRelationship("AAA-1", "BBB-2");

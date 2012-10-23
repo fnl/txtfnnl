@@ -13,7 +13,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -25,9 +24,14 @@ import org.apache.uima.analysis_component.CasAnnotator_ImplBase;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CAS;
 import org.apache.uima.cas.CASException;
+import org.apache.uima.cas.CASRuntimeException;
+import org.apache.uima.cas.ConstraintFactory;
 import org.apache.uima.cas.FSIterator;
+import org.apache.uima.cas.FSMatchConstraint;
+import org.apache.uima.cas.FSStringConstraint;
+import org.apache.uima.cas.Feature;
+import org.apache.uima.cas.FeaturePath;
 import org.apache.uima.cas.text.AnnotationIndex;
-import org.apache.uima.cas.text.AnnotationTreeNode;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.jcas.cas.TOP;
@@ -36,13 +40,14 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
-import txtfnnl.uima.Offset;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.KnownRelationshipAnnotator;
+import txtfnnl.uima.analysis_component.LinkGrammarAnnotator;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
 import txtfnnl.utils.IOUtils;
+import txtfnnl.utils.SetUtils;
 
 /**
  * A CAS consumer that writes plain-text lines, adding line separators after
@@ -75,7 +80,8 @@ import txtfnnl.utils.IOUtils;
  * 
  * @author Florian Leitner
  */
-public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
+public final class RelationshipPatternLineWriter extends
+        CasAnnotator_ImplBase {
 
 	/** The namespace for the Relationship annotations. */
 	public static final String PARAM_RELATIONSHIP_NAMESPACE = KnownRelationshipAnnotator.PARAM_RELATIONSHIP_NAMESPACE;
@@ -140,6 +146,52 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	private Logger logger;
 	private int counter = 0;
 	private String relationshipNamespace;
+
+	static final Set<String> SKIPPABLE_TAGS = new HashSet<String>() {
+
+		private static final long serialVersionUID = -2536780486389921051L;
+		{
+			add("ADJP");
+			add("ADVP");
+			add("CONJP");
+			add("INTJ");
+			add("LST");
+			add("PP");
+			add("PRN");
+			add("SBAR");
+			add("SBARQ");
+			add("WHADJP");
+			add("WHAVP");
+			add("WHNP");
+			add("WHPP");
+			add("X");
+		}
+	};
+
+	static final Set<String> SENTENCE_STARTER_TAGS = new HashSet<String>() {
+
+		private static final long serialVersionUID = -6175387438316829958L;
+		{
+			add("S");
+			add("SBAR");
+			add("SBARQ");
+			add("SINV");
+			add("SQ");
+		}
+	};
+
+	public static FSMatchConstraint
+	        makeConstituentSyntaxAnnotationConstraint(JCas jcas) {
+		Feature constituentNamespace = jcas.getTypeSystem()
+		    .getFeatureByFullName(
+		        SyntaxAnnotation.class.getName() + ":namespace");
+		ConstraintFactory cf = jcas.getConstraintFactory();
+		FeaturePath namespacePath = jcas.createFeaturePath();
+		namespacePath.addFeature(constituentNamespace);
+		FSStringConstraint namespaceCons = cf.createStringConstraint();
+		namespaceCons.equals(LinkGrammarAnnotator.NAMESPACE);
+		return cf.embedConstraint(namespacePath, namespaceCons);
+	}
 
 	/**
 	 * Load the sentence detector model resource and initialize the model
@@ -257,13 +309,13 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 		FSIterator<TOP> relationshipIt = KnownRelationshipAnnotator
 		    .getRelationshipIterator(textJCas, relationshipNamespace);
 		String text = textJCas.getDocumentText();
-		// TODO: restrict this index to SyntaxTree annotation types?
 		AnnotationIndex<Annotation> annIdx = textJCas
 		    .getAnnotationIndex(SyntaxAnnotation.type);
+		FSMatchConstraint constituentConstraint = makeConstituentSyntaxAnnotationConstraint(textJCas);
 
 		while (relationshipIt.hasNext()) {
 			process((RelationshipAnnotation) relationshipIt.next(), text,
-			    annIdx);
+			    annIdx, constituentConstraint, textJCas);
 		}
 
 		try {
@@ -274,48 +326,97 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	}
 
 	/**
+	 * Set the output stream according to the input stream's URL basename.
+	 * 
+	 * @param jCas of the input stream (raw)
+	 * @throws CASException if fetching the stream fails
+	 * @throws IOException if creating an output stream fails
+	 */
+	void setStream(JCas jCas) throws CASException, IOException {
+		if (outputDirectory != null) {
+			String inputName = (new File(jCas.getSofaDataURI())).getName();
+
+			if (inputName == null || inputName.length() == 0)
+				inputName = String.format("doc-%06d", ++counter);
+
+			File outputFile = new File(outputDirectory, inputName + ".txt");
+
+			if (!overwriteFiles && outputFile.exists()) {
+				int idx = 2;
+
+				while (outputFile.exists())
+					outputFile = new File(outputDirectory, inputName + "." +
+					                                       idx++ + ".txt");
+			}
+
+			if (encoding == null) {
+				logger.log(Level.INFO, String.format(
+				    "writing to '%s' using '%s' encoding", outputFile,
+				    System.getProperty("file.encoding")));
+				outputWriter = new OutputStreamWriter(new FileOutputStream(
+				    outputFile));
+			} else {
+				logger.log(Level.INFO, String.format(
+				    "writing to '%s' using '%s' encoding", outputFile,
+				    encoding));
+				outputWriter = new OutputStreamWriter(new FileOutputStream(
+				    outputFile), encoding);
+			}
+		}
+	}
+
+	/**
+	 * Close the output stream (if necessary).
+	 * 
+	 * @throws IOException if the stream could not be closed correctly
+	 */
+	void unsetStream() throws IOException {
+		if (outputDirectory != null) {
+			outputWriter.close();
+		}
+	}
+
+	/**
 	 * Extract all patterns for a given relationship annotation on the SOFA.
 	 * 
 	 * @param relAnn to process
 	 * @param text to extract patterns from
 	 * @param annIdx holding all SOFA-wide syntax tree annotations
+	 * @param constituentConstraint to create syntax tree iterators
+	 * @param jcas
 	 * @throws AnalysisEngineProcessException if the extraction fails
 	 */
 	void process(RelationshipAnnotation relAnn, String text,
-	             AnnotationIndex<Annotation> annIdx)
+	             AnnotationIndex<Annotation> annIdx,
+	             FSMatchConstraint constituentConstraint, JCas jcas)
 	        throws AnalysisEngineProcessException {
 		SyntaxAnnotation sentAnn = (SyntaxAnnotation) relAnn.getSources(0);
-		AnnotationTreeNode<Annotation> root = annIdx.tree(sentAnn).getRoot();
+		LinkedList<Annotation> nounPhrases = extractNounPhrases(jcas
+		    .createFilteredIterator(annIdx.subiterator(sentAnn, true, true),
+		        constituentConstraint));
+		FSIterator<Annotation> constituentIt = jcas.createFilteredIterator(
+		    annIdx.subiterator(sentAnn, true, true), constituentConstraint);
+		List<List<Annotation>> constituentCombinations = listConstituentArrangements(constituentIt);
 
-		for (TextAnnotation[] entities : iterateAnnotations(relAnn
+		for (TextAnnotation[] entities : listSeparateEntities(relAnn
 		    .getTargets())) {
-			List<List<AnnotationTreeNode<Annotation>>> paths = findPaths(
-			    entities, root);
-			int commonNodeIdx = findCommonRoot(paths);
-			AnnotationTreeNode<Annotation> commonNode = (commonNodeIdx < 0)
-			        ? root
-			        : paths.get(0).get(commonNodeIdx);
-			LinkedList<Annotation> longSpans = longestCommonSpans(sentAnn,
-			    paths, commonNodeIdx);
 			Set<String> patterns = new HashSet<String>();
-			List<LinkedList<Annotation>> allSpans = shortestCommonSpans(
-			    entities, paths, commonNodeIdx, root);
-			allSpans.add(longSpans);
-			LinkedList<Annotation> sentSpan = new LinkedList<Annotation>();
-			sentSpan.add(sentAnn);
-			allSpans.add(sentSpan);
+			LinkedList<Annotation> sentenceSpan = new LinkedList<Annotation>();
+			List<TextAnnotation[]> entityPermutations = combine(findNPReplacements(
+			    entities, nounPhrases));
 
-			for (LinkedList<Annotation> span : allSpans)
-				patterns.add(extractPattern(entities, span));
+			sentenceSpan.add(sentAnn);
+			patterns.add(extractPattern(entities, sentenceSpan));
+			patterns.addAll(extractNounPhraseSkippedPatterns(sentenceSpan,
+			    entityPermutations));
 
-			for (LinkedList<Annotation> spans : skippedModifierSpans(entities,
-			    new LinkedList<LinkedList<Annotation>>(allSpans), commonNode)) {
-				patterns.add(extractPattern(entities, spans));
-				allSpans.add(spans);
+			for (List<Annotation> spans : constituentCombinations) {
+				if (containsAllEntities(spans, entities)) {
+					patterns.add(extractPattern(entities, spans));
+					patterns.addAll(extractNounPhraseSkippedPatterns(spans,
+					    entityPermutations));
+				}
 			}
-
-			removeEntityNounPhrases(patterns, entities, allSpans, paths,
-			    commonNodeIdx);
 
 			try {
 				for (String p : patterns) {
@@ -334,77 +435,126 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	}
 
 	/**
+	 * Return a list of all NPs in the constituent tree iterator.
 	 * 
-	 * @param patterns
-	 * @param entities
-	 * @param longSpans
-	 * @param spans
-	 * @param paths
-	 * @param commonNodeIdx
-	 * @throws AnalysisEngineProcessException
+	 * @param constituents iterating over a constituent tree
+	 * @return a list of NPs
 	 */
-	        void
-	        removeEntityNounPhrases(Set<String> patterns,
-	                                TextAnnotation[] entities,
-	                                List<LinkedList<Annotation>> spans,
-	                                List<List<AnnotationTreeNode<Annotation>>> paths,
-	                                int commonNodeIdx)
-	                throws AnalysisEngineProcessException {
-		TextAnnotation[] clone = new TextAnnotation[entities.length];
-		TextAnnotation tmp;
+	LinkedList<Annotation>
+	        extractNounPhrases(FSIterator<Annotation> constituents) {
+		LinkedList<Annotation> nps = new LinkedList<Annotation>();
 
-		for (int idx = 0; idx < entities.length; ++idx) {
-			List<AnnotationTreeNode<Annotation>> p = paths.get(idx);
-			int nodeIdx = -1;
+		while (constituents.hasNext()) {
+			SyntaxAnnotation ann = (SyntaxAnnotation) constituents.next();
 
-			for (AnnotationTreeNode<Annotation> node : p) {
-				if (++nodeIdx < commonNodeIdx)
-					continue;
+			if (ann.getIdentifier().equals("NP"))
+				nps.add(ann);
+		}
 
-				TextAnnotation ann = (TextAnnotation) node.get();
+		return nps;
+	}
 
-				if (ann.getIdentifier().equals("NP") &&
-				    (ann.getBegin() < entities[idx].getBegin() || ann.getEnd() > entities[idx]
-				        .getEnd())) {
-					clone[idx] = (TextAnnotation) entities[idx].clone();
-					clone[idx].setBegin(ann.getBegin());
-					clone[idx].setEnd(ann.getEnd());
-					tmp = entities[idx];
-					entities[idx] = clone[idx];
+	/**
+	 * Create all possible constituent arrangements by skipping PP, ADJP,
+	 * ADVP, SBAR, SBARQ, and WHNP spans or only creating arrangements
+	 * containing inner sentences (S, SBAR, SBARQ, SQ, SINV).
+	 * 
+	 * @param constituentIt that iterates over all annotated constituents
+	 * @return all arrangements possible except for the entire sentence
+	 */
+	List<List<Annotation>>
+	        listConstituentArrangements(FSIterator<Annotation> constituentIt) {
+		List<List<Annotation>> arrangements = new ArrayList<List<Annotation>>();
+		SyntaxAnnotation ann;
 
-					// replace one NP
-					for (LinkedList<Annotation> span : spans)
-						patterns.add(extractPattern(entities, span));
+		while (constituentIt.hasNext()) {
+			ann = (SyntaxAnnotation) constituentIt.next();
 
-					entities[idx] = tmp;
+			if (isSentenceStarter(ann)) {
+				for (int i = arrangements.size(); i-- > 0;) {
+					List<Annotation> spans = arrangements.get(i);
+
+					if (spans.size() > 1) {
+						Annotation last = spans.get(spans.size() - 1);
+
+						if (last.getEnd() == last.getBegin()) {
+							last = spans.get(spans.size() - 2);
+
+							if (last.getEnd() <= ann.getBegin()) {
+								List<Annotation> clone = new LinkedList<Annotation>(
+								    spans);
+								clone.remove(clone.size() - 1);
+								clone.add(ann);
+								arrangements.add(clone);
+							}
+						}
+					}
 				}
 			}
 
-			TextAnnotation leaf = (TextAnnotation) p.get(p.size() - 1).get();
+			if (mayBeSkipped(ann)) {
+				for (int i = arrangements.size(); i-- > 0;) {
+					List<Annotation> spans = arrangements.get(i);
+					SyntaxAnnotation last = (SyntaxAnnotation) spans.get(spans
+					    .size() - 1);
 
-			if (leaf.getIdentifier().equals("NP") &&
-			    (leaf.getBegin() < entities[idx].getBegin() || leaf.getEnd() > entities[idx]
-			        .getEnd())) {
-				clone[idx] = (TextAnnotation) entities[idx].clone();
-				clone[idx].setBegin(leaf.getBegin());
-				clone[idx].setEnd(leaf.getEnd());
+					if (last.contains(ann)) {
+						List<Annotation> clone = new LinkedList<Annotation>(
+						    spans);
+						clone.remove(clone.size() - 1);
+						arrangements.add(clone);
+
+						if (last.getBegin() < ann.getBegin()) {
+							Annotation segment = (Annotation) last.clone();
+							segment.setEnd(ann.getBegin());
+							clone.add(segment);
+						}
+
+						if (last.getEnd() > ann.getEnd()) {
+							Annotation segment = (Annotation) last.clone();
+							segment.setBegin(ann.getEnd());
+							clone.add(segment);
+						} else if (last.getEnd() == ann.getEnd()) {
+							Annotation dummy = (Annotation) last.clone();
+							dummy.setBegin(dummy.getEnd());
+							clone.add(dummy);
+						}
+					} else if (last.getEnd() <= ann.getBegin()) {
+						expandWithAndWithout(spans, ann, last, arrangements);
+					}
+				}
+
+				startNewSpans(ann, arrangements);
 			} else {
-				clone[idx] = entities[idx];
+				for (int i = arrangements.size(); i-- > 0;) {
+					List<Annotation> spans = arrangements.get(i);
+					SyntaxAnnotation last = (SyntaxAnnotation) spans.get(spans
+					    .size() - 1);
+
+					if (last.getEnd() <= ann.getBegin()) {
+						expandWithAndWithout(spans, ann, last, arrangements);
+					}
+				}
+
+				startNewSpans(ann, arrangements);
 			}
-
-			tmp = entities[idx];
-			entities[idx] = clone[idx];
-
-			// replace one NP
-			for (LinkedList<Annotation> span : spans)
-				patterns.add(extractPattern(entities, span));
-
-			entities[idx] = tmp;
 		}
 
-		// replace all NPs
-		for (LinkedList<Annotation> span : spans)
-			patterns.add(extractPattern(clone, span));
+		// remove left-over dummy annotations
+		for (List<Annotation> list : arrangements) {
+			Annotation last = list.get(list.size() - 1);
+
+			while (last.getBegin() == last.getEnd()) {
+				list.remove(list.size() - 1);
+
+				if (list.size() > 0)
+					last = list.get(list.size() - 1);
+				else
+					break;
+			}
+		}
+
+		return arrangements;
 	}
 
 	/**
@@ -423,7 +573,7 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	 * @return a List of all valid annotation groups, ordered by increasing
 	 *         offsets
 	 */
-	List<TextAnnotation[]> iterateAnnotations(FSArray entityArray) {
+	List<TextAnnotation[]> listSeparateEntities(FSArray entityArray) {
 		List<TextAnnotation[]> list = new ArrayList<TextAnnotation[]>();
 		Map<String, List<TextAnnotation>> entityMap = groupEntities(entityArray);
 		int choices = entityMap.size();
@@ -482,397 +632,42 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	}
 
 	/**
-	 * Group entities by namespaces plus identifiers.
-	 * 
-	 * @param entities to group
-	 * @return grouped entities or an empty map if no entities are present
-	 */
-	Map<String, List<TextAnnotation>> groupEntities(FSArray entities) {
-		Map<String, List<TextAnnotation>> map = new HashMap<String, List<TextAnnotation>>();
-
-		if (entities != null) {
-			for (int i = entities.size(); i-- > 0;) {
-				TextAnnotation ann = (TextAnnotation) entities.get(i);
-				String key = ann.getNamespace() + ann.getIdentifier();
-
-				if (!map.containsKey(key))
-					map.put(key, new LinkedList<TextAnnotation>());
-
-				map.get(key).add(ann);
-			}
-		}
-
-		return map;
-	}
-
-	/**
-	 * Sort entities by increasing offsets (increasing start, decresing end)
-	 * and all other comparator settings (see
-	 * {@link TextAnnotation#TEXT_ANNOTATION_COMPARATOR}).
+	 * Return a list of Annotation sets for each entity, where the inner sets
+	 * contain the entity annotation and all noun phrases that may be used to
+	 * replace it.
 	 * 
 	 * @param entities
-	 * @return the same array or <code>null</code> if partial overlaps were
-	 *         detected
+	 * @param nounPhrases
+	 * @return all possible replacement spans for each entity
 	 */
-	TextAnnotation[] orderEntities(TextAnnotation[] entities) {
-		if (entities != null) {
-			Arrays.sort(entities, TextAnnotation.TEXT_ANNOTATION_COMPARATOR);
-			TextAnnotation last = null;
-
-			for (TextAnnotation e : entities) {
-				if (last != null && e.getBegin() < last.getEnd() &&
-				    e.getEnd() > last.getEnd()) {
-					// partially overlapping entities
-					return null;
-				}
-				last = e;
-			}
-		}
-		return entities;
-	}
-
-	/**
-	 * Find the shortest paths to each entity in the syntax tree.
-	 * 
-	 * @param entities to search for
-	 * @param root of the syntax tree
-	 * @return an array of shortes path arrays
-	 */
-	List<List<AnnotationTreeNode<Annotation>>>
-	        findPaths(TextAnnotation[] entities,
-	                  AnnotationTreeNode<Annotation> root) {
-		List<List<AnnotationTreeNode<Annotation>>> paths = new ArrayList<List<AnnotationTreeNode<Annotation>>>(
+	List<Set<Annotation>>
+	        findNPReplacements(TextAnnotation[] entities,
+	                           LinkedList<Annotation> nounPhrases) {
+		List<Set<Annotation>> replacements = new ArrayList<Set<Annotation>>(
 		    entities.length);
+		int eb, ee;
 
-		for (int i = 0; i < entities.length; ++i) {
-			paths.add(shortestPathTo(entities[i].getBegin(),
-			    entities[i].getEnd(), root));
-		}
+		// collect all possible NP replacements for the entities plus the
+		// entity itself
+		for (TextAnnotation e : entities) {
+			Set<Annotation> inner = new HashSet<Annotation>();
+			inner.add(e);
+			eb = e.getBegin();
+			ee = e.getEnd();
 
-		return paths;
-	}
-
-	/**
-	 * Find the shortest path in a syntax tree to a particular span.
-	 * 
-	 * @param begin of the span
-	 * @param end of the span
-	 * @param root of the syntax tree
-	 * @return the shortest path in the tree
-	 */
-	private List<AnnotationTreeNode<Annotation>>
-	        shortestPathTo(int begin, int end,
-	                       AnnotationTreeNode<Annotation> root) {
-		List<AnnotationTreeNode<Annotation>> path = new LinkedList<AnnotationTreeNode<Annotation>>();
-		List<AnnotationTreeNode<Annotation>> children = root.getChildren();
-		path.add(root);
-
-		loop: while (children.size() > 0) {
-			for (AnnotationTreeNode<Annotation> node : children) {
-				Annotation ann = node.get();
-
-				if (ann.getBegin() <= begin && ann.getEnd() >= end) {
-					path.add(node);
-					children = node.getChildren();
-					continue loop;
+			for (Annotation np : nounPhrases) {
+				if (np.getBegin() <= eb && np.getEnd() >= ee &&
+				    (np.getBegin() != eb || np.getEnd() != ee)) {
+					TextAnnotation clone = (TextAnnotation) e.clone();
+					clone.setBegin(np.getBegin());
+					clone.setEnd(np.getEnd());
+					inner.add(clone);
 				}
 			}
-			break;
+
+			replacements.add(inner);
 		}
-
-		return path;
-	}
-
-	/**
-	 * Find the index of the last common node of all paths.
-	 * 
-	 * @param paths in the syntax tree
-	 * @return the index valid for all paths or -1 if no such node exists
-	 */
-	int findCommonRoot(List<List<AnnotationTreeNode<Annotation>>> paths) {
-		int pos = 0;
-
-		search: while (pos < paths.get(0).size()) {
-			AnnotationTreeNode<Annotation> node = paths.get(0).get(pos);
-
-			for (List<AnnotationTreeNode<Annotation>> p : paths) {
-				if (pos >= p.size() || !p.get(pos).equals(node))
-					break search;
-			}
-			pos++;
-		}
-
-		return pos - 1;
-	}
-
-	/**
-	 * For a given sentence and paths (with a common node, including none as
-	 * <code>-1</code>), return the greatest spans they have in common.
-	 * 
-	 * @param sentAnn sentence at the base of this operation
-	 * @param paths to all entities
-	 * @param commonNode index of all paths (or <code>-1</code> if none)
-	 * @return the LinkedList of the greatest common text spans
-	 */
-	        LinkedList<Annotation>
-	        longestCommonSpans(SyntaxAnnotation sentAnn,
-	                           List<List<AnnotationTreeNode<Annotation>>> paths,
-	                           int commonNode) {
-		boolean commonNodeIsLeaf = false;
-		LinkedList<Annotation> spans = new LinkedList<Annotation>();
-
-		for (List<AnnotationTreeNode<Annotation>> p : paths) {
-			if (p.size() - 1 == commonNode) {
-				commonNodeIsLeaf = true;
-				break;
-			}
-		}
-
-		if (commonNode < 0 || commonNodeIsLeaf) {
-			if (commonNode < 0)
-				spans.add(sentAnn);
-			else
-				spans.add(paths.get(0).get(commonNode).get());
-		} else {
-			spans.add(paths.get(0).get(commonNode + 1).get());
-
-			for (List<AnnotationTreeNode<Annotation>> p : paths) {
-				Annotation ann = p.get(commonNode + 1).get();
-
-				if (!spans.getLast().equals(ann))
-					spans.add(ann);
-			}
-		}
-		return spans;
-	}
-
-	List<LinkedList<Annotation>>
-	        skippedModifierSpans(TextAnnotation[] entities,
-	                             List<LinkedList<Annotation>> allSpans,
-	                             AnnotationTreeNode<Annotation> commonNode) {
-		// TODO Auto-generated method stub
-		Offset[] entityOffsets = new Offset[entities.length];
-
-		for (int i = 0; i < entities.length; ++i)
-			entityOffsets[i] = entities[i].getOffset();
-
-		Set<Offset> skippableSpans = iterateSkippableSpans(entityOffsets,
-		    commonNode);
-		List<LinkedList<Annotation>> extraSpans = new LinkedList<LinkedList<Annotation>>();
-
-		for (LinkedList<Annotation> spans : allSpans) {
-
-			search: for (Offset skippable : skippableSpans) {
-				for (Annotation ann : spans) {
-					Offset target = ((TextAnnotation) ann).getOffset();
-
-					if (target.contains(skippable)) {
-						LinkedList<Annotation> clone = new LinkedList<Annotation>(
-						    spans);
-						int idx = clone.indexOf(ann);
-						clone.remove(idx);
-
-						if (!skippable.contains(target)) {
-							if (skippable.end() != target.end()) {
-								Annotation after = (Annotation) ann.clone();
-								after.setBegin(skippable.end());
-								clone.add(idx, after);
-							}
-							if (skippable.start() != target.start()) {
-								Annotation before = (Annotation) ann.clone();
-								before.setEnd(skippable.start());
-								clone.add(idx, before);
-							}
-						}
-
-						extraSpans.add(clone);
-						continue search;
-					}
-				}
-
-			}
-		}
-
-		return extraSpans;
-	}
-
-	private Set<Offset>
-	        iterateSkippableSpans(Offset[] entities,
-	                              AnnotationTreeNode<Annotation> node) {
-		Set<Offset> spans = new HashSet<Offset>();
-		int numChildren = node.getChildCount();
-
-		for (int i = 0; i < numChildren; i++) {
-			AnnotationTreeNode<Annotation> child = node.getChild(i);
-			TextAnnotation span = (TextAnnotation) child.get();
-			String id = span.getIdentifier();
-
-			if ("PP".equals(id) || "ADJP".equals(id) || "ADVP".equals(id)) {
-				Offset off = span.getOffset();
-				boolean hasEntity = false;
-
-				for (Offset e : entities) {
-					if (off.contains(e)) {
-						hasEntity = true;
-						break;
-					}
-				}
-
-				if (!hasEntity)
-					spans.add(off);
-			}
-
-			spans.addAll(iterateSkippableSpans(entities, child));
-		}
-		return spans;
-	}
-
-	/**
-	 * 
-	 * @param sentAnn
-	 * @param entities
-	 * @param paths
-	 * @param commonNode
-	 * @param syntaxTree
-	 * @param jcas
-	 * @return
-	 */
-	        List<LinkedList<Annotation>>
-	        shortestCommonSpans(TextAnnotation[] entities,
-	                            List<List<AnnotationTreeNode<Annotation>>> paths,
-	                            int commonNode,
-	                            AnnotationTreeNode<Annotation> syntaxTree) {
-		List<Set<Offset>> spanList = new ArrayList<Set<Offset>>();
-		Set<Offset> spans = new LinkedHashSet<Offset>();
-		int i = 0;
-		boolean incrementCommonNode = true;
-
-		if (entities.length != paths.size())
-			throw new AssertionError("" + entities.length + " entities, but " +
-			                         paths.size() + " paths");
-
-		for (List<AnnotationTreeNode<Annotation>> p : paths) {
-			if (p.size() - 1 == commonNode) {
-				commonNode = -1;
-				break;
-			}
-		}
-
-		if (commonNode != -1) {
-			for (List<AnnotationTreeNode<Annotation>> p : paths) {
-				spanList.add(new LinkedHashSet<Offset>());
-
-				if (p.size() == commonNode + 1)
-					incrementCommonNode = false;
-			}
-
-			if (incrementCommonNode)
-				commonNode++;
-		}
-
-		spanList.add(spans);
-
-		loop: for (List<AnnotationTreeNode<Annotation>> p : paths) {
-			int j = 0;
-
-			if (commonNode != -1) {
-				for (; j < entities.length; ++j) {
-					if (j != i) {
-						Annotation a = p.get(commonNode).get();
-						spanList.get(j).add(
-						    new Offset(a.getBegin(), a.getEnd()));
-					}
-				}
-
-				j = 0;
-			}
-
-			for (AnnotationTreeNode<Annotation> n : p) {
-				if (j > commonNode &&
-				    (((TextAnnotation) n.get()).getIdentifier().equals("SBAR") || ((TextAnnotation) n
-				        .get()).getIdentifier().equals("S"))) {
-					List<Offset> offsets = shortestSpan(entities[i], n);
-					spans.addAll(offsets);
-
-					if (commonNode != -1)
-						spanList.get(i).addAll(offsets);
-
-					i++;
-					continue loop;
-				}
-				j++;
-			}
-
-			List<Offset> offsets = shortestSpan(entities[i],
-			    (commonNode == -1) ? syntaxTree : p.get(commonNode));
-			spans.addAll(offsets);
-
-			if (commonNode != -1)
-				spanList.get(i).addAll(offsets);
-
-			i++;
-		}
-
-		List<LinkedList<Annotation>> annList = new LinkedList<LinkedList<Annotation>>();
-		Annotation base = syntaxTree.get();
-
-		for (Set<Offset> aSpan : spanList) {
-			LinkedList<Annotation> aList = new LinkedList<Annotation>();
-
-			for (Offset off : aSpan) {
-				Annotation ann = (Annotation) base.clone();
-				ann.setBegin(off.start());
-				ann.setEnd(off.end());
-				aList.add(ann);
-			}
-
-			annList.add(aList);
-		}
-
-		return annList;
-	}
-
-	/**
-	 * 
-	 * @param e
-	 * @param syntaxNode
-	 * @return
-	 */
-	List<Offset> shortestSpan(TextAnnotation e,
-	                          AnnotationTreeNode<Annotation> syntaxNode) {
-		int begin = e.getBegin();
-		int end = e.getEnd();
-		Annotation span = syntaxNode.get();
-		int position = span.getBegin();
-		List<Offset> commonSpans = new LinkedList<Offset>();
-
-		if (begin >= span.getBegin() && end <= span.getEnd()) {
-			if (syntaxNode.getChildCount() > 0) {
-				for (AnnotationTreeNode<Annotation> child : syntaxNode
-				    .getChildren()) {
-					Annotation inner = child.get();
-
-					if (position < inner.getBegin()) {
-						commonSpans
-						    .add(new Offset(position, inner.getBegin()));
-						position = inner.getBegin();
-					}
-
-					if (begin >= span.getBegin() && end <= span.getEnd()) {
-						commonSpans.addAll(shortestSpan(e, child));
-						position = inner.getEnd();
-					}
-				}
-			} else {
-				commonSpans.add(new Offset(span.getBegin(), span.getEnd()));
-				position = span.getEnd();
-			}
-
-			if (position < span.getEnd())
-				commonSpans.add(new Offset(position, span.getEnd()));
-		}
-
-		return commonSpans;
+		return replacements;
 	}
 
 	/**
@@ -883,8 +678,7 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	 * @return
 	 * @throws AnalysisEngineProcessException if writing fails
 	 */
-	String extractPattern(TextAnnotation[] entities,
-	                      LinkedList<Annotation> spans)
+	String extractPattern(TextAnnotation[] entities, List<Annotation> spans)
 	        throws AnalysisEngineProcessException {
 		int entityIdx = 0;
 		int closeTags = 0;
@@ -988,6 +782,179 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	}
 
 	/**
+	 * Extract a set of patterns from the annotations that condenses any NP
+	 * that contain an entity to make the NP represent that entity only.
+	 * 
+	 * @param entities
+	 * @param spans
+	 * @param nounPhrases
+	 * @return a set of patterns that condense one or more of the NPs
+	 *         containing the entities
+	 * @throws AnalysisEngineProcessException
+	 */
+	        Set<String>
+	        extractNounPhraseSkippedPatterns(List<Annotation> spans,
+	                                         List<TextAnnotation[]> permutations)
+	                throws AnalysisEngineProcessException {
+		Set<String> patterns = new HashSet<String>();
+
+		// iterate over all possible entity permutations
+		for (TextAnnotation[] permutation : permutations) {
+			// if the permuted entities arrays still is covered by the
+			// spans, extract and add the pattern
+			if (containsAllEntities(spans, permutation))
+				patterns.add(extractPattern(permutation, spans));
+		}
+
+		return patterns;
+	}
+
+	private boolean mayBeSkipped(SyntaxAnnotation ann) {
+		return SKIPPABLE_TAGS.contains(ann.getIdentifier());
+	}
+
+	private boolean isSentenceStarter(SyntaxAnnotation ann) {
+		return SENTENCE_STARTER_TAGS.contains(ann.getIdentifier());
+	}
+
+	private void startNewSpans(SyntaxAnnotation ann,
+	                           List<List<Annotation>> arrangements) {
+		List<Annotation> list = new LinkedList<Annotation>();
+		list.add(ann);
+		arrangements.add(list);
+	}
+
+	/**
+	 * Check if all entities are covered by the given spans.
+	 * 
+	 * @param spans
+	 * @param entities
+	 * @return true if all entities are covered by at least one of the spans
+	 */
+	private boolean containsAllEntities(List<Annotation> spans,
+	                                    TextAnnotation[] entities) {
+		int idx = 0;
+
+		for (Annotation ann : spans) {
+			if (ann.getBegin() <= entities[idx].getBegin() &&
+			    ann.getEnd() >= entities[idx].getEnd()) {
+				idx++;
+			}
+
+			if (idx == entities.length)
+				break;
+		}
+
+		return entities.length == idx;
+	}
+
+	/**
+	 * Helper method to expand the arrangements with a cloned version of spans
+	 * where the current annotation is skipped and is added to spans.
+	 * 
+	 * Furthermore, if the last annotation is a dummy (begin == end), it is
+	 * removed from both spans and the clone.
+	 * 
+	 * @param spans
+	 * @param currentAnnotation
+	 * @param lastAnnotation
+	 * @param arrangements
+	 * @throws CASRuntimeException
+	 */
+	private void expandWithAndWithout(List<Annotation> spans,
+	                                  SyntaxAnnotation currentAnnotation,
+	                                  SyntaxAnnotation lastAnnotation,
+	                                  List<List<Annotation>> arrangements)
+	        throws CASRuntimeException {
+		if (lastAnnotation.getBegin() == lastAnnotation.getEnd()) {
+			spans.remove(spans.size() - 1);
+		}
+		List<Annotation> clone = new LinkedList<Annotation>(spans);
+		Annotation dummy = (Annotation) currentAnnotation.clone();
+		dummy.setBegin(dummy.getEnd());
+		clone.add(dummy);
+		arrangements.add(clone);
+		spans.add(currentAnnotation);
+
+		if (spans.size() == 0)
+			throw new AssertionError("empty spans");
+
+		if (clone.size() == 0)
+			throw new AssertionError("empty clone");
+
+	}
+
+	/**
+	 * Create all possible combinations from a list of replacement sets at
+	 * each possible position in the array using recursive calls of this
+	 * method.
+	 * 
+	 * @param replacements that can be chosen, at each position
+	 */
+	private List<TextAnnotation[]> combine(List<Set<Annotation>> replacements) {
+		List<List<Annotation>> combinations = SetUtils.combinate(replacements);
+		List<TextAnnotation[]> result = new ArrayList<TextAnnotation[]>(
+		    combinations.size());
+		int len = replacements.size();
+
+		for (List<Annotation> list : combinations) {
+			result.add(list.toArray(new TextAnnotation[len]));
+		}
+		return result;
+	}
+
+	/**
+	 * Group entities by namespaces plus identifiers.
+	 * 
+	 * @param entities to group
+	 * @return grouped entities or an empty map if no entities are present
+	 */
+	Map<String, List<TextAnnotation>> groupEntities(FSArray entities) {
+		Map<String, List<TextAnnotation>> map = new HashMap<String, List<TextAnnotation>>();
+
+		if (entities != null) {
+			for (int i = entities.size(); i-- > 0;) {
+				TextAnnotation ann = (TextAnnotation) entities.get(i);
+				String key = ann.getNamespace() + ann.getIdentifier();
+
+				if (!map.containsKey(key))
+					map.put(key, new LinkedList<TextAnnotation>());
+
+				map.get(key).add(ann);
+			}
+		}
+
+		return map;
+	}
+
+	/**
+	 * Sort entities by increasing offsets (increasing start, decresing end)
+	 * and all other comparator settings (see
+	 * {@link TextAnnotation#TEXT_ANNOTATION_COMPARATOR}).
+	 * 
+	 * @param entities
+	 * @return the same array or <code>null</code> if partial overlaps were
+	 *         detected in the array
+	 */
+	TextAnnotation[] orderEntities(TextAnnotation[] entities) {
+		if (entities != null) {
+			Arrays.sort(entities, TextAnnotation.TEXT_ANNOTATION_COMPARATOR);
+			TextAnnotation last = null;
+
+			for (TextAnnotation e : entities) {
+				if (last != null && e.getBegin() < last.getEnd() &&
+				    e.getEnd() > last.getEnd()) {
+					// partially overlapping entities detected
+					return null;
+				}
+				last = e;
+			}
+		}
+		return entities;
+	}
+
+	/**
+	 * Append an entity mention (but don't close it) to the string builder.
 	 * 
 	 * @param sb
 	 * @param entity
@@ -1000,6 +967,8 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	}
 
 	/**
+	 * Add a space character if the string builder contains characters and the
+	 * last character is not a space character.
 	 * 
 	 * @param sb
 	 */
@@ -1010,6 +979,7 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	}
 
 	/**
+	 * Close <code>num</code> entity mentions in the string builder.
 	 * 
 	 * @param sb
 	 * @param num
@@ -1038,6 +1008,13 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 		return replaceEmptyModifierPhrases(replaceAndTrimMultipleSpaces(replaceSingleBreaksAndSpaces(replaceAndTrimMultipleSpaces(text))));
 	}
 
+	/**
+	 * After all this trimming, sometimes empty phrases might lead to dangling
+	 * commas and dots that should be replaced.
+	 * 
+	 * @param text to replace
+	 * @return the text with these "dangling" characters replaced
+	 */
 	private String replaceEmptyModifierPhrases(String text) {
 		String replacement = REGEX_EMPTY_MODIFIER.matcher(text)
 		    .replaceAll(" ").replace(" , ", " ").trim();
@@ -1081,68 +1058,16 @@ public final class RelationshipPatternLineWriter extends CasAnnotator_ImplBase {
 	}
 
 	/**
-	 * Set the output stream according to the input stream's URL basename.
-	 * 
-	 * @param jCas of the input stream (raw)
-	 * @throws CASException if fetching the stream fails
-	 * @throws IOException if creating an output stream fails
-	 */
-	void setStream(JCas jCas) throws CASException, IOException {
-		if (outputDirectory != null) {
-			String inputName = (new File(jCas.getSofaDataURI())).getName();
-
-			if (inputName == null || inputName.length() == 0)
-				inputName = String.format("doc-%06d", ++counter);
-
-			File outputFile = new File(outputDirectory, inputName + ".txt");
-
-			if (!overwriteFiles && outputFile.exists()) {
-				int idx = 2;
-
-				while (outputFile.exists())
-					outputFile = new File(outputDirectory, inputName + "." +
-					                                       idx++ + ".txt");
-			}
-
-			if (encoding == null) {
-				logger.log(Level.INFO, String.format(
-				    "writing to '%s' using '%s' encoding", outputFile,
-				    System.getProperty("file.encoding")));
-				outputWriter = new OutputStreamWriter(new FileOutputStream(
-				    outputFile));
-			} else {
-				logger.log(Level.INFO, String.format(
-				    "writing to '%s' using '%s' encoding", outputFile,
-				    encoding));
-				outputWriter = new OutputStreamWriter(new FileOutputStream(
-				    outputFile), encoding);
-			}
-		}
-	}
-
-	/**
-	 * Close the output stream (if necessary).
-	 * 
-	 * @throws IOException if the stream could not be closed correctly
-	 */
-	void unsetStream() throws IOException {
-		if (outputDirectory != null) {
-			outputWriter.close();
-		}
-	}
-
-	/**
 	 * Write text to the output stream.
 	 * 
 	 * @param text to write
 	 * @throws IOException if writing to the stream fails
 	 */
-	void write(String text) throws IOException {
+	private void write(String text) throws IOException {
 		if (outputDirectory != null)
 			outputWriter.write(text);
 
 		if (printToStdout)
 			System.out.print(text);
 	}
-
 }

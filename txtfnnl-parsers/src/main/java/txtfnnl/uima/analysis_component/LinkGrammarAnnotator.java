@@ -801,7 +801,6 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 
 		if (constituentExpression != null) {
 			logger.log(Level.FINE, constituentExpression);
-//			logger.log(Level.WARNING, constituentExpression);
 			// de-normalize parenthesis to curly brackets, just as LGP
 			sentence = sentence.replace('(', '{').replace(')', '}');
 			ConstituentNode root = ConstituentNode
