@@ -11,7 +11,7 @@ import org.apache.uima.cas.impl.TypeImpl;
 import org.apache.uima.cas.Type;
 
 /** Annotations on an entire SOFA.
- * Updated by JCasGen Fri Jun 22 11:12:48 CEST 2012
+ * Updated by JCasGen Fri Oct 26 14:22:46 CEST 2012
  * @generated */
 public class DocumentAnnotation_Type extends SofaAnnotation_Type {
   /** @generated */

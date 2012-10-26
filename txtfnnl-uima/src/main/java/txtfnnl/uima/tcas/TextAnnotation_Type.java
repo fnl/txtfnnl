@@ -1,5 +1,5 @@
 
-/* First created by JCasGen Wed Jun 06 13:10:16 CEST 2012 */
+/* First created by JCasGen Fri Oct 26 14:22:46 CEST 2012 */
 package txtfnnl.uima.tcas;
 
 import org.apache.uima.jcas.JCas;
@@ -14,7 +14,7 @@ import org.apache.uima.cas.Feature;
 import org.apache.uima.jcas.tcas.Annotation_Type;
 
 /** Annotations on a specific text span.
- * Updated by JCasGen Fri Jun 22 11:12:49 CEST 2012
+ * Updated by JCasGen Fri Oct 26 14:22:46 CEST 2012
  * @generated */
 public class TextAnnotation_Type extends Annotation_Type {
   /** @generated */
@@ -37,11 +37,11 @@ public class TextAnnotation_Type extends Annotation_Type {
   	  }
     };
   /** @generated */
-  @SuppressWarnings("hiding")
+  @SuppressWarnings ("hiding")
   public final static int typeIndexID = TextAnnotation.typeIndexID;
   /** @generated 
      @modifiable */
-  @SuppressWarnings("hiding")
+  @SuppressWarnings ("hiding")
   public final static boolean featOkTst = JCasRegistry.getFeatOkTst("txtfnnl.uima.tcas.TextAnnotation");
  
   /** @generated */
@@ -139,7 +139,7 @@ public class TextAnnotation_Type extends Annotation_Type {
     if (lowLevelTypeChecks)
       return ll_cas.ll_getRefArrayValue(ll_cas.ll_getRefValue(addr, casFeatCode_properties), i, true);
     jcas.checkArrayBounds(ll_cas.ll_getRefValue(addr, casFeatCode_properties), i);
-  return ll_cas.ll_getRefArrayValue(ll_cas.ll_getRefValue(addr, casFeatCode_properties), i);
+	return ll_cas.ll_getRefArrayValue(ll_cas.ll_getRefValue(addr, casFeatCode_properties), i);
   }
    
   /** @generated */ 

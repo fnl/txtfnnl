@@ -11,7 +11,7 @@ import org.apache.uima.cas.impl.TypeImpl;
 import org.apache.uima.cas.Type;
 
 /** TextAnnotations of semantic elements (PoS, named entities, etc.).
- * Updated by JCasGen Fri Jun 22 11:12:49 CEST 2012
+ * Updated by JCasGen Fri Oct 26 14:22:46 CEST 2012
  * @generated */
 public class SemanticAnnotation_Type extends TextAnnotation_Type {
   /** @generated */

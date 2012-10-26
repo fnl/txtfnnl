@@ -13,7 +13,8 @@ import txtfnnl.uima.cas.Property;
 
 
 /** A base type for SOFA-wide annotations.
- * Updated by JCasGen Fri Jun 22 11:12:49 CEST 2012
+ * Updated by JCasGen Fri Oct 26 14:22:46 CEST 2012
+ * XML source: /Users/fleitner/Workspace/txtfnnl/txtfnnl-uima/src/main/resources/txtfnnl/uima/typeSystemDescriptor.xml
  * @generated */
 public class SofaAnnotation extends AnnotationBase {
   /** @generated

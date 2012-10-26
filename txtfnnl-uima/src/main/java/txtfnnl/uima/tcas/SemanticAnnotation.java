@@ -12,7 +12,8 @@ import txtfnnl.uima.Offset;
 
 
 /** TextAnnotations of semantic elements (PoS, named entities, etc.).
- * Updated by JCasGen Fri Jun 22 11:12:49 CEST 2012
+ * Updated by JCasGen Fri Oct 26 14:22:46 CEST 2012
+ * XML source: /Users/fleitner/Workspace/txtfnnl/txtfnnl-uima/src/main/resources/txtfnnl/uima/typeSystemDescriptor.xml
  * @generated */
 public class SemanticAnnotation extends TextAnnotation {
 	public SemanticAnnotation(JCas jcas, Offset offset) {

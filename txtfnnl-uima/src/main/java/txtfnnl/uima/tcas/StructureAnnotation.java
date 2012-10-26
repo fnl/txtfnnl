@@ -26,8 +26,7 @@ public class StructureAnnotation extends TextAnnotation {
 	 * @ordered
 	 */
 	@SuppressWarnings("hiding")
-	public final static int typeIndexID = JCasRegistry
-	    .register(StructureAnnotation.class);
+	public final static int typeIndexID = JCasRegistry.register(StructureAnnotation.class);
 	/**
 	 * @generated
 	 * @ordered
@@ -37,40 +36,38 @@ public class StructureAnnotation extends TextAnnotation {
 
 	/** @generated */
 	@Override
-	public int getTypeIndexID() {
-		return typeIndexID;
-	}
-
+	public int getTypeIndexID() {return typeIndexID;}
+ 
 	/**
 	 * Never called. Disable default constructor
 	 * 
 	 * @generated
 	 */
 	protected StructureAnnotation() {/* intentionally empty block */}
-
+    
 	/**
 	 * Internal - constructor used by generator
 	 * 
 	 * @generated
 	 */
 	public StructureAnnotation(int addr, TOP_Type type) {
-		super(addr, type);
-		readObject();
-	}
-
+    super(addr, type);
+    readObject();
+  }
+  
 	/** @generated */
 	public StructureAnnotation(JCas jcas) {
-		super(jcas);
-		readObject();
-	}
+    super(jcas);
+    readObject();   
+  } 
 
 	/** @generated */
 	public StructureAnnotation(JCas jcas, int begin, int end) {
-		super(jcas);
-		setBegin(begin);
-		setEnd(end);
-		readObject();
-	}
+    super(jcas);
+    setBegin(begin);
+    setEnd(end);
+    readObject();
+  }   
 
 	/**
 	 * <!-- begin-user-doc --> Write your own initialization here <!--

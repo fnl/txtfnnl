@@ -14,7 +14,7 @@ import org.apache.uima.cas.Feature;
 import org.apache.uima.jcas.cas.AnnotationBase_Type;
 
 /** A base type for SOFA-wide annotations.
- * Updated by JCasGen Fri Jun 22 11:12:49 CEST 2012
+ * Updated by JCasGen Fri Oct 26 14:22:46 CEST 2012
  * @generated */
 public class SofaAnnotation_Type extends AnnotationBase_Type {
   /** @generated */

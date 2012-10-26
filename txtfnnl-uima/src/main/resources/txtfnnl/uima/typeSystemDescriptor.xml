@@ -35,6 +35,7 @@
           <description>Additional, free-form properties for this annotation.</description>
           <rangeTypeName>uima.cas.FSArray</rangeTypeName>
           <elementType>txtfnnl.uima.cas.Property</elementType>
+          <multipleReferencesAllowed>false</multipleReferencesAllowed>
         </featureDescription>
       </features>
     </typeDescription>
@@ -68,6 +69,7 @@
           <description>Additional, free-form properties for this annotation.</description>
           <rangeTypeName>uima.cas.FSArray</rangeTypeName>
           <elementType>txtfnnl.uima.cas.Property</elementType>
+          <multipleReferencesAllowed>false</multipleReferencesAllowed>
         </featureDescription>
       </features>
     </typeDescription>
@@ -81,12 +83,14 @@
           <description>Source participants in this relationship.</description>
           <rangeTypeName>uima.cas.FSArray</rangeTypeName>
           <elementType>txtfnnl.uima.tcas.TextAnnotation</elementType>
+          <multipleReferencesAllowed>true</multipleReferencesAllowed>
         </featureDescription>
         <featureDescription>
           <name>targets</name>
           <description>Target participants in this relationship.</description>
           <rangeTypeName>uima.cas.FSArray</rangeTypeName>
           <elementType>txtfnnl.uima.tcas.TextAnnotation</elementType>
+          <multipleReferencesAllowed>true</multipleReferencesAllowed>
         </featureDescription>
         <featureDescription>
           <name>isAuto</name>

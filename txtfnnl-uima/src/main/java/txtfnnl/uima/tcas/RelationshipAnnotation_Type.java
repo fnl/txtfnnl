@@ -13,7 +13,7 @@ import org.apache.uima.cas.impl.FeatureImpl;
 import org.apache.uima.cas.Feature;
 
 /** Annotations of relationships between text annotations. All listed source participants interact with all listed target participants (i.e., add particpants to both slots to create undirected relationships).
- * Updated by JCasGen Fri Jun 22 11:12:48 CEST 2012
+ * Updated by JCasGen Fri Oct 26 14:22:46 CEST 2012
  * @generated */
 public class RelationshipAnnotation_Type extends SofaAnnotation_Type {
   /** @generated */
