@@ -261,7 +261,7 @@ public class HTMLContentHandler extends ContentHandlerDecorator {
 	 * This flag is used to detect when the handler is going over the the
 	 * title element.
 	 */
-	private boolean inTitle = false;
+	protected boolean inTitle = false;
 
 	/**
 	 * Context flag indicating if non-space ("content") characters have been
@@ -273,7 +273,7 @@ public class HTMLContentHandler extends ContentHandlerDecorator {
 	 * Context flag indicating if an image alt contained a Greek character
 	 * name.
 	 */
-	private boolean greekChar = false;
+	protected boolean greekChar = false;
 
 	/**
 	 * The current parser state of this handler.

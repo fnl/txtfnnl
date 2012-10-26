@@ -16,7 +16,15 @@ import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
 
+import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
+
+import txtfnnl.tika.parser.xml.UnembeddedXMLParser;
+import txtfnnl.tika.sax.CleanWriteOutContentHandler;
+import txtfnnl.tika.sax.ElsevierXMLContentHandler;
 import txtfnnl.utils.IOUtils;
 
 /**
@@ -120,6 +128,49 @@ public class TestTikaWrapper {
 		Assert.assertEquals(5, metadata.size());
 	}
 
+	@Test
+	public void testElsevierXMLExtraction() throws IOException, SAXException,
+	        TikaException {
+		File file = new File("src/test/resources/elsevier.xml");
+		Metadata metadata = new Metadata();
+		InputStream stream = TikaInputStream.get(file, metadata);
+		ContentHandler handler = new ElsevierXMLContentHandler(
+		    new CleanWriteOutContentHandler(1000 * 1000));
+		ParseContext context = new ParseContext();
+		Parser parser = new UnembeddedXMLParser();
+		context.set(Parser.class, parser);
+		parser.parse(stream, handler, metadata, context);
+		Assert
+		    .assertEquals(
+		        "Main Title\n\n"
+		                + "JID AID PII DOI\ncopy\n\n"
+		                + "Fig. 1\nChronic partial = light phase\n\n"
+		                + "Fig. 2\nSchematic of SCN (Adapted from Saper [43] ).\n\n"
+		                + "Minireview\n\n"
+		                + "Main Title 2\n\n"
+		                + "Edited by ...\n\n"
+		                + "Aaron D. Laposky a b ⁎ mail\nJoseph Bass b c\nAkira Kohsaka c\n"
+		                + "a\naddress\nb\naddress\n⁎\ntext\n\n"
+		                + "Abstract\n\n"
+		                + "In this review, ... health and disease.\n\n"
+		                + "Keywords\n\n"
+		                + "Sleep\nCircadian rhythms\n\n"
+		                + "0\nOverview\n\n"
+		                + "A major aspect ... emerge.\n\n"
+		                + "The first mammalian ... Clock ( C ircadian l ocomotor o utput c ycles k aput), ... Clock mutant mouse [1,2] . ...\n\n"
+		                + "1\nObesity and sleep loss: “interacting epidemics?”\n\n"
+		                + "...\n\n"
+		                + "2\nCircadian rhythms and energy metabolism\n\n"
+		                + "...\n\n" + "Acknowledgement\n\n"
+		                + "This work was supported by NIH Grant ...\n\n"
+		                + "References\n\n" + "[1]\nM.H. Vitaterna\n\n"
+		                + "title1\n\n" + "Science\n\n"
+		                + "264 1994 719 725\n\n" + "[2]\nD.P. King\n\n"
+		                + "title2\n\n" + "Cell\n\n" + "89 1997 641 653",
+		        handler.toString());
+
+	}
+
 	/**
 	 * Test structured XML file extraction by the Wrapper.
 	 * 
@@ -185,34 +236,33 @@ public class TestTikaWrapper {
 		}
 	}
 
-	/*
-	 * Ensure real HTML file extraction by the Wrapper is not more than thrice
+	/* Ensure real HTML file extraction by the Wrapper is not more than thrice
 	 * as slow as Tika's default mechanism.
 	 * 
 	 * @throws IOException if the test resource file cannot be read.
-	 * @throws TikaException if parsing the file fails.
-	@Test
-	public void testHTMLExtractionTime() throws IOException, TikaException {
-		int numSamples = 10;
-		TikaWrapper wrapper = new TikaWrapper();
-		Tika tika = new Tika();
-		long start = System.nanoTime() / 1000L / 1000L;
-		for (int i = 0; i < numSamples; ++i)
-			wrapper
-			    .parseToString(new File("src/test/resources/21811562.html"));
-
-		long wrapperTime = System.nanoTime() / 1000L / 1000L - start;
-		start = System.nanoTime() / 1000L / 1000L;
-
-		for (int i = 0; i < numSamples; ++i)
-			tika.parseToString(new File("src/test/resources/21811562.html"));
-
-		long tikaTime = System.nanoTime() / 1000L / 1000L - start;
-		Assert.assertTrue("Time Tika: " + tikaTime + " ms" +
-		                  "; Time Wrapper: " + wrapperTime + " ms",
-		    (float) wrapperTime / (float) tikaTime < 3.0);
-	}
-     */
-
+	 * 
+	 * @throws TikaException if parsing the file fails. */
+	// @Test
+	// public void testHTMLExtractionTime() throws IOException, TikaException
+	// {
+	// int numSamples = 10;
+	// TikaWrapper wrapper = new TikaWrapper();
+	// Tika tika = new Tika();
+	// long start = System.nanoTime() / 1000L / 1000L;
+	// for (int i = 0; i < numSamples; ++i)
+	// wrapper
+	// .parseToString(new File("src/test/resources/21811562.html"));
+	//
+	// long wrapperTime = System.nanoTime() / 1000L / 1000L - start;
+	// start = System.nanoTime() / 1000L / 1000L;
+	//
+	// for (int i = 0; i < numSamples; ++i)
+	// tika.parseToString(new File("src/test/resources/21811562.html"));
+	//
+	// long tikaTime = System.nanoTime() / 1000L / 1000L - start;
+	// Assert.assertTrue("Time Tika: " + tikaTime + " ms" +
+	// "; Time Wrapper: " + wrapperTime + " ms",
+	// (float) wrapperTime / (float) tikaTime < 3.0);
+	// }
 
 }

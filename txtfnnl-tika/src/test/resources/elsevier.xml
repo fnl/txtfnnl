@@ -1,0 +1,232 @@
+<doc:document xmlns:doc="http://www.elsevier.com/xml/document/schema">
+	<dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Main Title</dc:title>
+	<ja:article docsubtype="ssu" xml:lang="en"
+		xmlns:ja="http://www.elsevier.com/xml/ja/schema">
+		<ja:item-info>
+			<ja:jid>JID</ja:jid>
+			<ja:aid>AID</ja:aid>
+			<ce:pii xmlns:ce="http://www.elsevier.com/xml/common/dtd">PII</ce:pii>
+			<ce:doi xmlns:ce="http://www.elsevier.com/xml/common/dtd">DOI</ce:doi>
+			<ce:copyright type="society" year="2007"
+				xmlns:ce="http://www.elsevier.com/xml/common/dtd">copy</ce:copyright>
+		</ja:item-info>
+		<ce:floats xmlns:ce="http://www.elsevier.com/xml/common/dtd">
+			<ce:figure id="fig1">
+				<ce:label>Fig. 1</ce:label>
+				<ce:caption>
+					<ce:simple-para>
+						Chronic partial
+						<ce:hsp sp="0.25" />
+						=
+						<ce:hsp sp="0.25" />
+						light phase
+					</ce:simple-para>
+				</ce:caption>
+				<ce:link locator="gr1" />
+			</ce:figure>
+			<ce:figure id="fig2">
+				<ce:label>Fig. 2</ce:label>
+				<ce:caption>
+					<ce:simple-para>
+						Schematic of SCN (Adapted from Saper
+						<ce:cross-ref refid="bib43">[43]</ce:cross-ref>
+						).
+					</ce:simple-para>
+				</ce:caption>
+				<ce:link locator="gr2" />
+			</ce:figure>
+		</ce:floats>
+		<ja:head>
+			<ce:dochead xmlns:ce="http://www.elsevier.com/xml/common/dtd">
+				<ce:textfn>Minireview</ce:textfn>
+			</ce:dochead>
+			<ce:title xmlns:ce="http://www.elsevier.com/xml/common/dtd">Main Title 2</ce:title>
+			<ce:presented xmlns:ce="http://www.elsevier.com/xml/common/dtd">Edited by ...</ce:presented>
+			<ce:author-group xmlns:ce="http://www.elsevier.com/xml/common/dtd">
+				<ce:author>
+					<ce:given-name>Aaron D.</ce:given-name>
+					<ce:surname>Laposky</ce:surname>
+					<ce:cross-ref refid="aff1">
+						<ce:sup>a</ce:sup>
+					</ce:cross-ref>
+					<ce:cross-ref refid="aff2">
+						<ce:sup>b</ce:sup>
+					</ce:cross-ref>
+					<ce:cross-ref refid="cor1">
+						<ce:sup>⁎</ce:sup>
+					</ce:cross-ref>
+					<ce:e-address type="email">mail
+					</ce:e-address>
+				</ce:author>
+				<ce:author>
+					<ce:given-name>Joseph</ce:given-name>
+					<ce:surname>Bass</ce:surname>
+					<ce:cross-ref refid="aff2">
+						<ce:sup>b</ce:sup>
+					</ce:cross-ref>
+					<ce:cross-ref refid="aff3">
+						<ce:sup>c</ce:sup>
+					</ce:cross-ref>
+				</ce:author>
+				<ce:author>
+					<ce:given-name>Akira</ce:given-name>
+					<ce:surname>Kohsaka</ce:surname>
+					<ce:cross-ref refid="aff3">
+						<ce:sup>c</ce:sup>
+					</ce:cross-ref>
+				</ce:author>
+				<ce:affiliation id="aff1">
+					<ce:label>a</ce:label>
+					<ce:textfn>address</ce:textfn>
+				</ce:affiliation>
+				<ce:affiliation id="aff2">
+					<ce:label>b</ce:label>
+					<ce:textfn>address</ce:textfn>
+				</ce:affiliation>
+				<ce:correspondence id="cor1">
+					<ce:label>⁎</ce:label>
+					<ce:text>text</ce:text>
+				</ce:correspondence>
+			</ce:author-group>
+			<ce:date-received day="15" month="5" year="2007"
+				xmlns:ce="http://www.elsevier.com/xml/common/dtd" />
+			<ce:abstract xmlns:ce="http://www.elsevier.com/xml/common/dtd">
+				<ce:section-title>Abstract</ce:section-title>
+				<ce:abstract-sec>
+					<ce:simple-para>In this review, ... health and disease.</ce:simple-para>
+				</ce:abstract-sec>
+			</ce:abstract>
+			<ce:keywords class="keyword"
+				xmlns:ce="http://www.elsevier.com/xml/common/dtd">
+				<ce:section-title>Keywords</ce:section-title>
+				<ce:keyword>
+					<ce:text>Sleep</ce:text>
+				</ce:keyword>
+				<ce:keyword>
+					<ce:text>Circadian rhythms</ce:text>
+				</ce:keyword>
+			</ce:keywords>
+		</ja:head>
+		<ja:body>
+			<ce:sections xmlns:ce="http://www.elsevier.com/xml/common/dtd">
+				<ce:section>
+					<ce:label>0</ce:label>
+					<ce:section-title>Overview</ce:section-title>
+					<ce:para>
+						A major aspect ... emerge.
+					</ce:para>
+					<ce:para>
+						The first mammalian ...
+						<ce:italic>Clock</ce:italic>
+						(
+						<ce:italic>C</ce:italic>
+						ircadian
+						<ce:italic>l</ce:italic>
+						ocomotor
+						<ce:italic>o</ce:italic>
+						utput
+						<ce:italic>c</ce:italic>
+						ycles
+						<ce:italic>k</ce:italic>
+						aput), ...
+						<ce:italic>Clock</ce:italic>
+						mutant mouse
+						<ce:cross-refs refid="bib1 bib2">[1,2]</ce:cross-refs>
+						. ...
+					</ce:para>
+				</ce:section>
+				<ce:section>
+					<ce:label>1</ce:label>
+					<ce:section-title>Obesity and sleep loss: “interacting epidemics?”
+					</ce:section-title>
+					<ce:para>
+						...
+					</ce:para>
+				</ce:section>
+				<ce:section>
+					<ce:label>2</ce:label>
+					<ce:section-title>Circadian rhythms and energy metabolism
+					</ce:section-title>
+					<ce:para>
+						...
+					</ce:para>
+				</ce:section>
+			</ce:sections>
+			<ce:acknowledgment xmlns:ce="http://www.elsevier.com/xml/common/dtd">
+				<ce:section-title>Acknowledgement</ce:section-title>
+				<ce:para>This work was supported by NIH Grant ...</ce:para>
+			</ce:acknowledgment>
+		</ja:body>
+		<ja:tail>
+			<ce:bibliography xmlns:ce="http://www.elsevier.com/xml/common/dtd">
+				<ce:section-title>References</ce:section-title>
+				<ce:bibliography-sec>
+					<ce:bib-reference id="bib1">
+						<ce:label>[1]</ce:label>
+						<sb:reference xmlns:sb="http://www.elsevier.com/xml/common/struct-bib/dtd">
+							<sb:contribution>
+								<sb:authors>
+									<sb:author>
+										<ce:given-name>M.H.</ce:given-name>
+										<ce:surname>Vitaterna</ce:surname>
+									</sb:author>
+									<sb:et-al />
+								</sb:authors>
+								<sb:title>
+									<sb:maintitle>title1</sb:maintitle>
+								</sb:title>
+							</sb:contribution>
+							<sb:host>
+								<sb:issue>
+									<sb:series>
+										<sb:title>
+											<sb:maintitle>Science</sb:maintitle>
+										</sb:title>
+										<sb:volume-nr>264</sb:volume-nr>
+									</sb:series>
+									<sb:date>1994</sb:date>
+								</sb:issue>
+								<sb:pages>
+									<sb:first-page>719</sb:first-page>
+									<sb:last-page>725</sb:last-page>
+								</sb:pages>
+							</sb:host>
+						</sb:reference>
+					</ce:bib-reference>
+					<ce:bib-reference id="bib2">
+						<ce:label>[2]</ce:label>
+						<sb:reference xmlns:sb="http://www.elsevier.com/xml/common/struct-bib/dtd">
+							<sb:contribution>
+								<sb:authors>
+									<sb:author>
+										<ce:given-name>D.P.</ce:given-name>
+										<ce:surname>King</ce:surname>
+									</sb:author>
+									<sb:et-al />
+								</sb:authors>
+								<sb:title>
+									<sb:maintitle>title2</sb:maintitle>
+								</sb:title>
+							</sb:contribution>
+							<sb:host>
+								<sb:issue>
+									<sb:series>
+										<sb:title>
+											<sb:maintitle>Cell</sb:maintitle>
+										</sb:title>
+										<sb:volume-nr>89</sb:volume-nr>
+									</sb:series>
+									<sb:date>1997</sb:date>
+								</sb:issue>
+								<sb:pages>
+									<sb:first-page>641</sb:first-page>
+									<sb:last-page>653</sb:last-page>
+								</sb:pages>
+							</sb:host>
+						</sb:reference>
+					</ce:bib-reference>
+				</ce:bibliography-sec>
+			</ce:bibliography>
+		</ja:tail>
+	</ja:article>
+</doc:document>

@@ -219,20 +219,20 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
 	}
 
 	/**
-	 * Return the second string (qName) if the first (lName) is
-	 * <code>null</code> or if lName has zero length and qName is not
-	 * <code>null</code>.
+	 * Return the first string (lName) if the second (qName) is
+	 * <code>null</code> or if qName has zero length and lName is not
+	 * <code>null</code>, otherwise default to qName.
 	 * 
 	 * @param lName the first string
 	 * @param qName the second string
-	 * @return lName if defined and non-empty or if qName is undefined, qName
+	 * @return qName if defined and non-empty or if lName is undefined, lName
 	 *         otherwise
 	 */
 	static private String chooseName(String lName, String qName) {
-		if (lName == null || (lName.length() == 0 && qName != null))
-			return qName;
+		if (qName == null || (qName.length() == 0 && lName != null))
+			return lName;
 
-		return lName;
+		return qName;
 	}
 
 	/**

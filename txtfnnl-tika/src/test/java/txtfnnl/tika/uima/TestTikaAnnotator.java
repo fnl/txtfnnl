@@ -106,6 +106,37 @@ public class TestTikaAnnotator {
 	}
 
 	@Test
+	public void testProcessElsevierXML() throws UIMAException, IOException {
+		JCas jCas = baseJCas.createView(Views.CONTENT_RAW.toString());
+		jCas.setSofaDataString("<ce:para xmlns:ce=\"url\" val='1' >"
+		                       + "<ce:para val='1' >test</ce:para>"
+		                       + "again</ce:para>", "text/xml");
+		tikaAnnotator = AnalysisEngineFactory.createAnalysisEngine(
+		    "txtfnnl.uima.tikaAEDescriptor", "UseElsevierXMLHandler",
+		    Boolean.TRUE);
+		tikaAnnotator.process(baseJCas);
+		jCas = baseJCas.getView(Views.CONTENT_TEXT.toString());
+		assertEquals("test\n\nagain", jCas.getDocumentText());
+		int count = 0;
+
+		for (StructureAnnotation ann : JCasUtil.select(jCas,
+		    StructureAnnotation.class)) {
+			assertEquals("http://txtfnnl/TikaAnnotator", ann.getAnnotator());
+			assertEquals("url#", ann.getNamespace());
+			assertEquals("ce:para", ann.getIdentifier());
+			assertEquals(1.0, ann.getConfidence(), 0.0000001);
+			assertNotNull(ann.getProperties());
+			assertEquals(1, ann.getProperties().size());
+			Property p = ann.getProperties(0);
+			assertEquals("val", p.getName());
+			assertEquals("1", p.getValue());
+			count++;
+		}
+
+		assertEquals(2, count);
+	}
+
+	@Test
 	public void testHandleMetadata() {
 		Metadata metadata = new Metadata();
 		metadata.add("test_name", "test_value");
@@ -125,7 +156,7 @@ public class TestTikaAnnotator {
 
 		assertEquals(1, count);
 	}
-	
+
 	@Test
 	public void testEncoding() throws CASRuntimeException, IOException,
 	        UIMAException {

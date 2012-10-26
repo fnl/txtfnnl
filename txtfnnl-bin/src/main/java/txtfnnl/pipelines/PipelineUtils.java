@@ -106,17 +106,28 @@ final class PipelineUtils {
 	static AnalysisEngineDescription getTikaAnnotator(boolean normalizeGreek,
 	                                                  String encoding)
 	        throws UIMAException, IOException {
+		return PipelineUtils.getTikaAnnotator(normalizeGreek, null, false);
+	}
+	
+	static AnalysisEngineDescription getTikaAnnotator(boolean normalizeGreek,
+	                                                  String encoding,
+	                                                  boolean elsevier)
+	        throws UIMAException, IOException {
 		if (encoding == null)
 			return AnalysisEngineFactory.createAnalysisEngineDescription(
 			    "txtfnnl.uima.simpleTikaAEDescriptor",
 			    TikaAnnotator.PARAM_NORMALIZE_GREEK_CHARACTERS,
-			    Boolean.valueOf(normalizeGreek));
+			    Boolean.valueOf(normalizeGreek),
+			    TikaAnnotator.PARAM_USE_ELSEVIER_XML_HANDLER,
+			    Boolean.valueOf(elsevier));
 		else
 			return AnalysisEngineFactory.createAnalysisEngineDescription(
 			    "txtfnnl.uima.simpleTikaAEDescriptor",
 			    TikaAnnotator.PARAM_ENCODING, encoding,
 			    TikaAnnotator.PARAM_NORMALIZE_GREEK_CHARACTERS,
-			    Boolean.valueOf(normalizeGreek));
+			    Boolean.valueOf(normalizeGreek),
+			    TikaAnnotator.PARAM_USE_ELSEVIER_XML_HANDLER,
+			    Boolean.valueOf(elsevier));
 	}
 
 	static CollectionReaderDescription

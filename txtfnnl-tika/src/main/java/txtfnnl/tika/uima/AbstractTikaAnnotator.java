@@ -11,8 +11,15 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URI;
 
+import org.apache.tika.config.TikaConfig;
+import org.apache.tika.detect.Detector;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.html.HtmlMapper;
+import org.apache.tika.parser.html.HtmlParser;
 
 import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_component.JCasAnnotator_ImplBase;
@@ -24,9 +31,16 @@ import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
 import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
 
 import txtfnnl.tika.TikaWrapper;
+import txtfnnl.tika.parser.html.CleanHtmlMapper;
+import txtfnnl.tika.parser.xml.UnembeddedXMLParser;
+import txtfnnl.tika.sax.CleanBodyContentHandler;
+import txtfnnl.tika.sax.ElsevierXMLContentHandler;
 import txtfnnl.tika.sax.GreekLetterContentHandler;
+import txtfnnl.tika.sax.HTMLContentHandler;
+import txtfnnl.tika.sax.XMLContentHandler;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.DocumentAnnotation;
 
@@ -44,7 +58,7 @@ import txtfnnl.uima.tcas.DocumentAnnotation;
  * Sometimes the Tika encoding detection algorithm predicts the wrong encoding
  * of the content, therefore it is possible to force the encoding as a
  * Metadata element of the Tika setup (see {@link PARAM_ENCODING}).
- *  
+ * 
  * If the input stream MIME type is <code>text/html</code> or starts with
  * <code>application/xhtml</code>, the
  * {@link txtfnnl.tika.sax.HTMLContentHandler} is used; if it is
@@ -68,11 +82,19 @@ public abstract class AbstractTikaAnnotator extends JCasAnnotator_ImplBase {
 	 */
 	public static final String PARAM_NORMALIZE_GREEK_CHARACTERS = "NormalizeGreek";
 
+	/**
+	 * Use the Elsevier-specific XML handler instead of the default handler.
+	 */
+	public static final String PARAM_USE_ELSEVIER_XML_HANDLER = "UseElsevierXMLHandler";
+
 	/** The encoding to force (if any). */
 	String encoding;
 
 	/** Normalize Greek letters to Latin words. */
 	boolean normalizeGreek = false;
+
+	/** For XML, use the Elsevier-specific handler. */
+	boolean useElsevierXMLHandler = false;
 
 	/** A logger for this AE. */
 	Logger logger;
@@ -93,11 +115,17 @@ public abstract class AbstractTikaAnnotator extends JCasAnnotator_ImplBase {
 		logger = ctx.getLogger();
 		encoding = (String) ctx.getConfigParameterValue(PARAM_ENCODING);
 
-		Boolean ng = (Boolean) ctx
+		Boolean val = (Boolean) ctx
 		    .getConfigParameterValue(PARAM_NORMALIZE_GREEK_CHARACTERS);
 
-		if (ng != null && ng)
+		if (val != null && val)
 			normalizeGreek = true;
+
+		val = (Boolean) ctx
+		    .getConfigParameterValue(PARAM_USE_ELSEVIER_XML_HANDLER);
+
+		if (val != null && val)
+			useElsevierXMLHandler = true;
 	}
 
 	/**
@@ -155,14 +183,50 @@ public abstract class AbstractTikaAnnotator extends JCasAnnotator_ImplBase {
 			throw new AnalysisEngineProcessException(e);
 		}
 
+
 		ContentHandler handler = getContentHandler(newJCas);
+		
+		if (normalizeGreek)
+			handler = new GreekLetterContentHandler(handler);
+
+		Detector detector = TikaConfig.getDefaultConfig().getDetector();
+		ParseContext context = new ParseContext();
+		String mediaType = metadata.get(Metadata.CONTENT_TYPE);
+		Parser parser;
 
 		try {
-			if (normalizeGreek)
-				tika.parse(stream, new GreekLetterContentHandler(handler),
-				    metadata);
-			else
-				tika.parse(stream, handler, metadata);
+			if (mediaType == null)
+				mediaType = detector.detect(stream, metadata).getBaseType().toString();
+
+			if ("text/html".equals(mediaType) ||
+			    mediaType.startsWith("application/xhtml")) {
+				context.set(HtmlMapper.class, CleanHtmlMapper.INSTANCE);
+				handler = new HTMLContentHandler(new CleanBodyContentHandler(
+				    handler));
+				parser = new HtmlParser();
+			} else if ("text/xml".equals(mediaType) ||
+			           mediaType.startsWith("application/xml")) {
+				if (useElsevierXMLHandler)
+					handler = new ElsevierXMLContentHandler(handler);
+				else
+					handler = new XMLContentHandler(handler);
+				
+				parser = new UnembeddedXMLParser();
+			} else {
+				handler = new CleanBodyContentHandler(handler);
+				parser = new AutoDetectParser(detector);
+			}
+			
+			context.set(Parser.class, parser);
+			
+			try {
+				parser.parse(stream, handler, metadata, context);
+			} catch (SAXException e) {
+				throw new TikaException("SAX processing failure", e);
+			} finally {
+				stream.close();
+			}
+
 		} catch (IOException e) {
 			throw new AnalysisEngineProcessException(e);
 		} catch (TikaException e) {

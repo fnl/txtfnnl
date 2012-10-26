@@ -26,7 +26,7 @@ public class TestSentenceSplitter {
 	public void testDirectoryReaderSetup() throws IOException, UIMAException {
 		File inputDir = IOUtils.mkTmpDir();
 		SentenceSplitter se = new SentenceSplitter(inputDir, "mime type",
-		    true, null, null, true, true);
+		    true, null, null, false, true, true, null);
 		ConfigurationParameterSettings cps = se.collectionReader
 		    .getCollectionReaderMetaData().getConfigurationParameterSettings();
 
@@ -44,7 +44,7 @@ public class TestSentenceSplitter {
 		    Long.toString(System.nanoTime()));
 		String[] inputFiles = new String[] { inputFile.getAbsolutePath() };
 		SentenceSplitter se = new SentenceSplitter(inputFiles, null, null,
-		    null, true, true);
+		    null, false, true, true, null);
 		ConfigurationParameterSettings cps = se.collectionReader
 		    .getCollectionReaderMetaData().getConfigurationParameterSettings();
 
@@ -60,7 +60,7 @@ public class TestSentenceSplitter {
 		String[] inputFiles = new String[] { inputFile.getAbsolutePath() };
 		File outputDir = IOUtils.mkTmpDir();
 		SentenceSplitter se = new SentenceSplitter(inputFiles, null,
-		    outputDir, "encoding", true, true);
+		    outputDir, "encoding", false, true, true, null);
 		ConfigurationParameterSettings cps = se.sentenceLineWriter
 		    .getMetaData().getConfigurationParameterSettings();
 
@@ -83,7 +83,7 @@ public class TestSentenceSplitter {
 		DisableLogging.enableLogging(Level.WARNING);
 		SentenceSplitter se = new SentenceSplitter(
 		    new String[] { inputFile.getCanonicalPath() }, null, null,
-		    "UTF-8", false, false);
+		    "UTF-8", false, false, false, null);
 		se.run();
 		String content = outContent.toString();
 		assertTrue(content.indexOf("studied.\nAs(4)O(6)") > 0);

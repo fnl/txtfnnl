@@ -47,18 +47,25 @@ public class SentenceSplitter implements Pipeline {
 	 *        printed to STDOUT); may be <code>null</code>
 	 * @param characterEncoding optional character encoding to use (otherwise
 	 *        the platform default is used); may be <code>null</code>
+	 * @param elsevier <code>true</code> if the XML files are using Elsevier's
+	 *        DTD
 	 * @param replaceFiles optional flag indicating that existing files in the
 	 *        output directory should be replaced
 	 * @param joinLines flag indicating that newline and carriage return
 	 *        characters within sentences should be replaced with spaces
+	 * @param splitSentences indicates whether sentences should not be split
+	 *        on newlines (default, <code>null</code>), on single lines using
+	 *        value "single", or on double newlines, using "double"
 	 * @throws IOException
 	 * @throws UIMAException
 	 */
 	private SentenceSplitter(File outputDir, String characterEncoding,
-	                         boolean replaceFiles, boolean joinLines)
+	                         boolean elsevier, boolean replaceFiles,
+	                         boolean joinLines, String splitSentences)
 	        throws IOException, UIMAException {
-		tikaAED = PipelineUtils.getTikaAnnotator(false, characterEncoding);
-		
+		tikaAED = PipelineUtils.getTikaAnnotator(false, characterEncoding,
+		    elsevier);
+
 		sentenceLineWriter = AnalysisEngineFactory.createPrimitiveDescription(
 		    SentenceLineWriter.class, UimaUtil.SENTENCE_TYPE_PARAMETER,
 		    SentenceAnnotator.SENTENCE_TYPE_NAME,
@@ -69,8 +76,9 @@ public class SentenceSplitter implements Pipeline {
 		    SentenceLineWriter.PARAM_OVERWRITE_FILES, Boolean
 		        .valueOf(replaceFiles), SentenceLineWriter.PARAM_JOIN_LINES,
 		    Boolean.valueOf(joinLines));
-		sentenceAED = AnalysisEngineFactory
-		    .createAnalysisEngineDescription("txtfnnl.uima.openNLPSentenceAEDescriptor");
+		sentenceAED = AnalysisEngineFactory.createAnalysisEngineDescription(
+		    "txtfnnl.uima.openNLPSentenceAEDescriptor",
+		    SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, splitSentences == null ? "" : splitSentences);
 	}
 
 	/**
@@ -85,19 +93,26 @@ public class SentenceSplitter implements Pipeline {
 	 *        optional - may be <code>null</code>
 	 * @param characterEncoding to use (otherwise the platform default is
 	 *        used); optional - may be <code>null</code>
+	 * @param elsevier <code>true</code> if the XML files are using Elsevier's
+	 *        DTD
 	 * @param replaceFiles flag indicating that existing files in the output
 	 *        directory should be replaced
 	 * @param joinLines flag indicating that newline and carriage return
 	 *        characters within sentences should be replaced with spaces
+	 * @param splitSentences indicates whether sentences should not be split
+	 *        on newlines (default, <code>null</code>), on single lines using
+	 *        value "single", or on double newlines, using "double"
 	 * @throws ResourceInitializationException
 	 * @throws IOException
 	 */
 	public SentenceSplitter(File inputDirectory, String mimeType,
 	                        boolean recurseDirectory, File outputDirectory,
-	                        String characterEncoding, boolean replaceFiles,
-	                        boolean joinLines) throws IOException,
+	                        String characterEncoding, boolean elsevier,
+	                        boolean replaceFiles, boolean joinLines,
+	                        String splitSentences) throws IOException,
 	        UIMAException {
-		this(outputDirectory, characterEncoding, replaceFiles, joinLines);
+		this(outputDirectory, characterEncoding, elsevier, replaceFiles,
+		    joinLines, splitSentences);
 		assert inputDirectory.isDirectory() && inputDirectory.canRead() : inputDirectory
 		    .getAbsolutePath() + " is not a (readable) directory";
 		collectionReader = PipelineUtils.getCollectionReader(inputDirectory,
@@ -114,18 +129,25 @@ public class SentenceSplitter implements Pipeline {
 	 *        optional - may be <code>null</code>
 	 * @param characterEncoding to use (otherwise the platform default is
 	 *        used); optional - may be <code>null</code>
+	 * @param elsevier <code>true</code> if the XML files are using Elsevier's
+	 *        DTD
 	 * @param replaceFiles flag indicating that existing files in the output
 	 *        directory should be replaced
 	 * @param joinLines flag indicating that newline and carriage return
 	 *        characters within sentences should be replaced with spaces
+	 * @param splitSentences indicates whether sentences should not be split
+	 *        on newlines (default, <code>null</code>), on single lines using
+	 *        value "single", or on double newlines, using "double"
 	 * @throws ResourceInitializationException
 	 * @throws IOException
 	 */
 	public SentenceSplitter(String[] inputFiles, String mimeType,
 	                        File outputDirectory, String characterEncoding,
-	                        boolean replaceFiles, boolean joinLines)
+	                        boolean elsevier, boolean replaceFiles,
+	                        boolean joinLines, String splitSentences)
 	        throws IOException, UIMAException {
-		this(outputDirectory, characterEncoding, replaceFiles, joinLines);
+		this(outputDirectory, characterEncoding, elsevier, replaceFiles,
+		    joinLines, splitSentences);
 		collectionReader = PipelineUtils.getCollectionReader(inputFiles,
 		    mimeType);
 	}
@@ -158,7 +180,13 @@ public class SentenceSplitter implements Pipeline {
 		opts.addOption("o", "output-directory", true,
 		    "output directory for writing files [STDOUT]");
 		opts.addOption("j", "join-lines", false,
-		    "replace newline chars within sentences with spaces [false]");
+		    "replace single newlines in sentences with spaces [false]");
+		opts.addOption("d", "split-double-lines", false,
+		    "split sentences on double newlines [false]");
+		opts.addOption("s", "split-lines", false,
+		    "split sentences on single newlines [false]");
+		opts.addOption("e", "elsevier", false,
+		    "assume XML files follow Elsevier's DTD [false]");
 
 		PipelineUtils.addLogAndHelpOptions(opts);
 
@@ -178,8 +206,10 @@ public class SentenceSplitter implements Pipeline {
 		boolean recursive = cmd.hasOption('R');
 		String encoding = cmd.getOptionValue('E');
 		String mimeType = cmd.getOptionValue('M');
+		boolean elsevier = cmd.hasOption('e');
 		boolean replace = cmd.hasOption('X');
 		boolean joinLines = cmd.hasOption('j');
+		String splitSentences = null;
 
 		if (cmd.hasOption('o')) {
 			outputDirectory = new File(cmd.getOptionValue('o'));
@@ -189,6 +219,12 @@ public class SentenceSplitter implements Pipeline {
 				                   outputDirectory.getPath() + "'");
 				System.exit(1); // == exit ==
 			}
+		}
+
+		if (cmd.hasOption('s')) {
+			splitSentences = "single";
+		} else if (cmd.hasOption('d')) {
+			splitSentences = "double";
 		}
 
 		if (inputFiles.length > 0) {
@@ -213,10 +249,12 @@ public class SentenceSplitter implements Pipeline {
 		try {
 			if (inputDirectory == null)
 				extractor = new SentenceSplitter(inputFiles, mimeType,
-				    outputDirectory, encoding, replace, joinLines);
+				    outputDirectory, encoding, elsevier, replace, joinLines,
+				    splitSentences);
 			else
 				extractor = new SentenceSplitter(inputDirectory, mimeType,
-				    recursive, outputDirectory, encoding, replace, joinLines);
+				    recursive, outputDirectory, encoding, elsevier, replace,
+				    joinLines, splitSentences);
 
 			extractor.run();
 		} catch (UIMAException e) {
