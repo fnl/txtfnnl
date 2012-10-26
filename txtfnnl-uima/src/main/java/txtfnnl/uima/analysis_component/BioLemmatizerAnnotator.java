@@ -1,11 +1,6 @@
-/**
- * 
- */
 package txtfnnl.uima.analysis_component;
 
 import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
 
 import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_component.JCasAnnotator_ImplBase;
@@ -115,28 +110,24 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
 	}
 
 	@Override
-	public void process(JCas cas) throws AnalysisEngineProcessException {
+	public void process(JCas jcas) throws AnalysisEngineProcessException {
 		try {
-			cas = cas.getView(Views.CONTENT_TEXT.toString());
+			jcas = jcas.getView(Views.CONTENT_TEXT.toString());
 		} catch (CASException e) {
 			throw new AnalysisEngineProcessException(e);
 		}
 
 		FSMatchConstraint tokenConstraint = TokenAnnotator
-		    .makeTokenConstraint(cas);
+		    .makeTokenConstraint(jcas);
 		FSIterator<Annotation> sentenceIt = SentenceAnnotator
-		    .getSentenceIterator(cas, sentenceTypeName);
-		AnnotationIndex<Annotation> annIdx = cas
+		    .getSentenceIterator(jcas, sentenceTypeName);
+		AnnotationIndex<Annotation> annIdx = jcas
 		    .getAnnotationIndex(SyntaxAnnotation.type);
-		// buffer the properties to index them after iterating all of them
-		// otherwise, a concurrent modification exception would occur
-		// also, remove the old property array without the lemma
-		List<FSArray> addBuffer = new LinkedList<FSArray>();
-		List<FSArray> remBuffer = new LinkedList<FSArray>();
+		int count = 0;
 
 		while (sentenceIt.hasNext()) {
 			Annotation sentence = sentenceIt.next();
-			FSIterator<Annotation> tokenIt = cas.createFilteredIterator(
+			FSIterator<Annotation> tokenIt = jcas.createFilteredIterator(
 			    annIdx.subiterator(sentence, true, true), tokenConstraint);
 
 			while (tokenIt.hasNext()) {
@@ -146,54 +137,56 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
 				    .toLowerCase();
 				LemmataEntry lemmata = lemmatizer.lemmatizeByLexiconAndRules(
 				    token, posTag);
-				String lemma = null;
+				String lemma = null, alt = null;
 				Collection<Lemma> lemmaColl = lemmata.getLemmas();
+				String pos = posTag.toLowerCase();
 
 				for (Lemma l : lemmaColl) {
-					if (posTag.equals(l.getPos().toLowerCase())) {
-						lemma = l.getLemma();
-						break;
+					if (pos.equals(l.getPos().toLowerCase())) {
+						if ("PennPOS".equals(l.getTagSetName())) {
+							lemma = l.getLemma();
+							break;
+						} else {
+							alt = l.getLemma();
+						}
 					}
 				}
 
-				if (lemma == null && lemmaColl.size() == 1) {
-					for (Lemma l : lemmaColl)
-						lemma = l.getLemma();
-				}
-
 				if (lemma == null) {
-					lemma = lemmata.lemmasToString();
+					if (alt == null) {
+						lemma = lemmata.lemmasToString();
 
-					if (lemma.contains(LemmataEntry.lemmaSeparator)) {
-						logger.log(Level.WARNING, "no unique lemma for '" +
-						                          token + "' [" + posTag +
-						                          "]: " + lemmata.toString());
-						lemma = token;
+						if (lemma.contains(LemmataEntry.lemmaSeparator)) {
+							logger.log(Level.FINE, "no unique lemma for '" +
+							                       token + "' [" + posTag +
+							                       "]: " + lemmata.toString());
+							lemma = token.toLowerCase();
+						}
+					} else {
+						logger.log(Level.FINE, "using alt lemma for '" +
+						                       token + "' [" + posTag + "]: " +
+						                       alt);
+						lemma = alt;
 					}
 				}
 
 				FSArray props = tokenAnn.getProperties();
 				int len = props.size();
-				FSArray newProps = new FSArray(cas, len + 1);
+				FSArray newProps = new FSArray(jcas, len + 1);
 
 				for (int i = 0; i < len; i++)
 					newProps.set(i, props.get(i));
 
-				Property lemmaProp = new Property(cas);
+				Property lemmaProp = new Property(jcas);
 				lemmaProp.setName(LEMMA_PROPERTY_NAME);
 				lemmaProp.setValue(lemma);
 				newProps.set(len, lemmaProp);
 				tokenAnn.setProperties(newProps);
-				addBuffer.add(newProps);
-				remBuffer.add(props);
+				count++;
 			}
 		}
 
-		for (FSArray p : remBuffer)
-			p.removeFromIndexes(cas);
-		for (FSArray p : addBuffer)
-			p.addToIndexes(cas);
-
+		logger.log(Level.FINE, "lemmatized " + count + " tokens");
 	}
 
 	@Override

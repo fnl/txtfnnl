@@ -168,18 +168,18 @@ public class ChunkAnnotator extends JCasAnnotator_ImplBase {
 	}
 
 	@Override
-	public void process(JCas cas) throws AnalysisEngineProcessException {
+	public void process(JCas jcas) throws AnalysisEngineProcessException {
 		try {
-			cas = cas.getView(Views.CONTENT_TEXT.toString());
+			jcas = jcas.getView(Views.CONTENT_TEXT.toString());
 		} catch (CASException e) {
 			throw new AnalysisEngineProcessException(e);
 		}
-
+		
 		FSMatchConstraint tokenConstraint = TokenAnnotator
-		    .makeTokenConstraint(cas);
+		    .makeTokenConstraint(jcas);
 		FSIterator<Annotation> sentenceIt = SentenceAnnotator
-		    .getSentenceIterator(cas, sentenceTypeName);
-		AnnotationIndex<Annotation> annIdx = cas
+		    .getSentenceIterator(jcas, sentenceTypeName);
+		AnnotationIndex<Annotation> annIdx = jcas
 		    .getAnnotationIndex(SyntaxAnnotation.type);
 		// buffer the chunks to index them after iterating all of them
 		// otherwise, a concurrent modification exception would occur
@@ -187,7 +187,7 @@ public class ChunkAnnotator extends JCasAnnotator_ImplBase {
 
 		while (sentenceIt.hasNext()) {
 			Annotation sentence = sentenceIt.next();
-			FSIterator<Annotation> tokenIt = cas.createFilteredIterator(
+			FSIterator<Annotation> tokenIt = jcas.createFilteredIterator(
 			    annIdx.subiterator(sentence, true, true), tokenConstraint);
 
 			List<SyntaxAnnotation> tokenAnns = new ArrayList<SyntaxAnnotation>();
@@ -216,7 +216,7 @@ public class ChunkAnnotator extends JCasAnnotator_ImplBase {
 
 				if (tag.startsWith("B")) {
 					if (start != -1) {
-						buffer.add(createChunkAnnotation(cas, result[i - 1]
+						buffer.add(createChunkAnnotation(jcas, result[i - 1]
 						    .substring(2), probs[i - 1], tokenAnns.get(start)
 						    .getBegin(), tokenAnns.get(end).getEnd()));
 					}
@@ -226,7 +226,7 @@ public class ChunkAnnotator extends JCasAnnotator_ImplBase {
 					end = i;
 				} else if (tag.startsWith("O")) {
 					if (start != -1) {
-						buffer.add(createChunkAnnotation(cas, result[i - 1]
+						buffer.add(createChunkAnnotation(jcas, result[i - 1]
 						    .substring(2), probs[i - 1], tokenAnns.get(start)
 						    .getBegin(), tokenAnns.get(end).getEnd()));
 
@@ -241,7 +241,7 @@ public class ChunkAnnotator extends JCasAnnotator_ImplBase {
 			}
 
 			if (start != -1)
-				buffer.add(createChunkAnnotation(cas,
+				buffer.add(createChunkAnnotation(jcas,
 				    result[result.length - 1].substring(2),
 				    probs[result.length - 1], tokenAnns.get(start).getBegin(),
 				    tokenAnns.get(end).getEnd()));
@@ -249,7 +249,9 @@ public class ChunkAnnotator extends JCasAnnotator_ImplBase {
 		}
 
 		for (SyntaxAnnotation chunk : buffer)
-			chunk.addToIndexes(cas);
+			chunk.addToIndexes(jcas);
+		
+		logger.log(Level.FINE, "annotated " + buffer.size() + " chunks");
 	}
 
 	private SyntaxAnnotation createChunkAnnotation(JCas cas, String tag,

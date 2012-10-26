@@ -71,6 +71,9 @@ Currently, the following pipelines are available:
 
 - ``ss`` splits any kind of data Tika can extract plain-text from into 
   sentences, one per line.
+- ``pp`` pre-processes any kind of data Tika can extract, generating XMI files
+  with sentence, token, and chunk annotations. The tokens are PoS tagged and
+  lemmatized. 
 - ``ema`` annotates known entity mentions on documents by supplying a mapping
   of input file names (w/o sufffix) to entity identifiers (type, namespace,
   identifier), looking up the names for those entity IDs in a DB, and

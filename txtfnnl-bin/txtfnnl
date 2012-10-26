@@ -15,6 +15,7 @@ MAVEN_REPO=${M2_REPO:-~/.m2/repository};
 #################
 
 export CLASSPATH=\
+$MAVEN_REPO/args4j/args4j/2.0.12/args4j-2.0.12.jar:\
 $MAVEN_REPO/asm/asm/3.1/asm-3.1.jar:\
 $MAVEN_REPO/cglib/cglib-nodep/2.2.2/cglib-nodep-2.2.2.jar:\
 $MAVEN_REPO/com/drewnoakes/metadata-extractor/2.4.0-beta-1/metadata-extractor-2.4.0-beta-1.jar:\
@@ -27,6 +28,8 @@ $MAVEN_REPO/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar:\
 $MAVEN_REPO/de/l3s/boilerpipe/boilerpipe/1.1.0/boilerpipe-1.1.0.jar:\
 $MAVEN_REPO/dom4j/dom4j/1.6.1/dom4j-1.6.1.jar:\
 $MAVEN_REPO/edu/ucar/netcdf/4.2-min/netcdf-4.2-min.jar:\
+$MAVEN_REPO/edu/ucdenver/ccp/biolemmatizer-core/1.1/biolemmatizer-core-1.1.jar:\
+$MAVEN_REPO/edu/northwestern/at/morphadorner/2009-04-30/morphadorner-2009-04-30.jar:\
 $MAVEN_REPO/javassist/javassist/3.6.0.GA/javassist-3.6.0.GA.jar:\
 $MAVEN_REPO/jdom/jdom/1.0/jdom-1.0.jar:\
 $MAVEN_REPO/junit/junit/4.10/junit-4.10.jar:\
@@ -85,6 +88,7 @@ help () {
     echo;
     echo "pipelines:";
     echo "  ss    - split sentences";
+    echo "  pp    - pre-process files to XMI (split, tag, stem and chunk)";
     echo "  ema   - annotate known entity mentions";
     echo "  rpe   - extract patterns with (potential) entity relationships";
     echo;
@@ -97,6 +101,7 @@ if [ $# -gt 0 ]; then
     shift;
     case $cmd in
         ss) java txtfnnl.pipelines.SentenceSplitter "$@";;
+        pp) java -Xmx1G txtfnnl.pipelines.Preprocessor "$@";;
         ema) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
         rpe) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;
         -v) echo txtfnnl-$VERSION.1;;

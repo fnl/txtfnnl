@@ -151,26 +151,24 @@ public class PartOfSpeechAnnotator extends JCasAnnotator_ImplBase {
 	}
 
 	@Override
-	public void process(JCas cas) throws AnalysisEngineProcessException {
+	public void process(JCas jcas) throws AnalysisEngineProcessException {
 		try {
-			cas = cas.getView(Views.CONTENT_TEXT.toString());
+			jcas = jcas.getView(Views.CONTENT_TEXT.toString());
 		} catch (CASException e) {
 			throw new AnalysisEngineProcessException(e);
 		}
 
 		FSMatchConstraint tokenConstraint = TokenAnnotator
-		    .makeTokenConstraint(cas);
+		    .makeTokenConstraint(jcas);
 		FSIterator<Annotation> sentenceIt = SentenceAnnotator
-		    .getSentenceIterator(cas, sentenceTypeName);
-		AnnotationIndex<Annotation> annIdx = cas
+		    .getSentenceIterator(jcas, sentenceTypeName);
+		AnnotationIndex<Annotation> annIdx = jcas
 		    .getAnnotationIndex(SyntaxAnnotation.type);
-		// buffer the properties to index them after iterating all of them
-		// otherwise, a concurrent modification exception would occur
-		List<FSArray> buffer = new LinkedList<FSArray>();
+		int count = 0;
 
 		while (sentenceIt.hasNext()) {
 			Annotation sentence = sentenceIt.next();
-			FSIterator<Annotation> tokenIt = cas.createFilteredIterator(
+			FSIterator<Annotation> tokenIt = jcas.createFilteredIterator(
 			    annIdx.subiterator(sentence, true, true), tokenConstraint);
 
 			List<SyntaxAnnotation> tokenAnns = new LinkedList<SyntaxAnnotation>();
@@ -192,22 +190,21 @@ public class PartOfSpeechAnnotator extends JCasAnnotator_ImplBase {
 			assert posTags.length == tokens.length;
 
 			for (SyntaxAnnotation tokenAnn : tokenAnns) {
-				Property tag = new Property(cas);
-				Property prob = new Property(cas);
+				Property tag = new Property(jcas);
+				Property prob = new Property(jcas);
 				tag.setName(POS_TAG_VALUE_PROPERTY_NAME);
 				prob.setName(POS_TAG_CONFIDENCE_PROPERTY_NAME);
 				tag.setValue(posTags[idx]);
 				prob.setValue(Double.toString(posProbs[idx++]));
-				FSArray properties = new FSArray(cas, 2);
+				FSArray properties = new FSArray(jcas, 2);
 				properties.set(0, tag);
 				properties.set(1, prob);
 				tokenAnn.setProperties(properties);
-				buffer.add(properties);
+				count++;
 			}
 		}
-
-		for (FSArray p : buffer)
-			p.addToIndexes(cas);
+		
+		logger.log(Level.FINE, "tagged the PoS of " + count + " tokens");
 	}
 
 	static public String getPoSTag(SyntaxAnnotation token) {

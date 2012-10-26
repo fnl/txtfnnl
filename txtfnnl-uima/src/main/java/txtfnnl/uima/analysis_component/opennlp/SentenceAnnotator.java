@@ -151,7 +151,7 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 		String splitMode = (String) ctx
 		    .getConfigParameterValue(PARAM_SPLIT_ON_NEWLINE);
 
-		if (splitMode == null) {
+		if (splitMode == null || splitMode.equals("")) {
 			logger.log(Level.INFO, "no newline-based splitting");
 		} else if (splitMode.equals("single")) {
 			splitOnSingleNewline = true;

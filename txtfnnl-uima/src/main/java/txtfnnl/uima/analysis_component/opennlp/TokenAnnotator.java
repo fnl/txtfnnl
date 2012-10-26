@@ -193,6 +193,9 @@ public class TokenAnnotator extends JCasAnnotator_ImplBase {
 		
 		for (SyntaxAnnotation token : buffer)
 			token.addToIndexes(jcas);
+		
+		
+		logger.log(Level.FINE, "annotated " + buffer.size() + " tokens");
 	}
 
 	@Override
