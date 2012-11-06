@@ -101,7 +101,7 @@ if [ $# -gt 0 ]; then
     shift;
     case $cmd in
         ss) java txtfnnl.pipelines.SentenceSplitter "$@";;
-        pp) java -Xmx1G txtfnnl.pipelines.Preprocessor "$@";;
+        pp) java -Xmx2G txtfnnl.pipelines.Preprocessor "$@";;
         ema) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
         rpe) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;
         -v) echo txtfnnl-$VERSION.1;;
