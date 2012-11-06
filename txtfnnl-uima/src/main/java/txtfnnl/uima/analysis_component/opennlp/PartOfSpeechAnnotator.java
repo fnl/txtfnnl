@@ -176,6 +176,9 @@ public class PartOfSpeechAnnotator extends JCasAnnotator_ImplBase {
 			while (tokenIt.hasNext())
 				tokenAnns.add((SyntaxAnnotation) tokenIt.next());
 
+			if (tokenAnns.size() == 0)
+				continue;
+			
 			String[] tokens = new String[tokenAnns.size()];
 			int idx = 0;
 
