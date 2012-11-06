@@ -192,10 +192,10 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 			processLock.unlock();
 		}
 	}
-	
+
 	/**
-	 * Return an annotation iterator for sentence annotations on the given
-	 * CAS using the default sentence type name.
+	 * Return an annotation iterator for sentence annotations on the given CAS
+	 * using the default sentence type name.
 	 * 
 	 * @param jcas to iterate over
 	 * @return a sentence annotation iterator
@@ -297,11 +297,47 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 		}
 
 		sentenceIndex = toArray(indices);
-		
+
 		if (sentenceIndex.length != spans.length)
 			throw new AssertionError("found " + sentenceIndex.length +
 			                         "sentences, expected " + spans.length);
-		
+
+		// remove sentences that clearly are too long to be real sentences
+		// with the limit given in span length (characters)
+		List<Integer> tooLong = new LinkedList<Integer>();
+
+		for (int i = 0; i < spans.length; ++i) {
+			if (spans[i].length() > 5000)
+				tooLong.add(i);
+		}
+
+		if (tooLong.size() > 0) {
+			Span[] tmp = new Span[spans.length - tooLong.size()];
+			int pos = 0;
+			int end = 0;
+			int count = 0;
+
+			for (Integer endInt : tooLong) {
+				end = endInt;
+				logger.log(
+				    Level.INFO,
+				    "skipping a sentence annotation of length " +
+				            spans[end].length());
+
+				while (pos < end)
+					tmp[count++] = spans[pos++]; // copy
+
+				pos++; // skip "end" (too long annotation)
+			}
+
+			if (end < spans.length) {
+				while (pos < spans.length)
+					tmp[count++] = spans[pos++]; // copy tail
+			}
+
+			spans = tmp;
+		}
+
 		return spans;
 	}
 
@@ -328,10 +364,10 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 				allSpans.add(new Span(pos_start[1], idx, spans[pos_start[0]]
 				    .getType()));
 				pos_start[1] = idx + splitSize;
-				
+
 				if (idx == spans[pos_start[0]].getEnd())
 					++pos_start[0];
-				
+
 				break;
 			}
 		}
@@ -348,8 +384,7 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 				pos_start[1] = spans[pos_start[0]].getStart();
 		}
 
-		spans = allSpans.toArray(new Span[allSpans.size()]);
-		return spans;
+		return allSpans.toArray(new Span[allSpans.size()]);
 	}
 
 	private int[] toArray(List<Integer> indices) {
