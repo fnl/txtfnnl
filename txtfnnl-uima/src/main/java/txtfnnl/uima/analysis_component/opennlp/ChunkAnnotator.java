@@ -86,7 +86,7 @@ public class ChunkAnnotator extends JCasAnnotator_ImplBase {
 	 */
 	public static final String PARAM_BEAM_SIZE = UimaUtil.BEAM_SIZE_PARAMETER;
 
-	private static final String NAMESPACE = "http://bulba.sdsu.edu/jeanette/thesis/PennTags.html#";
+	public static final String NAMESPACE = "http://bulba.sdsu.edu/jeanette/thesis/PennTags.html#";
 
 	/** The annotator's URI (for the annotations) set by this AE. */
 	private static final String URI = "http://opennlp.apache.org";
@@ -101,26 +101,27 @@ public class ChunkAnnotator extends JCasAnnotator_ImplBase {
 
 	public static FSMatchConstraint makeChunkConstraint(JCas jcas) {
 		ConstraintFactory cf = jcas.getConstraintFactory();
-		
+
 		Feature namespace = jcas.getTypeSystem().getFeatureByFullName(
 		    SyntaxAnnotation.class.getName() + ":namespace");
 		FeaturePath namespacePath = jcas.createFeaturePath();
 		namespacePath.addFeature(namespace);
 		FSStringConstraint namespaceCons = cf.createStringConstraint();
 		namespaceCons.equals(ChunkAnnotator.NAMESPACE);
-		
-		Feature annotator = jcas.getTypeSystem().getFeatureByFullName(
-		    SyntaxAnnotation.class.getName() + ":annotator");
-		FeaturePath annotatorPath = jcas.createFeaturePath();
-		annotatorPath.addFeature(annotator);
-		FSStringConstraint annotatorCons = cf.createStringConstraint();
-		annotatorCons.equals(ChunkAnnotator.URI);
-		
+
+//		Feature annotator = jcas.getTypeSystem().getFeatureByFullName(
+//		    SyntaxAnnotation.class.getName() + ":annotator");
+//		FeaturePath annotatorPath = jcas.createFeaturePath();
+//		annotatorPath.addFeature(annotator);
+//		FSStringConstraint annotatorCons = cf.createStringConstraint();
+//		annotatorCons.equals(ChunkAnnotator.URI);
+
 		FSMatchConstraint namespaceEmbed = cf.embedConstraint(namespacePath,
 		    namespaceCons);
-		FSMatchConstraint annotatorEmbed = cf.embedConstraint(annotatorPath,
-			annotatorCons);
-		return cf.and(annotatorEmbed, namespaceEmbed);
+		return namespaceEmbed;
+//		FSMatchConstraint annotatorEmbed = cf.embedConstraint(annotatorPath,
+//		    annotatorCons);
+//		return cf.and(annotatorEmbed, namespaceEmbed);
 	}
 
 	/**
@@ -145,8 +146,8 @@ public class ChunkAnnotator extends JCasAnnotator_ImplBase {
 			throw new ResourceInitializationException(e);
 		} catch (NullPointerException e) {
 			throw new ResourceInitializationException(new AssertionError(
-			    "no chunk model resource for resource key '" + modelResourceKey +
-			            "' found"));
+			    "no chunk model resource for resource key '" +
+			            modelResourceKey + "' found"));
 		}
 
 		Integer beamSize = AnnotatorUtil.getOptionalIntegerParameter(ctx,
@@ -174,7 +175,7 @@ public class ChunkAnnotator extends JCasAnnotator_ImplBase {
 		} catch (CASException e) {
 			throw new AnalysisEngineProcessException(e);
 		}
-		
+
 		FSMatchConstraint tokenConstraint = TokenAnnotator
 		    .makeTokenConstraint(jcas);
 		FSIterator<Annotation> sentenceIt = SentenceAnnotator
@@ -207,50 +208,56 @@ public class ChunkAnnotator extends JCasAnnotator_ImplBase {
 			String[] result = chunker.chunk(tokens, pos_tags);
 			double[] probs = chunker.probs();
 			assert result.length == probs.length;
+			assert result.length == tokenAnns.size();
 
 			int start = -1;
 			int end = -1;
 
 			for (int i = 0; i < result.length; i++) {
-				String tag = result[i];
-
-				if (tag.startsWith("B")) {
-					if (start != -1) {
-						buffer.add(createChunkAnnotation(jcas, result[i - 1]
-						    .substring(2), probs[i - 1], tokenAnns.get(start)
+				switch (result[i].charAt(0)) {
+				case 'B':
+					if (start != -1)
+						// annotate last chunk (started with B)
+						buffer.add(createChunkAnnotation(jcas, result[start]
+						    .substring(2), probs[start], tokenAnns.get(start)
 						    .getBegin(), tokenAnns.get(end).getEnd()));
-					}
 					start = i;
 					end = i;
-				} else if (tag.startsWith("I")) {
+				break;
+				case 'I':
 					end = i;
-				} else if (tag.startsWith("O")) {
+				break;
+				case 'O':
 					if (start != -1) {
-						buffer.add(createChunkAnnotation(jcas, result[i - 1]
-						    .substring(2), probs[i - 1], tokenAnns.get(start)
+						// annotate last chunk (started with B)
+						buffer.add(createChunkAnnotation(jcas, result[start]
+						    .substring(2), probs[start], tokenAnns.get(start)
 						    .getBegin(), tokenAnns.get(end).getEnd()));
 
 						start = -1;
 						end = -1;
 					}
-				} else {
+				break;
+				default:
 					throw new AssertionError("Unexpected tag: " + result[i] +
 					                         " at postion " + i + " in '" +
 					                         sentence.getCoveredText() + "'");
+
 				}
 			}
 
 			if (start != -1)
+				// annotate trailing chunk
 				buffer.add(createChunkAnnotation(jcas,
-				    result[result.length - 1].substring(2),
-				    probs[result.length - 1], tokenAnns.get(start).getBegin(),
+				    result[start].substring(2),
+				    probs[start], tokenAnns.get(start).getBegin(),
 				    tokenAnns.get(end).getEnd()));
 
 		}
 
 		for (SyntaxAnnotation chunk : buffer)
 			chunk.addToIndexes(jcas);
-		
+
 		logger.log(Level.FINE, "annotated " + buffer.size() + " chunks");
 	}
 

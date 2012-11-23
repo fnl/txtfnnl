@@ -27,7 +27,7 @@ import org.uimafit.pipeline.SimplePipeline;
 
 import txtfnnl.uima.analysis_component.KnownEntityAnnotator;
 import txtfnnl.uima.analysis_component.KnownRelationshipAnnotator;
-import txtfnnl.uima.analysis_component.LinkGrammarAnnotator;
+import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.collection.RelationshipPatternLineWriter;
 import txtfnnl.uima.resource.EntityStringMapResource;
@@ -73,7 +73,7 @@ public class RelationshipPatternExtractor implements Pipeline {
 		            ? "single"
 		            : "multi"));
 		parserAED = AnalysisEngineFactory.createPrimitiveDescription(
-		    LinkGrammarAnnotator.class, UimaUtil.SENTENCE_TYPE_PARAMETER,
+		    GeniaTaggerAnnotator.class, UimaUtil.SENTENCE_TYPE_PARAMETER,
 		    SentenceAnnotator.SENTENCE_TYPE_NAME);
 		patternWriter = AnalysisEngineFactory.createPrimitiveDescription(
 		    RelationshipPatternLineWriter.class,

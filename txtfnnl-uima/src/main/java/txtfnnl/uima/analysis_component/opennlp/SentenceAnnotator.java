@@ -307,7 +307,7 @@ public final class SentenceAnnotator extends AbstractSentenceDetector {
 		List<Integer> tooLong = new LinkedList<Integer>();
 
 		for (int i = 0; i < spans.length; ++i) {
-			if (spans[i].length() > 5000)
+			if (spans[i].length() > 10000)
 				tooLong.add(i);
 		}
 

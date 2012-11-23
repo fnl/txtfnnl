@@ -17,7 +17,7 @@ import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.collection.FileCollectionReader;
 import txtfnnl.uima.collection.FileSystemCollectionReader;
-import txtfnnl.uima.collection.opennlp.SentenceLineWriter;
+import txtfnnl.uima.collection.SentenceLineWriter;
 import txtfnnl.utils.IOUtils;
 
 public class TestSentenceSplitter {

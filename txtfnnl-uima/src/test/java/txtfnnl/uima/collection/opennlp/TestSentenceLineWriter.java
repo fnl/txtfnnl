@@ -24,7 +24,7 @@ import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
-import txtfnnl.uima.collection.opennlp.SentenceLineWriter;
+import txtfnnl.uima.collection.SentenceLineWriter;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 import txtfnnl.utils.IOUtils;
 

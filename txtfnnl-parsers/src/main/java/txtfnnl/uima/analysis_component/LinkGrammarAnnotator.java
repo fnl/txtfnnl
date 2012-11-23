@@ -142,8 +142,8 @@ class LinkParser {
 		private final int seconds;
 		private boolean kill = true;
 
-		TimedKiller(LinkParser process, int destroyAfterSeconds) {
-			this.parser = process;
+		TimedKiller(LinkParser linkParser, int destroyAfterSeconds) {
+			this.parser = linkParser;
 			this.seconds = destroyAfterSeconds;
 			this.kill = true;
 		}

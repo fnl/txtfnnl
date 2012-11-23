@@ -19,28 +19,37 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.pipeline.SimplePipeline;
 
+import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
-import txtfnnl.uima.collection.SentenceLineWriter;
+import txtfnnl.uima.collection.TaggedSentenceLineWriter;
 
 /**
- * A sentence extractor pipeline for (nearly arbitrary) input files.
+ * A tagger for (nearly arbitrary) input files to annotate sentences, tokens,
+ * lemmas, PoS tags, and chunks of a given data as plain text.
  * 
  * Input files can be read from a directory or listed explicitly, while output
- * files are written to another directory or to STDOUT. Output is always
- * plain-text, where a single line contains at most a single sentence.
+ * files are written to another directory or to STDOUT. Output is always plain
+ * text.
+ * 
+ * Sentences are separated by newlines. Tokens are annotated with their lemmas
+ * and PoS tags and grouped into phrasal chunks.
  * 
  * @author Florian Leitner
  */
-public class SentenceSplitter implements Pipeline {
+public class SentenceTagger implements Pipeline {
 
 	CollectionReaderDescription collectionReader;
 	AnalysisEngineDescription tikaAED;
 	AnalysisEngineDescription sentenceAED;
-	AnalysisEngineDescription sentenceLineWriter;
+	AnalysisEngineDescription geniaAED;
+	AnalysisEngineDescription tokenAED;
+	AnalysisEngineDescription partOfSpeechAED;
+	AnalysisEngineDescription chunkAED;
+	AnalysisEngineDescription lemmaAED;
+	AnalysisEngineDescription textWriter;
 
 	/**
-	 * Instantiate the
-	 * {@link txtfnnl.uima.collection.SentenceLineWriter} CAS
+	 * Instantiate the {@link txtfnnl.uima.collection.SentenceLineWriter} CAS
 	 * consumer.
 	 * 
 	 * @param outputDir optional output directory to use (otherwise output is
@@ -49,36 +58,53 @@ public class SentenceSplitter implements Pipeline {
 	 *        the platform default is used); may be <code>null</code>
 	 * @param elsevier <code>true</code> if the XML files are using Elsevier's
 	 *        DTD
+	 * @param geniaDir uses the GeniaTagger instead of the openNLP modules,
+	 *        running the <code>geniatagger</code> inside the given directory
+	 *        path
 	 * @param replaceFiles optional flag indicating that existing files in the
 	 *        output directory should be replaced
-	 * @param joinLines flag indicating that newline and carriage return
-	 *        characters within sentences should be replaced with spaces
 	 * @param splitSentences indicates whether sentences should not be split
 	 *        on newlines (default, <code>null</code>), on single lines using
 	 *        value "single", or on double newlines, using "double"
 	 * @throws IOException
 	 * @throws UIMAException
 	 */
-	private SentenceSplitter(File outputDir, String characterEncoding,
-	                         boolean elsevier, boolean replaceFiles,
-	                         boolean joinLines, String splitSentences)
+	private SentenceTagger(File outputDir, String characterEncoding,
+	                       boolean elsevier, String geniaDir,
+	                       boolean replaceFiles, String splitSentences)
 	        throws IOException, UIMAException {
 		tikaAED = PipelineUtils.getTikaAnnotator(false, characterEncoding,
 		    elsevier);
-
-		sentenceLineWriter = AnalysisEngineFactory.createPrimitiveDescription(
-		    SentenceLineWriter.class, UimaUtil.SENTENCE_TYPE_PARAMETER,
-		    SentenceAnnotator.SENTENCE_TYPE_NAME,
-		    SentenceLineWriter.PARAM_ENCODING, characterEncoding,
-		    SentenceLineWriter.PARAM_OUTPUT_DIRECTORY, (outputDir == null)
-		            ? null
-		            : outputDir.getCanonicalPath(),
-		    SentenceLineWriter.PARAM_OVERWRITE_FILES, Boolean
-		        .valueOf(replaceFiles), SentenceLineWriter.PARAM_JOIN_LINES,
-		    Boolean.valueOf(joinLines));
 		sentenceAED = AnalysisEngineFactory.createAnalysisEngineDescription(
 		    "txtfnnl.uima.openNLPSentenceAEDescriptor",
-		    SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, splitSentences == null ? "" : splitSentences);
+		    SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, splitSentences == null
+		            ? ""
+		            : splitSentences);
+
+		if (geniaDir != null) {
+			geniaAED = AnalysisEngineFactory.createPrimitiveDescription(
+			    GeniaTaggerAnnotator.class,
+			    GeniaTaggerAnnotator.PARAM_DICTIONARIES_PATH, geniaDir);
+		} else {
+			tokenAED = AnalysisEngineFactory
+			    .createAnalysisEngineDescription("txtfnnl.uima.openNLPTokenAEDescriptor");
+			partOfSpeechAED = AnalysisEngineFactory
+			    .createAnalysisEngineDescription("txtfnnl.uima.openNLPPartOfSpeechAEDescriptor");
+			chunkAED = AnalysisEngineFactory
+			    .createAnalysisEngineDescription("txtfnnl.uima.openNLPChunkAEDescriptor");
+			lemmaAED = AnalysisEngineFactory
+			    .createAnalysisEngineDescription("txtfnnl.uima.bioLemmatizerAEDescriptor");
+		}
+
+		textWriter = AnalysisEngineFactory.createPrimitiveDescription(
+		    TaggedSentenceLineWriter.class, UimaUtil.SENTENCE_TYPE_PARAMETER,
+		    SentenceAnnotator.SENTENCE_TYPE_NAME,
+		    TaggedSentenceLineWriter.PARAM_ENCODING, characterEncoding,
+		    TaggedSentenceLineWriter.PARAM_OUTPUT_DIRECTORY,
+		    (outputDir == null) ? null : outputDir.getCanonicalPath(),
+		    TaggedSentenceLineWriter.PARAM_OVERWRITE_FILES,
+		    Boolean.valueOf(replaceFiles));
+
 	}
 
 	/**
@@ -95,24 +121,25 @@ public class SentenceSplitter implements Pipeline {
 	 *        used); optional - may be <code>null</code>
 	 * @param elsevier <code>true</code> if the XML files are using Elsevier's
 	 *        DTD
+	 * @param geniaDir uses the GeniaTagger instead of the openNLP modules,
+	 *        running the <code>geniatagger</code> inside the given directory
+	 *        path
 	 * @param replaceFiles flag indicating that existing files in the output
 	 *        directory should be replaced
-	 * @param joinLines flag indicating that newline and carriage return
-	 *        characters within sentences should be replaced with spaces
 	 * @param splitSentences indicates whether sentences should not be split
 	 *        on newlines (default, <code>null</code>), on single lines using
 	 *        value "single", or on double newlines, using "double"
 	 * @throws ResourceInitializationException
 	 * @throws IOException
 	 */
-	public SentenceSplitter(File inputDirectory, String mimeType,
-	                        boolean recurseDirectory, File outputDirectory,
-	                        String characterEncoding, boolean elsevier,
-	                        boolean replaceFiles, boolean joinLines,
-	                        String splitSentences) throws IOException,
+	public SentenceTagger(File inputDirectory, String mimeType,
+	                      boolean recurseDirectory, File outputDirectory,
+	                      String characterEncoding, boolean elsevier,
+	                      String geniaDir, boolean replaceFiles,
+	                      String splitSentences) throws IOException,
 	        UIMAException {
-		this(outputDirectory, characterEncoding, elsevier, replaceFiles,
-		    joinLines, splitSentences);
+		this(outputDirectory, characterEncoding, elsevier, geniaDir,
+		    replaceFiles, splitSentences);
 		assert inputDirectory.isDirectory() && inputDirectory.canRead() : inputDirectory
 		    .getAbsolutePath() + " is not a (readable) directory";
 		collectionReader = PipelineUtils.getCollectionReader(inputDirectory,
@@ -131,23 +158,24 @@ public class SentenceSplitter implements Pipeline {
 	 *        used); optional - may be <code>null</code>
 	 * @param elsevier <code>true</code> if the XML files are using Elsevier's
 	 *        DTD
+	 * @param geniaDir uses the GeniaTagger instead of the openNLP modules,
+	 *        running the <code>geniatagger</code> inside the given directory
+	 *        path
 	 * @param replaceFiles flag indicating that existing files in the output
 	 *        directory should be replaced
-	 * @param joinLines flag indicating that newline and carriage return
-	 *        characters within sentences should be replaced with spaces
 	 * @param splitSentences indicates whether sentences should not be split
 	 *        on newlines (default, <code>null</code>), on single lines using
 	 *        value "single", or on double newlines, using "double"
 	 * @throws ResourceInitializationException
 	 * @throws IOException
 	 */
-	public SentenceSplitter(String[] inputFiles, String mimeType,
-	                        File outputDirectory, String characterEncoding,
-	                        boolean elsevier, boolean replaceFiles,
-	                        boolean joinLines, String splitSentences)
+	public SentenceTagger(String[] inputFiles, String mimeType,
+	                      File outputDirectory, String characterEncoding,
+	                      boolean elsevier, String geniaDir,
+	                      boolean replaceFiles, String splitSentences)
 	        throws IOException, UIMAException {
-		this(outputDirectory, characterEncoding, elsevier, replaceFiles,
-		    joinLines, splitSentences);
+		this(outputDirectory, characterEncoding, elsevier, geniaDir,
+		    replaceFiles, splitSentences);
 		collectionReader = PipelineUtils.getCollectionReader(inputFiles,
 		    mimeType);
 	}
@@ -159,8 +187,12 @@ public class SentenceSplitter implements Pipeline {
 	 * @throws IOException
 	 */
 	public void run() throws UIMAException, IOException {
-		SimplePipeline.runPipeline(collectionReader, tikaAED, sentenceAED,
-		    sentenceLineWriter);
+		if (geniaAED == null)
+			SimplePipeline.runPipeline(collectionReader, tikaAED, sentenceAED,
+			    tokenAED, partOfSpeechAED, lemmaAED, chunkAED, textWriter);
+		else
+			SimplePipeline.runPipeline(collectionReader, tikaAED, sentenceAED,
+			    geniaAED, textWriter);
 	}
 
 	/**
@@ -178,11 +210,11 @@ public class SentenceSplitter implements Pipeline {
 		Pipeline extractor;
 
 		opts.addOption("o", "output-directory", true,
-		    "output directory for writing files [STDOUT]");
-		opts.addOption("j", "join-lines", false,
-		    "replace single newlines in sentences with spaces [false]");
+		    "output directory for writing files [CWD]");
 		opts.addOption("d", "split-double-lines", false,
 		    "split sentences on double newlines [false]");
+		opts.addOption("g", "genia", true,
+		    "use GENIA instead of OpenNLP using model dir path");
 		opts.addOption("s", "split-lines", false,
 		    "split sentences on single newlines [false]");
 		opts.addOption("e", "elsevier", false,
@@ -198,27 +230,27 @@ public class SentenceSplitter implements Pipeline {
 			System.exit(1); // == exit ==
 		}
 
-		Logger l = PipelineUtils.loggingSetup(
-		    SentenceSplitter.class.getName(), cmd, opts,
-		    "txtfnnl ss [options] <directory|files...>\n");
+		Logger l = PipelineUtils.loggingSetup(SentenceTagger.class.getName(),
+		    cmd, opts, "txtfnnl tag [options] <directory|files...>\n");
 
 		String[] inputFiles = cmd.getArgs();
 		boolean recursive = cmd.hasOption('R');
 		String encoding = cmd.getOptionValue('E');
 		String mimeType = cmd.getOptionValue('M');
 		boolean elsevier = cmd.hasOption('e');
+		String geniaDir = cmd.getOptionValue('g');
 		boolean replace = cmd.hasOption('X');
-		boolean joinLines = cmd.hasOption('j');
 		String splitSentences = null;
 
-		if (cmd.hasOption('o')) {
+		if (cmd.hasOption('o'))
 			outputDirectory = new File(cmd.getOptionValue('o'));
+		else
+			outputDirectory = new File(System.getProperty("user.dir"));
 
-			if (!outputDirectory.isDirectory() || !outputDirectory.canWrite()) {
-				System.err.println("cannot write to directory '" +
-				                   outputDirectory.getPath() + "'");
-				System.exit(1); // == exit ==
-			}
+		if (!outputDirectory.isDirectory() || !outputDirectory.canWrite()) {
+			System.err.println("cannot write to directory '" +
+			                   outputDirectory.getPath() + "'");
+			System.exit(1); // == exit ==
 		}
 
 		if (cmd.hasOption('s')) {
@@ -248,13 +280,13 @@ public class SentenceSplitter implements Pipeline {
 
 		try {
 			if (inputDirectory == null)
-				extractor = new SentenceSplitter(inputFiles, mimeType,
-				    outputDirectory, encoding, elsevier, replace, joinLines,
+				extractor = new SentenceTagger(inputFiles, mimeType,
+				    outputDirectory, encoding, elsevier, geniaDir, replace,
 				    splitSentences);
 			else
-				extractor = new SentenceSplitter(inputDirectory, mimeType,
-				    recursive, outputDirectory, encoding, elsevier, replace,
-				    joinLines, splitSentences);
+				extractor = new SentenceTagger(inputDirectory, mimeType,
+				    recursive, outputDirectory, encoding, elsevier, geniaDir,
+				    replace, splitSentences);
 
 			extractor.run();
 		} catch (UIMAException e) {

@@ -29,10 +29,12 @@ In addition, the following direct dependencies exist:
   `PostgreSQL <http://www.postgresql.org/>`_ 8.4+; the tests for the entity
   annotator of txtfnnl furthermore use the `H2 <http://www.h2database.com/>`_
   in-memory DB.
-- for the **txtfnnl-parsers** module, the relevant parsers need to be
+- for the **txtfnnl-external** module, the relevant external tools need to be
   downloaded, installed, and visible on the system ``$PATH``.
-  Right now, the only supported parser is
-  `LinkGrammar <http://www.link.cs.cmu.edu/link/>`_
+  Supported external tools are
+  the `LinkGrammar <http://www.link.cs.cmu.edu/link/>`_ parser and
+  the `GENIA Tagger <http://www.nactem.ac.uk/tsujii/GENIA/tagger/>`_
+  for tokenization, lemmatization, tagging, and chunking.
 - for the lemmatization in **txtfnnl-uima**, the currently supplied tool is
   the `BioLemmatizer <http://biolemmatizer.sourceforge.net/>`_ 1.1.
 

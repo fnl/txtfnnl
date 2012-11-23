@@ -43,7 +43,7 @@ public class Preprocessor implements Pipeline {
 
 	/**
 	 * Instantiate the
-	 * {@link txtfnnl.uima.collection.opennlp.SentenceLineWriter} CAS
+	 * {@link txtfnnl.uima.collection.SentenceLineWriter} CAS
 	 * consumer.
 	 * 
 	 * @param outputDir optional output directory to use (otherwise output is

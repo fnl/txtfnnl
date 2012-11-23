@@ -89,6 +89,7 @@ help () {
     echo "pipelines:";
     echo "  ss    - split sentences";
     echo "  pp    - pre-process files to XMI (split, tag, stem and chunk)";
+    echo "  tag   - extract tagged plaintext (split, tag, stem and chunk)";
     echo "  ema   - annotate known entity mentions";
     echo "  rpe   - extract patterns with (potential) entity relationships";
     echo;
@@ -102,6 +103,7 @@ if [ $# -gt 0 ]; then
     case $cmd in
         ss) java txtfnnl.pipelines.SentenceSplitter "$@";;
         pp) java -Xmx2G txtfnnl.pipelines.Preprocessor "$@";;
+        tag) java -Xmx2G txtfnnl.pipelines.SentenceTagger "$@";;
         ema) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
         rpe) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;
         -v) echo txtfnnl-$VERSION.1;;

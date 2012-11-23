@@ -1,4 +1,4 @@
-package txtfnnl.uima.collection.opennlp;
+package txtfnnl.uima.collection;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -33,20 +33,18 @@ import txtfnnl.utils.IOUtils;
  * {@link txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator} detected
  * as sentence terminals.
  * 
- * Mandatory parameters:
- * <ul>
- * <li>{@link opennlp.uima.util.UimaUtil#SENTENCE_TYPE_PARAMETER} the sentence
- * annotation type to use (usually, "txtfnnl.uima.SyntaxAnnotation")</li>
- * </ul>
  * This consumer has several optional configuration possibilities. With no
  * option chosen at all, output is written to <b>STDOUT</b>. But if
  * {@link #PARAM_PRINT_TO_STDOUT} was set to <code>False</code> and no output
  * directory was set either, this consumer would go silent.
  * <ul>
+ * <li>{@link opennlp.uima.util.UimaUtil#SENTENCE_TYPE_PARAMETER} the sentence
+ * annotation type to use (usually, "txtfnnl.uima.SyntaxAnnotation")</li>
  * <li>{@link #PARAM_OUTPUT_DIRECTORY} defines an output directory</li>
  * <li>{@link #PARAM_PRINT_TO_STDOUT} defines <b>STDOUT</b> as output</li>
  * <li>{@link #PARAM_OVERWRITE_FILES} allows overwriting of existing files</li>
- * <li>{@link #PARAM_JOIN_LINES} joins lines within sentences</li>
+ * <li>{@link #PARAM_JOIN_LINES} replaces newlines within sentences with
+ * spaces</li>
  * <li>{@link #PARAM_ENCODING} sets a particular output encoding</li>
  * </ul>
  * All written line-breaks are the character sequence defined by the system
@@ -136,10 +134,8 @@ public final class SentenceLineWriter extends CasAnnotator_ImplBase {
 		    .getConfigParameterValue(UimaUtil.SENTENCE_TYPE_PARAMETER);
 
 		if (sentenceTypeName == null)
-			throw new ResourceInitializationException(
-			    ResourceInitializationException.CONFIG_SETTING_ABSENT,
-			    new Object[] { UimaUtil.SENTENCE_TYPE_PARAMETER });
-
+			sentenceTypeName = SentenceAnnotator.SENTENCE_TYPE_NAME;
+		
 		if (outputDirName != null && outputDirName.length() > 0) {
 			outputDirectory = new File(outputDirName);
 
