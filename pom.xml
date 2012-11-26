@@ -12,10 +12,8 @@
 		<module>txtfnnl-tika</module>
 		<module>txtfnnl-uima</module>
 		<module>txtfnnl-bin</module>
-		<module>txtfnnl-utils</module>
-		
-		
-		<module>txtfnnl-parsers</module>
+		<module>txtfnnl-utils</module>		
+		<module>txtfnnl-wrappers</module>
 	</modules>
 	<build>
 		<plugins>

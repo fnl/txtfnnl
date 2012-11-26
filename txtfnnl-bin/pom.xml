@@ -47,7 +47,7 @@
   	</dependency>
   	<dependency>
   		<groupId>txtfnnl</groupId>
-  		<artifactId>txtfnnl-parsers</artifactId>
+  		<artifactId>txtfnnl-wrappers</artifactId>
   		<version>0.2</version>
   	</dependency>
   </dependencies>
