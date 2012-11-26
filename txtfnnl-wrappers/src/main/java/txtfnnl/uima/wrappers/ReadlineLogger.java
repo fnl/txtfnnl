@@ -61,8 +61,7 @@ class ReadlineLogger extends Thread {
 			// first four lines: setup messages
 			while ((line = buffer.readLine()) != null) {
 				l.log(Level.WARNING, line.trim());
-				if (stop)
-					break;
+				if (stop) break;
 			}
 		} catch (ClosedByInterruptException e) {
 			l.log(Level.FINE, "error input stream interrupted");

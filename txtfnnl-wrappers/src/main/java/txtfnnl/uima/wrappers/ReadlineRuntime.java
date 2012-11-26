@@ -201,7 +201,12 @@ public abstract class ReadlineRuntime<T> {
 	 * @throws IOException on IO failures
 	 */
 	protected String readLine() throws IOException {
-		return out.readLine().trim();
+		String line = out.readLine();
+		
+		if (line != null)
+			line = line.trim();
+		
+		return line;
 	}
 
 	/** Implement the parsing of output lines here, using {@link readLine()}. */

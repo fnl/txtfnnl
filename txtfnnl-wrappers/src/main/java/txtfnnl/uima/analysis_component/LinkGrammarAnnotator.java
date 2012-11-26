@@ -112,7 +112,7 @@ class LinkParser extends ReadlineRuntime<String> {
 			// read an empty line
 			String empty = readLine();
 
-			if (empty.trim().length() > 0)
+			if (empty == null || empty.length() > 0)
 				this.log(Level.WARNING,
 				    "expected an empty line from the parser but got: '" +
 				            empty + "'");
