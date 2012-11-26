@@ -128,25 +128,25 @@ public class RelationshipPatternAnnotator extends JCasAnnotator_ImplBase {
 		if (chunkIt.hasNext())
 			chunk = (SyntaxAnnotation) chunkIt.next();
 
-		SyntaxAnnotation span = null;
+		//SyntaxAnnotation span = null;
 
 		while (tokenIt.hasNext()) {
 			SyntaxAnnotation token = (SyntaxAnnotation) tokenIt.next();
-			String lemma = BioLemmatizerAnnotator.getLemma(token);
+			//String lemma = BioLemmatizerAnnotator.getLemma(token);
 
 			while (chunk != null) {
 				if (chunk.contains(token)) {
-					span = chunk;
+					//span = chunk;
 					break;
 				} else if (chunk.getEnd() <= token.getBegin()) {
-					span = null;
+					//span = null;
 
 					if (chunkIt.hasNext())
 						chunk = (SyntaxAnnotation) chunkIt.next();
 					else
 						chunk = null;
 				} else {
-					span = null;
+					//span = null;
 					break;
 				}
 			}
