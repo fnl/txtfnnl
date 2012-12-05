@@ -12,13 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Stack;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
-import opennlp.uima.util.UimaUtil;
-
+import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_component.JCasAnnotator_ImplBase;
+import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
@@ -28,10 +25,15 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
-import txtfnnl.uima.Offset;
+import org.uimafit.component.JCasAnnotator_ImplBase;
+import org.uimafit.descriptor.ConfigurationParameter;
+import org.uimafit.factory.AnalysisEngineFactory;
+
 import txtfnnl.uima.Views;
-import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
+import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
+import txtfnnl.uima.utils.Offset;
+import txtfnnl.uima.utils.UIMAUtils;
 import txtfnnl.uima.wrappers.ReadlineRuntime;
 import txtfnnl.uima.wrappers.RuntimeKiller;
 
@@ -79,8 +81,7 @@ class LinkParser extends ReadlineRuntime<String> {
 	 * @param logger to handle all error messages
 	 * @throws IOException on failure
 	 */
-	public LinkParser(String dictPath, int timeout, Logger logger)
-	        throws IOException {
+	public LinkParser(String dictPath, int timeout, Logger logger) throws IOException {
 		super(new String[] {
 		    "link-parser",
 		    dictPath,
@@ -88,8 +89,7 @@ class LinkParser extends ReadlineRuntime<String> {
 		    "-verbosity=0",
 		    "-graphics=0",
 		    "-timeout=" + timeout }, logger);
-		logger.log(Level.FINE,
-		    "started a link-parser process with dict=''{0}'' and timeout={1}",
+		logger.log(Level.WARNING, "started a link-parser process with dict=''{0}'' and timeout={1}",
 		    new Object[] { dictPath, timeout });
 		this.timeout = timeout;
 		this.first = true;
@@ -97,13 +97,16 @@ class LinkParser extends ReadlineRuntime<String> {
 
 	@Override
 	protected String parseResponse() throws IOException {
+		String result;
 		RuntimeKiller killer = new RuntimeKiller(this, timeout * 2);
+
 		killer.start();
 
 		if (first) {
 			// status/setup messages - despite verbosity=0, the parsers
 			// seems to be rather talkative still :)
 			// essentially, each command line option is echoed once
+			// to STDOUT instead of STDERR...
 			first = false;
 
 			for (int i = 0; i < 4; ++i)
@@ -113,12 +116,11 @@ class LinkParser extends ReadlineRuntime<String> {
 			String empty = readLine();
 
 			if (empty == null || empty.length() > 0)
-				this.log(Level.WARNING,
-				    "expected an empty line from the parser but got: '" +
-				            empty + "'");
+				this.log(Level.WARNING, "expected an empty line from the parser but got: '" +
+				                        empty + "'");
 		}
 
-		String result = readLine();
+		result = readLine();
 		killer.doNotKill();
 		return result;
 	}
@@ -141,12 +143,13 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 	/**
 	 * A tree node implementation to parse constituent tree expressions.
 	 * 
-	 * Constituent tree expressions are S-expression-like trees, as can be
+	 * Constituent tree expressions are S-expression-like trees, and can be
 	 * seen in the interactive link-parser shell after activating constituents
 	 * (use <code>!constituents=1</code> or <code>!constituents=3</code>).
 	 * 
-	 * Unless you wish to modify this annotator, you should not be interested
-	 * in this class.
+	 * Unless the link-parser changed its output representation (and you are
+	 * getting RuntimeErrors), you should not have to be interested in this
+	 * class.
 	 * 
 	 * @author Florian Leitner
 	 */
@@ -176,11 +179,8 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 				if (c == '(') {
 					idx += parseRec(cExpression.substring(idx + 1), root);
 				} else if (c == ')') {
-					throw new RuntimeException("parse error at '" +
-					                           cExpression.substring(0, idx) +
-					                           ">>>)<<<" +
-					                           cExpression.substring(idx + 1) +
-					                           "'");
+					throw new RuntimeException("parse error at '" + cExpression.substring(0, idx) +
+					                           ">>>)<<<" + cExpression.substring(idx + 1) + "'");
 				} else if (c == ' ') {
 					if (sb.length() > 0) {
 						root.addChild(new ConstituentNode(sb.toString()));
@@ -226,12 +226,10 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 				}
 			}
 
-			throw new RuntimeException("unclosed constituent '" + cExpression +
-			                           "'");
+			throw new RuntimeException("unclosed constituent '" + cExpression + "'");
 		}
 
-		private static ConstituentNode buildCNode(ConstituentNode node,
-		                                          StringBuilder sb,
+		private static ConstituentNode buildCNode(ConstituentNode node, StringBuilder sb,
 		                                          ConstituentNode parent) {
 			if (node == null) {
 				node = new ConstituentNode(sb.toString());
@@ -364,8 +362,7 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 			} else if (child.parent == this) {
 				// already added
 			} else {
-				throw new IllegalArgumentException(
-				    "child already has parent: " + child.parent);
+				throw new IllegalArgumentException("child already has parent: " + child.parent);
 			}
 		}
 
@@ -378,8 +375,7 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 		}
 
 		/** Walk the <b>leaf</b> nodes in their index order. */
-		public static Iterator<ConstituentNode>
-		        walk(final ConstituentNode node) {
+		public static Iterator<ConstituentNode> walk(final ConstituentNode node) {
 			return new Iterator<ConstituentNode>() {
 
 				private Stack<Iterator<ConstituentNode>> stack = new Stack<Iterator<ConstituentNode>>();
@@ -494,23 +490,44 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 	public static final String URI = LinkGrammarAnnotator.class.getName();
 
 	/**
+	 * The namespace to use for the constituent span {@link SyntaxAnnotation}s
+	 * made by this AE.
+	 * 
+	 * Note that the identifier feature of the annotations is the Penn
+	 * Treebank phrase tag (see {@link #CONSTITUENT_TAGS}).
+	 */
+	public static final String NAMESPACE = "http://bulba.sdsu.edu/jeanette/thesis/PennTags.html#";
+
+	/**
 	 * The path to the dictionaries used by the LinkGrammar parser.
 	 * 
-	 * If in the default location (<code>/usr/local/share/link-grammar/</code>
-	 * ), it is not necessary to set this parameter. By default, the English
-	 * dictionaries are used. I.e., if not set, a (likely English) dictionary
-	 * should be found at <code>/usr/local/share/link-grammar/en</code>.
+	 * If the Link Grammar parser was installed in the default location (
+	 * <code>/usr/local</code> ), and the language is English, it is not
+	 * necessary to set this parameter. I.e., by default, the English
+	 * dictionaries are used. Therefore, the default value of this parameter
+	 * is <code>/usr/local/share/link-grammar/en</code>.
 	 */
 	public static final String PARAM_DICTIONARIES_PATH = "DictionariesPath";
+	@ConfigurationParameter(name = PARAM_DICTIONARIES_PATH,
+	                        defaultValue = "/usr/local/share/link-grammar/en",
+	                        description = "Path to the directory with the dictionary files.")
+	private String dictionariesPath;
 
 	/**
 	 * Number of seconds the parser may <em>approximately</em> spend trying to
-	 * analyze a sentence before the algorithm tries to stop itself.
+	 * analyze a sentence before the algorithm tries stops itself.
+	 * 
+	 * By default, this parameter is set at 15 seconds. This means, the hard
+	 * cap is at 30 seconds (twice times the timeout value), at which point
+	 * the link-parser gets killed and the AE moves on. If you expect very
+	 * long, "tough" sentences, try settings this parameter higher (30-60
+	 * seconds).
 	 */
 	public static final String PARAM_TIMEOUT_SECONDS = "TimeoutSeconds";
-
-	/** The namespace to use for the constituent span syntax annotations. */
-	public static final String NAMESPACE = "http://bulba.sdsu.edu/jeanette/thesis/PennTags.html#";
+	@ConfigurationParameter(name = PARAM_TIMEOUT_SECONDS,
+	                        defaultValue = "15",
+	                        description = "One quarter of the total max. timeout value.")
+	private int timeout;
 
 	/** The logger for this Annotator. */
 	Logger logger;
@@ -518,46 +535,38 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 	/** The wrapper for the LinkGrammar parser runtime executable. */
 	LinkParser parser;
 
-	/**
-	 * The name of the sentence annotation type.
-	 * 
-	 * Annotated sentences will be parsed by the LinkGrammar parser.
-	 * 
-	 * Defaults to {@link SentenceAnnotator#SENTENCE_TYPE_NAME}. Can be set as
-	 * an AE descriptor parameter with the name
-	 * {@link UimaUtil#SENTENCE_TYPE_PARAMETER}.
-	 */
-	private String sentenceTypeName;
+	@SuppressWarnings("serial")
+	public static AnalysisEngineDescription configure(final String dictPath, final int timeout)
+	        throws UIMAException, IOException {
+		return AnalysisEngineFactory.createPrimitiveDescription(LinkGrammarAnnotator.class,
+		    UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
 
-	/** The path to or language for the parser to use. */
-	private String dictionariesPath;
+			    {
+				    put(PARAM_DICTIONARIES_PATH, dictPath);
+				    put(PARAM_TIMEOUT_SECONDS, timeout);
+			    }
+		    }));
+	}
 
-	/** The maximum number of seconds the parser may analyze a sentence. */
-	private int timeout;
+	public static AnalysisEngineDescription configure(String dictPath)
+	        throws UIMAException, IOException {
+		return configure(dictPath, 15);
+	}
 
-	/** A lock to allow concurrent use of the same AE instance. */
-	private Lock processLock;
+	public static AnalysisEngineDescription configure(int timeout)
+	        throws UIMAException, IOException {
+		return configure(null, timeout);
+	}
+
+	public static AnalysisEngineDescription configure()
+	        throws UIMAException, IOException {
+		return configure(null);
+	}
 
 	@Override
-	public void initialize(UimaContext ctx)
-	        throws ResourceInitializationException {
+	public void initialize(UimaContext ctx) throws ResourceInitializationException {
 		super.initialize(ctx);
 		logger = ctx.getLogger();
-		dictionariesPath = (String) ctx
-		    .getConfigParameterValue(PARAM_DICTIONARIES_PATH);
-		sentenceTypeName = (String) ctx
-		    .getConfigParameterValue(UimaUtil.SENTENCE_TYPE_PARAMETER);
-		Integer parseSeconds = (Integer) ctx
-		    .getConfigParameterValue(PARAM_TIMEOUT_SECONDS);
-		processLock = new ReentrantLock();
-
-		if (dictionariesPath == null)
-			dictionariesPath = "/usr/local/share/link-grammar/en";
-
-		if (sentenceTypeName == null)
-			sentenceTypeName = SentenceAnnotator.SENTENCE_TYPE_NAME;
-
-		timeout = (parseSeconds == null) ? 10 : parseSeconds.intValue();
 
 		try {
 			parser = new LinkParser(dictionariesPath, timeout, logger);
@@ -567,11 +576,6 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * 
-	 * @see
-	 * org.apache.uima.analysis_component.JCasAnnotator_ImplBase#process(
-	 * org.apache.uima.jcas.JCas) */
 	@Override
 	public void process(JCas jcas) throws AnalysisEngineProcessException {
 		JCas textCas;
@@ -582,16 +586,13 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 			throw new AnalysisEngineProcessException(e);
 		}
 
-		FSIterator<Annotation> sentenceIt = SentenceAnnotator
-		    .getSentenceIterator(textCas, sentenceTypeName);
+		FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textCas);
 		List<SyntaxAnnotation> phrases = new LinkedList<SyntaxAnnotation>();
 
 		while (sentenceIt.hasNext()) {
-			SyntaxAnnotation sentenceAnn = (SyntaxAnnotation) sentenceIt
-			    .next();
+			Annotation sentenceAnn = sentenceIt.next();
 
-			parseSentence(sentenceAnn.getCoveredText(),
-			    sentenceAnn.getBegin(), textCas, phrases);
+			parseSentence(sentenceAnn.getCoveredText(), sentenceAnn.getBegin(), textCas, phrases);
 		}
 
 		for (SyntaxAnnotation ann : phrases) {
@@ -599,8 +600,7 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 		}
 	}
 
-	void parseSentence(String sentence, int offset, JCas jcas,
-	                   List<SyntaxAnnotation> phrases)
+	void parseSentence(String sentence, int offset, JCas jcas, List<SyntaxAnnotation> phrases)
 	        throws AnalysisEngineProcessException {
 		boolean doubled = false; // if retried with double+1 timeout seconds
 		// NB: any "normalizations" must be 1:1, otherwise the offsets will
@@ -613,8 +613,6 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 		sentence = sentence.replace('\n', ' ');
 		String constituentExpression = null;
 
-		processLock.lock();
-
 		try {
 			logger.log(Level.FINE, "parsing ''{0}''", sentence);
 
@@ -622,49 +620,31 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 			constituentExpression = parser.process(sentence);
 			/* ================= PARSE ================= */
 
-			if (constituentExpression == null ||
-			    (constituentExpression.length() == 0 && sentence.trim()
-			        .length() > 0)) {
+			if (constituentExpression == null) {
+				throw new IOException("LinkParser returned NULL (likely cause: killed)");
+			} else if (constituentExpression.length() == 0 && sentence.trim().length() > 0) {
 				constituentExpression = null;
-				logger.log(Level.WARNING, "link-parser failed on ''{0}''",
-				    sentence);
-				parser.stop();
-
-				if (parser.timeout == timeout) {
-					// parser timed out - try doubling the timeout
-					parser = new LinkParser(dictionariesPath, timeout * 2 + 1,
-					    logger);
-					parseSentence(sentence, offset, jcas, phrases);
-					doubled = true;
-					// unset the double timeout again
-					parser.stop();
-					parser = new LinkParser(dictionariesPath, timeout, logger);
-				} else {
-					parser = new LinkParser(dictionariesPath, timeout, logger);
-				}
+				logger.log(Level.WARNING, "link-parser failed on ''{0}''", sentence);
 			}
 		} catch (IOException e) {
-			logger.log(Level.WARNING, "link-parser failed on ''{0}'': {1}",
-			    new String[] { sentence, e.getMessage() });
+			logger.log(Level.WARNING, "link-parser failed on ''{0}'': {1}", new String[] {
+			    sentence,
+			    e.getMessage() });
 
 			try {
 				parser.stop();
 				parser = new LinkParser(dictionariesPath, timeout, logger);
 			} catch (IOException e2) {
-				logger.log(Level.SEVERE, "link-parser setup failed: {0}",
-				    e2.getMessage());
+				logger.log(Level.SEVERE, "link-parser setup failed: {0}", e2.getMessage());
 				throw new AnalysisEngineProcessException(e2);
 			}
-		} finally {
-			processLock.unlock();
 		}
 
 		if (constituentExpression != null) {
 			logger.log(Level.FINE, constituentExpression);
 			// de-normalize parenthesis to curly brackets, just as LGP
 			sentence = sentence.replace('(', '{').replace(')', '}');
-			ConstituentNode root = ConstituentNode
-			    .parse(constituentExpression);
+			ConstituentNode root = ConstituentNode.parse(constituentExpression);
 			Iterator<ConstituentNode> walker = ConstituentNode.walk(root);
 			int position = 0;
 			int len, pNext;
@@ -674,23 +654,19 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 				pNext = sentence.indexOf(node.data, position);
 
 				// undo "normalizations"
-				if (position == 0 &&
-				    Character.isLowerCase(node.data.charAt(0))) {
+				if (position == 0 && Character.isLowerCase(node.data.charAt(0))) {
 					// link-parser lower-cases the first word
-					pNext = sentence.toLowerCase().indexOf(
-					    node.data.toLowerCase(), position);
+					pNext = sentence.toLowerCase().indexOf(node.data.toLowerCase(), position);
 				}
 
 				if (pNext == -1)
-					throw new AnalysisEngineProcessException(
-					    new AssertionError("'" + node.data +
-					                       "' not found in '" + sentence +
-					                       "' after pos=" + position));
+					throw new AnalysisEngineProcessException(new AssertionError(
+					    "'" + node.data + "' not found in '" + sentence + "' after pos=" +
+					            position));
 
 				position = pNext;
 				len = node.data.length();
-				node.setOffset(new Offset(offset + position, offset +
-				                                             position + len));
+				node.setOffset(new Offset(offset + position, offset + position + len));
 				position += len;
 			}
 
@@ -701,14 +677,12 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 				int last = 0;
 
 				while ((idx = sentence.indexOf(chop, idx + 1)) != -1) {
-					parseSentence(sentence.substring(last, idx),
-					    offset + last, jcas, phrases);
+					parseSentence(sentence.substring(last, idx), offset + last, jcas, phrases);
 					last = idx + 1;
 				}
 
 				if (last != 0) {
-					parseSentence(sentence.substring(last), offset + last,
-					    jcas, phrases);
+					parseSentence(sentence.substring(last), offset + last, jcas, phrases);
 					break;
 				}
 			}
@@ -723,15 +697,10 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 	public void destroy() {
 		super.destroy();
 
-		processLock.lock();
-
 		try {
 			parser.stop();
 		} catch (IOException e) {
-			logger.log(Level.INFO,
-			    "IOException while stopping parser logger: " + e.getMessage());
-		} finally {
-			processLock.unlock();
+			logger.log(Level.INFO, "IOException while stopping parser logger: " + e.getMessage());
 		}
 	}
 
@@ -774,28 +743,23 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 				// the innermost ("most decisive") annotation
 				if (lastOffset != null && n.getOffset().equals(lastOffset)) {
 					ann = phrases.get(phrases.size() - 1);
-					logger
-					    .log(
-					        Level.FINE,
-					        "dropping outer constituent {0} of {1} on span ''{2}''",
-					        new Object[] {
-					            ann.getIdentifier(),
-					            n.data,
-					            ann.getCoveredText() });
+					logger.log(Level.FINE,
+					    "dropping outer constituent {0} of {1} on span ''{2}''", new Object[] {
+					        ann.getIdentifier(),
+					        n.data,
+					        ann.getCoveredText() });
 					ann.setIdentifier(n.data);
 					continue;
-				} else if (n.getOffset().start() == begin &&
-				           n.getOffset().end() == end) {
-					logger.log(Level.FINER,
-					    "ignoring full-sentence length constituent {0}",
+				} else if (n.getOffset().start() == begin && n.getOffset().end() == end) {
+					logger.log(Level.FINER, "ignoring full-sentence length constituent {0}",
 					    n.data);
 					continue;
 				}
 
 				ann = new SyntaxAnnotation(jcas, n.getOffset());
 				ann.setAnnotator(URI);
-				ann.setConfidence(1.0); // TODO: any confidence scores from
-				                        // the LGP?
+				ann.setConfidence(1.0); // TODO: get confidence scores from
+				                        // the parser
 				ann.setNamespace(NAMESPACE);
 				ann.setIdentifier(n.data);
 				phrases.add(ann);

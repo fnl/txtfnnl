@@ -1,9 +1,16 @@
 package txtfnnl.uima.resource;
 
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
+
+import org.uimafit.factory.ExternalResourceFactory;
+
+import txtfnnl.uima.utils.UIMAUtils;
 
 /**
  * An EntityStringMapResource provides one Set of Entities mapped to a unique
@@ -25,8 +32,28 @@ import org.apache.uima.resource.ResourceInitializationException;
  * 
  * @author Florian Leitner
  */
-public class EntityStringMapResource extends
-        LineBasedStringMapResource<Set<Entity>> {
+public class EntityStringMapResource extends LineBasedStringMapResource<Set<Entity>> {
+
+	@SuppressWarnings("serial")
+	public static ExternalResourceDescription configure(String connectionUrl,
+	                                                    final String separator) throws IOException {
+		if (separator == null || "".equals(separator))
+			return ExternalResourceFactory.createExternalResourceDescription(
+				EntityStringMapResource.class, connectionUrl);
+		else
+			return ExternalResourceFactory.createExternalResourceDescription(
+				EntityStringMapResource.class, connectionUrl,
+			    UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
+
+				    {
+					    put(PARAM_SEPARATOR, separator);
+				    }
+			    }));
+	}
+	
+	public static ExternalResourceDescription configure(String connectionUrl) throws IOException {
+		return configure(connectionUrl, null);
+	}
 
 	@Override
 	void parse(String[] items) throws ResourceInitializationException {
@@ -38,9 +65,10 @@ public class EntityStringMapResource extends
 			if (!resourceMap.containsKey(items[0]))
 				resourceMap.put(items[0], new HashSet<Entity>());
 		} catch (IndexOutOfBoundsException e) {
-			throw new ResourceInitializationException(new RuntimeException(
-			    "illegal line: '" + line + "' with " + items.length +
-			            " fields"));
+			throw new ResourceInitializationException(new RuntimeException("illegal line: '" +
+			                                                               line + "' with " +
+			                                                               items.length +
+			                                                               " fields"));
 		}
 		resourceMap.get(items[0]).add(entity);
 	}

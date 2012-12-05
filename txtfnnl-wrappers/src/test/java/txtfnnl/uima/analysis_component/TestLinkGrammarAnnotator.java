@@ -26,6 +26,7 @@ import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
+import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 
 /**
@@ -49,12 +50,11 @@ public class TestLinkGrammarAnnotator {
 		DisableLogging.enableLogging(Level.WARNING);
 
 		// set up AE descriptor under test
-		sentenceAnnotator = AnalysisEngineFactory
-		    .createAnalysisEngine("txtfnnl.uima.openNLPSentenceAEDescriptor");
-		annotatorDesc = AnalysisEngineFactory
-		    .createPrimitiveDescription(LinkGrammarAnnotator.class);
-		linkGrammarAnnotator = AnalysisEngineFactory.createAnalysisEngine(
-		    annotatorDesc, Views.CONTENT_TEXT.toString());
+		sentenceAnnotator = AnalysisEngineFactory.createAnalysisEngine(
+		    SentenceAnnotator.configure(), Views.CONTENT_TEXT.toString());
+		annotatorDesc = LinkGrammarAnnotator.configure();
+		linkGrammarAnnotator = AnalysisEngineFactory.createAnalysisEngine(annotatorDesc,
+		    Views.CONTENT_TEXT.toString());
 		baseJCas = sentenceAnnotator.newJCas();
 		textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
 	}
@@ -65,17 +65,14 @@ public class TestLinkGrammarAnnotator {
 		    .setDocumentText("ARL, a regulator of cell death localized inside the nucleus, has been shown to bind the p53 promoter.");
 		sentenceAnnotator.process(baseJCas.getCas());
 		linkGrammarAnnotator.process(baseJCas.getCas());
-		AnnotationIndex<Annotation> idx = textJCas
-		    .getAnnotationIndex(SyntaxAnnotation.type);
+		AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
 		FSIterator<Annotation> it = idx.iterator();
 		String[][] annotations = new String[][] {
 		    // {
 		    // "S",
 		    // "ARL, a regulator of cell death localized inside the nucleus, has been shown to bind the p53 promoter."
 		    // },
-		    {
-		        "NP",
-		        "ARL, a regulator of cell death localized inside the nucleus," },
+		    { "NP", "ARL, a regulator of cell death localized inside the nucleus," },
 		    { "NP", "ARL" },
 		    { "NP", "a regulator of cell death localized inside the nucleus" },
 		    { "NP", "a regulator" },
@@ -107,19 +104,15 @@ public class TestLinkGrammarAnnotator {
 	}
 
 	@Test
-	public void withBrackets() throws AnalysisEngineProcessException,
-	        CASException {
+	public void withBrackets() throws AnalysisEngineProcessException, CASException {
 		for (String brackets : new String[] { "()", "[]", "{}" }) {
 			String open = brackets.substring(0, 1);
 			String close = brackets.substring(1, 2);
-			String npInBrackets = open + "a reg\u00FClator of cell death" +
-			                      close;
-			textJCas.setDocumentText("ARL " + npInBrackets +
-			                         " binds to the p53 promoter.");
+			String npInBrackets = open + "a reg\u00FClator of cell death" + close;
+			textJCas.setDocumentText("ARL " + npInBrackets + " binds to the p53 promoter.");
 			sentenceAnnotator.process(baseJCas.getCas());
 			linkGrammarAnnotator.process(baseJCas.getCas());
-			AnnotationIndex<Annotation> idx = textJCas
-			    .getAnnotationIndex(SyntaxAnnotation.type);
+			AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
 			FSIterator<Annotation> it = idx.iterator();
 			String[][] annotations = new String[][] {
 			    // { "S", "ARL " + npInBrackets +
@@ -139,14 +132,11 @@ public class TestLinkGrammarAnnotator {
 
 				if (LinkGrammarAnnotator.URI.equals(ann.getAnnotator())) {
 					assertEquals(
-					    brackets + " a=" + a + ": " + annotations[a][0] +
-					            " != " + ann.getIdentifier() + " in '" +
-					            annotations[a][1] + "' found '" +
-					            ann.getCoveredText() + "' [" + ann.getBegin() +
-					            ":" + ann.getEnd() + "]", annotations[a][0],
-					    ann.getIdentifier());
-					assertEquals(brackets + " a=" + a, annotations[a++][1],
-					    ann.getCoveredText());
+					    brackets + " a=" + a + ": " + annotations[a][0] + " != " +
+					            ann.getIdentifier() + " in '" + annotations[a][1] + "' found '" +
+					            ann.getCoveredText() + "' [" + ann.getBegin() + ":" +
+					            ann.getEnd() + "]", annotations[a][0], ann.getIdentifier());
+					assertEquals(brackets + " a=" + a, annotations[a++][1], ann.getCoveredText());
 				} else {
 					ensureTreeStructure(idx, ann);
 				}
@@ -165,10 +155,8 @@ public class TestLinkGrammarAnnotator {
 		textJCas.setDocumentText(testString);
 		sentenceAnnotator.process(baseJCas.getCas());
 		linkGrammarAnnotator.process(baseJCas.getCas());
-		AnnotationIndex<Annotation> idx = textJCas
-		    .getAnnotationIndex(SyntaxAnnotation.type);
-		FSIterator<Annotation> it = SentenceAnnotator.getSentenceIterator(
-		    textJCas, SentenceAnnotator.SENTENCE_TYPE_NAME);
+		AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
+		FSIterator<Annotation> it = SentenceAnnotation.getIterator(textJCas);
 		int count = 0;
 
 		while (it.hasNext()) {
@@ -192,10 +180,8 @@ public class TestLinkGrammarAnnotator {
 		textJCas.setDocumentText(testString);
 		sentenceAnnotator.process(baseJCas.getCas());
 		linkGrammarAnnotator.process(baseJCas.getCas());
-		AnnotationIndex<Annotation> idx = textJCas
-		    .getAnnotationIndex(SyntaxAnnotation.type);
-		FSIterator<Annotation> it = SentenceAnnotator.getSentenceIterator(
-		    textJCas, SentenceAnnotator.SENTENCE_TYPE_NAME);
+		AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
+		FSIterator<Annotation> it = SentenceAnnotation.getIterator(textJCas);
 		int count = 0;
 
 		while (it.hasNext()) {
@@ -207,23 +193,20 @@ public class TestLinkGrammarAnnotator {
 	}
 
 	@Test
-	public void doesNotHangForever() throws AnalysisEngineProcessException,
-	        CASException, ResourceInitializationException {
+	public void doesNotHangForever() throws AnalysisEngineProcessException, CASException,
+	        ResourceInitializationException {
 		annotatorDesc = AnalysisEngineFactory.createPrimitiveDescription(
-		    LinkGrammarAnnotator.class,
-		    LinkGrammarAnnotator.PARAM_TIMEOUT_SECONDS, 1);
-		linkGrammarAnnotator = AnalysisEngineFactory.createAnalysisEngine(
-		    annotatorDesc, Views.CONTENT_TEXT.toString());
+		    LinkGrammarAnnotator.class, LinkGrammarAnnotator.PARAM_TIMEOUT_SECONDS, 1);
+		linkGrammarAnnotator = AnalysisEngineFactory.createAnalysisEngine(annotatorDesc,
+		    Views.CONTENT_TEXT.toString());
 		baseJCas = sentenceAnnotator.newJCas();
 		textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
 		textJCas
 		    .setDocumentText("Original article Telomerase reverse transcriptase gene is a direct target of c-Myc but is not functionally equivalent in cellular transformation Roger A Greenberg 1,b , Rónán C O'Hagan 2,b , Hongyu Deng 1 , Qiurong Xiao 5 , Steven R Hann 5 , Robert R Adams 6 , Serge Lichtsteiner 6 , Lynda Chin 2,4 , Gregg B Morin 6 and Ronald A DePinho 2,3,a 1 Department of Microbiology & Immunology, Albert Einstein College of Medicine, 1300 Morris Park Avenue, Bronx, New York 10461, USA.\n\nThis is a clean sentence.");
 		sentenceAnnotator.process(baseJCas.getCas());
 		linkGrammarAnnotator.process(baseJCas.getCas());
-		AnnotationIndex<Annotation> idx = textJCas
-		    .getAnnotationIndex(SyntaxAnnotation.type);
-		FSIterator<Annotation> it = SentenceAnnotator.getSentenceIterator(
-		    textJCas, SentenceAnnotator.SENTENCE_TYPE_NAME);
+		AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
+		FSIterator<Annotation> it = SentenceAnnotation.getIterator(textJCas);
 		int count = 0;
 
 		while (it.hasNext()) {
@@ -234,8 +217,7 @@ public class TestLinkGrammarAnnotator {
 		assertEquals(2, count);
 	}
 
-	private void ensureTreeStructure(AnnotationIndex<Annotation> idx,
-	                                 SyntaxAnnotation ann) {
+	private void ensureTreeStructure(AnnotationIndex<Annotation> idx, SyntaxAnnotation ann) {
 		AnnotationTreeNode<Annotation> root = idx.tree(ann).getRoot();
 		SyntaxAnnotation rootAnn = (SyntaxAnnotation) root.get();
 		assertEquals("Sentence", rootAnn.getIdentifier());

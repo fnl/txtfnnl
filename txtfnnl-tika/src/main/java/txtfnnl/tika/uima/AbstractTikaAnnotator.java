@@ -21,17 +21,17 @@ import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.html.HtmlParser;
 
-import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_component.JCasAnnotator_ImplBase;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.jcas.JCas;
-import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
+
+import org.uimafit.component.JCasAnnotator_ImplBase;
+import org.uimafit.descriptor.ConfigurationParameter;
 
 import txtfnnl.tika.TikaWrapper;
 import txtfnnl.tika.parser.html.CleanHtmlMapper;
@@ -72,29 +72,41 @@ import txtfnnl.uima.tcas.DocumentAnnotation;
  */
 public abstract class AbstractTikaAnnotator extends JCasAnnotator_ImplBase {
 
-	/** Set the content encoding metadata value. */
+	/** The encoding to enforce (if any). */
 	public static final String PARAM_ENCODING = "Encoding";
+	@ConfigurationParameter(name = PARAM_ENCODING)
+	private String encoding;
 
 	/**
+	 * Optionally normalize Greek letters to Latin words.
+	 * 
 	 * Replace Greek characters with their names spelled out using Latin
 	 * (ASCII) letters. Note that this will normalize all "sharp S" ('ß' or
 	 * U+00DF) letters to "beta", too.
 	 */
 	public static final String PARAM_NORMALIZE_GREEK_CHARACTERS = "NormalizeGreek";
+	@ConfigurationParameter(name = PARAM_NORMALIZE_GREEK_CHARACTERS, defaultValue = "false")
+	private boolean normalizeGreek;
 
 	/**
+	 * For XML, optionally use a specific handler.
+	 * 
+	 * The available handlers are:
+	 * <ul>
+	 * <li>{@link txtfnnl.tika.sax.XMLContentHandler} introduces line-breaks
+	 * at element boundaries, the <b>default</b></li>
+	 * <li>{@link txtfnnl.tika.sax.ElsevierXMLContentHandler} for XML using
+	 * Elsevier's DTD format</li>
+	 * <li>{@link txtfnnl.tika.sax.CleanBodyContentHandler} only removes
+	 * "skippable whitespaces"</li>
+	 * </ul>
+	 * 
 	 * Use the Elsevier-specific XML handler instead of the default handler.
 	 */
-	public static final String PARAM_USE_ELSEVIER_XML_HANDLER = "UseElsevierXMLHandler";
-
-	/** The encoding to force (if any). */
-	String encoding;
-
-	/** Normalize Greek letters to Latin words. */
-	boolean normalizeGreek = false;
-
-	/** For XML, use the Elsevier-specific handler. */
-	boolean useElsevierXMLHandler = false;
+	public static final String PARAM_XML_HANDLER = "XMLHandlerClass";
+	@ConfigurationParameter(name = PARAM_XML_HANDLER,
+	                        defaultValue = "txtfnnl.tika.sax.XMLContentHandler")
+	private String xmlHandlerClass;
 
 	/** A logger for this AE. */
 	Logger logger;
@@ -103,30 +115,10 @@ public abstract class AbstractTikaAnnotator extends JCasAnnotator_ImplBase {
 	TikaWrapper tika = new TikaWrapper();
 
 	/** The input view name/SOFA expected by this AE. */
-	private String inputView = Views.CONTENT_RAW.toString();
+	private static final String inputView = Views.CONTENT_RAW.toString();
 
 	/** The output view name/SOFA produced by this AE. */
-	private String outputView = Views.CONTENT_TEXT.toString();
-
-	@Override
-	public void initialize(UimaContext ctx)
-	        throws ResourceInitializationException {
-		super.initialize(ctx);
-		logger = ctx.getLogger();
-		encoding = (String) ctx.getConfigParameterValue(PARAM_ENCODING);
-
-		Boolean val = (Boolean) ctx
-		    .getConfigParameterValue(PARAM_NORMALIZE_GREEK_CHARACTERS);
-
-		if (val != null && val)
-			normalizeGreek = true;
-
-		val = (Boolean) ctx
-		    .getConfigParameterValue(PARAM_USE_ELSEVIER_XML_HANDLER);
-
-		if (val != null && val)
-			useElsevierXMLHandler = true;
-	}
+	private static final String outputView = Views.CONTENT_TEXT.toString();
 
 	/**
 	 * The AE process expects a SOFA with a {@link View.CONTENT_RAW} and uses
@@ -144,16 +136,15 @@ public abstract class AbstractTikaAnnotator extends JCasAnnotator_ImplBase {
 			throw new AnalysisEngineProcessException(e);
 		}
 
+		logger = getLogger();
 		InputStream stream = aJCas.getSofaDataStream();
 
 		if (stream == null) {
-			logger.log(Level.SEVERE,
-			    "no data stream for view '" + aJCas.getViewName() + "'");
-			throw new AnalysisEngineProcessException(new AssertionError(
-			    "no SOFA data stream"));
+			logger.log(Level.SEVERE, "no data stream for view '" + aJCas.getViewName() + "'");
+			throw new AnalysisEngineProcessException(new AssertionError("no SOFA data stream"));
 		} else {
-			logger.log(Level.INFO, "parsing " + aJCas.getSofaMimeType() +
-			                       " at " + aJCas.getSofaDataURI());
+			logger.log(Level.INFO,
+			    "parsing " + aJCas.getSofaMimeType() + " at " + aJCas.getSofaDataURI());
 		}
 
 		Metadata metadata = new Metadata();
@@ -166,14 +157,12 @@ public abstract class AbstractTikaAnnotator extends JCasAnnotator_ImplBase {
 
 		if (aJCas.getSofaDataURI() != null) {
 			try {
-				metadata.set(Metadata.RESOURCE_NAME_KEY, resourceName(new URI(
-				    aJCas.getSofaDataURI())));
+				metadata.set(Metadata.RESOURCE_NAME_KEY,
+				    resourceName(new URI(aJCas.getSofaDataURI())));
 			} catch (URISyntaxException e) {
-				logger.log(Level.WARNING, "URI '" + aJCas.getSofaDataURI() +
-				                          "' not a valid URI");
+				logger.log(Level.WARNING, "URI '" + aJCas.getSofaDataURI() + "' not a valid URI");
 			} catch (MalformedURLException e) {
-				logger.log(Level.WARNING, "URI '" + aJCas.getSofaDataURI() +
-				                          "' not a valid URL");
+				logger.log(Level.WARNING, "URI '" + aJCas.getSofaDataURI() + "' not a valid URL");
 			}
 		}
 
@@ -183,9 +172,8 @@ public abstract class AbstractTikaAnnotator extends JCasAnnotator_ImplBase {
 			throw new AnalysisEngineProcessException(e);
 		}
 
-
 		ContentHandler handler = getContentHandler(newJCas);
-		
+
 		if (normalizeGreek)
 			handler = new GreekLetterContentHandler(handler);
 
@@ -198,27 +186,29 @@ public abstract class AbstractTikaAnnotator extends JCasAnnotator_ImplBase {
 			if (mediaType == null)
 				mediaType = detector.detect(stream, metadata).getBaseType().toString();
 
-			if ("text/html".equals(mediaType) ||
-			    mediaType.startsWith("application/xhtml")) {
+			if ("text/html".equals(mediaType) || mediaType.startsWith("application/xhtml")) {
 				context.set(HtmlMapper.class, CleanHtmlMapper.INSTANCE);
-				handler = new HTMLContentHandler(new CleanBodyContentHandler(
-				    handler));
+				handler = new HTMLContentHandler(new CleanBodyContentHandler(handler));
 				parser = new HtmlParser();
-			} else if ("text/xml".equals(mediaType) ||
-			           mediaType.startsWith("application/xml")) {
-				if (useElsevierXMLHandler)
-					handler = new ElsevierXMLContentHandler(handler);
-				else
+			} else if ("text/xml".equals(mediaType) || mediaType.startsWith("application/xml")) {
+				if (XMLContentHandler.class.getName().equals(xmlHandlerClass)) {
 					handler = new XMLContentHandler(handler);
-				
+				} else if (ElsevierXMLContentHandler.class.getName().equals(xmlHandlerClass)) {
+					handler = new ElsevierXMLContentHandler(handler);
+				} else if (CleanBodyContentHandler.class.getName().equals(xmlHandlerClass)) {
+					handler = new CleanBodyContentHandler(handler);
+				} else {
+					logger.log(Level.WARNING, "unknown XML handler %s - using default", xmlHandlerClass);
+					handler = new XMLContentHandler(handler);
+				}
 				parser = new UnembeddedXMLParser();
 			} else {
 				handler = new CleanBodyContentHandler(handler);
 				parser = new AutoDetectParser(detector);
 			}
-			
+
 			context.set(Parser.class, parser);
-			
+
 			try {
 				parser.parse(stream, handler, metadata, context);
 			} catch (SAXException e) {

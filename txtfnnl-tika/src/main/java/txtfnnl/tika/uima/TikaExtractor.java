@@ -11,32 +11,31 @@ import org.xml.sax.ContentHandler;
 
 import org.uimafit.factory.AnalysisEngineFactory;
 
-import txtfnnl.tika.sax.UIMAContentHandler;
+import txtfnnl.tika.sax.SimpleUIMAContentHandler;
 import txtfnnl.uima.utils.UIMAUtils;
 
 /**
  * This Tika-based AE extracts text content from an input view of the CAS and
- * sets this text content in a new output view, together with annotations of
- * the structure or markup that was part of the input data.
+ * sets this text content in a new output view.
  * 
- * Any markup that Tika extracts during the process is added to as
- * {@link txtfnnl.uima.tcas.StructureAnnotation} to the text content. If Tika
- * detects {@link org.apache.tika.metadata.Metadata}, it is added as
+ * If Tika detects {@link org.apache.tika.metadata.Metadata}, it is added as
  * {@link txtfnnl.uima.tcas.DocumentAnnotation}.
+ * 
+ * No structural text annotations are made by this annotator.
  * 
  * @author Florian Leitner
  */
-public class TikaAnnotator extends AbstractTikaAnnotator {
+public class TikaExtractor extends AbstractTikaAnnotator {
 
 	/** The annotator's URI (for the annotations) set by this AE. */
-	public static final String URI = TikaAnnotator.class.getName();
+	public static final String URI = TikaExtractor.class.getName();
 
 	@SuppressWarnings("serial")
 	public static AnalysisEngineDescription configure(final String encoding,
 	                                                  final boolean normalizeGreek,
 	                                                  final String xmlHandlerClass)
 	        throws UIMAException, IOException {
-		return AnalysisEngineFactory.createPrimitiveDescription(TikaAnnotator.class,
+		return AnalysisEngineFactory.createPrimitiveDescription(TikaExtractor.class,
 		    UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
 
 			    {
@@ -60,11 +59,13 @@ public class TikaAnnotator extends AbstractTikaAnnotator {
 	public static AnalysisEngineDescription configure() throws UIMAException, IOException {
 		return configure(null);
 	}
-	
-	ContentHandler getContentHandler(JCas newJCas) {
-		return new UIMAContentHandler(newJCas, URI);
+
+	@Override
+	ContentHandler getContentHandler(JCas jcas) {
+		return new SimpleUIMAContentHandler(jcas);
 	}
-	
+
+	@Override
 	String getAnnotatorURI() {
 		return URI;
 	}

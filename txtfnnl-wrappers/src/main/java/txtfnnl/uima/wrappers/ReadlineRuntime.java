@@ -11,12 +11,12 @@ import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
 /**
- * Implement a process wrapper that takes a line-based input and output
- * stream with a UIMA {@link org.apache.uima.util.Logger} that prints the
- * error stream. The output stream should parsed/converted to a generic type,
- * which needs to be implemented by any children, including the number of
- * output lines to read.
- *
+ * Implement a process wrapper that takes a line-based input and output stream
+ * with a UIMA {@link org.apache.uima.util.Logger} that prints the error
+ * stream. The output stream should parsed/converted to a generic type, which
+ * needs to be implemented by any children, including the number of output
+ * lines to read.
+ * 
  * @author Florian Leitner
  */
 public abstract class ReadlineRuntime<T> {
@@ -44,20 +44,16 @@ public abstract class ReadlineRuntime<T> {
 	 * @param logger to handle the error stream
 	 * @throws IOException on failure
 	 */
-	public ReadlineRuntime(String[] args, String[] envp, File dir,
-	                       String encoding, Logger logger) throws IOException {
+	public ReadlineRuntime(String[] args, String[] envp, File dir, String encoding, Logger logger)
+	        throws IOException {
 		if (args == null || args.length == 0)
-			throw new RuntimeException(
-			    "trying to start a runtime without arguments");
+			throw new RuntimeException("trying to start a runtime without arguments");
 
-		logger.log(Level.FINE,
-		    "starting a {{1}} encoded runtime process for ''{0}''",
+		logger.log(Level.FINE, "starting a {{1}} encoded runtime process for ''{0}''",
 		    new Object[] { args[0], encoding });
 		proc = Runtime.getRuntime().exec(args, envp, dir);
-		out = new BufferedReader(new InputStreamReader(proc.getInputStream(),
-		    encoding));
-		in = new BufferedWriter(new OutputStreamWriter(proc.getOutputStream(),
-		    encoding));
+		out = new BufferedReader(new InputStreamReader(proc.getInputStream(), encoding));
+		in = new BufferedWriter(new OutputStreamWriter(proc.getOutputStream(), encoding));
 		this.logger = new ReadlineLogger(proc.getErrorStream(), logger);
 		this.logger.start();
 	}
@@ -67,8 +63,8 @@ public abstract class ReadlineRuntime<T> {
 	 * 
 	 * @throws IOException
 	 */
-	public ReadlineRuntime(String[] args, String[] envp, File dir,
-	                       Logger logger) throws IOException {
+	public ReadlineRuntime(String[] args, String[] envp, File dir, Logger logger)
+	        throws IOException {
 		this(args, envp, dir, "UTF-8", logger);
 	}
 
@@ -78,8 +74,7 @@ public abstract class ReadlineRuntime<T> {
 	 * 
 	 * @throws IOException
 	 */
-	public ReadlineRuntime(String[] args, String[] envp, Logger logger)
-	        throws IOException {
+	public ReadlineRuntime(String[] args, String[] envp, Logger logger) throws IOException {
 		this(args, envp, null, "UTF-8", logger);
 	}
 
@@ -89,8 +84,7 @@ public abstract class ReadlineRuntime<T> {
 	 * 
 	 * @throws IOException
 	 */
-	public ReadlineRuntime(String[] args, File dir, Logger logger)
-	        throws IOException {
+	public ReadlineRuntime(String[] args, File dir, Logger logger) throws IOException {
 		this(args, null, dir, "UTF-8", logger);
 	}
 
@@ -115,8 +109,8 @@ public abstract class ReadlineRuntime<T> {
 	 * @param encoding for the readline interface
 	 * @throws IOException on failure
 	 */
-	public ReadlineRuntime(String command, String[] envp, File dir,
-	                       String encoding, Logger logger) throws IOException {
+	public ReadlineRuntime(String command, String[] envp, File dir, String encoding, Logger logger)
+	        throws IOException {
 		this(new String[] { command }, envp, dir, encoding, logger);
 	}
 
@@ -125,8 +119,8 @@ public abstract class ReadlineRuntime<T> {
 	 * 
 	 * @throws IOException
 	 */
-	public ReadlineRuntime(String command, String[] envp, File dir,
-	                       Logger logger) throws IOException {
+	public ReadlineRuntime(String command, String[] envp, File dir, Logger logger)
+	        throws IOException {
 		this(command, envp, dir, "UTF-8", logger);
 	}
 
@@ -136,8 +130,7 @@ public abstract class ReadlineRuntime<T> {
 	 * 
 	 * @throws IOException
 	 */
-	public ReadlineRuntime(String command, String[] envp, Logger logger)
-	        throws IOException {
+	public ReadlineRuntime(String command, String[] envp, Logger logger) throws IOException {
 		this(command, envp, null, "UTF-8", logger);
 	}
 
@@ -147,8 +140,7 @@ public abstract class ReadlineRuntime<T> {
 	 * 
 	 * @throws IOException
 	 */
-	public ReadlineRuntime(String command, File dir, Logger logger)
-	        throws IOException {
+	public ReadlineRuntime(String command, File dir, Logger logger) throws IOException {
 		this(command, null, dir, "UTF-8", logger);
 	}
 
@@ -161,23 +153,28 @@ public abstract class ReadlineRuntime<T> {
 	public ReadlineRuntime(String command, Logger logger) throws IOException {
 		this(command, null, null, "UTF-8", logger);
 	}
-	
+
 	/** Log a message. */
 	public void log(Level lvl, String msg) {
 		logger.log(lvl, msg);
 	}
 
-	/** Stop the runtime process and logger thread. 
-	 * @return */
-	public synchronized void stop() throws IOException {
-			proc.destroy();
-			in.close();
-			out.close();
-	
-			if (logger.isAlive()) {
-				logger.interrupt();
-				logger.halt();
-			}
+	/**
+	 * Stop the runtime process and logger thread.
+	 * 
+	 * @return
+	 */
+	public void stop() throws IOException {
+		in.close();
+		out.close();
+		proc.destroy();
+
+		if (logger.isAlive()) {
+			logger.interrupt();
+			logger.halt();
+		}
+
+		logger.err.close();
 	}
 
 	/**
@@ -188,7 +185,7 @@ public abstract class ReadlineRuntime<T> {
 	 * @return the parsed response
 	 * @throws IOException on IO failures
 	 */
-	public synchronized T process(String line) throws IOException {
+	public T process(String line) throws IOException {
 		in.write(line);
 		in.newLine();
 		in.flush();
@@ -202,10 +199,10 @@ public abstract class ReadlineRuntime<T> {
 	 */
 	protected String readLine() throws IOException {
 		String line = out.readLine();
-		
+
 		if (line != null)
 			line = line.trim();
-		
+
 		return line;
 	}
 

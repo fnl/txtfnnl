@@ -11,44 +11,43 @@ import org.junit.Test;
 
 import org.apache.uima.UIMAException;
 import org.apache.uima.analysis_engine.AnalysisEngine;
+import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.cas.FSIterator;
-import org.apache.uima.cas.FSMatchConstraint;
 import org.apache.uima.cas.text.AnnotationIndex;
 import org.apache.uima.jcas.JCas;
-import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.jcas.tcas.Annotation;
 
 import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.Views;
-import txtfnnl.uima.analysis_component.opennlp.PartOfSpeechAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
-import txtfnnl.uima.cas.Property;
-import txtfnnl.uima.tcas.SyntaxAnnotation;
+import txtfnnl.uima.tcas.SentenceAnnotation;
+import txtfnnl.uima.tcas.TokenAnnotation;
 
 public class TestBioLemmatizerAnnotator {
 
-	AnalysisEngine annotator;
+	AnalysisEngineDescription annotator;
+	AnalysisEngine engine;
 	JCas jcas;
 
 	@Before
 	public void setUp() throws UIMAException, IOException {
 		DisableLogging.enableLogging(Level.WARNING);
-		annotator = AnalysisEngineFactory
-		    .createAnalysisEngine("txtfnnl.uima.bioLemmatizerAEDescriptor");
+		annotator = BioLemmatizerAnnotator.configure();
+		engine = AnalysisEngineFactory.createPrimitive(annotator);
 	}
 
 	@Test
 	public void testDestroy() {
-		annotator.destroy();
+		engine.destroy();
 		assertTrue("success", true);
 	}
 
 	@Test
 	public void testProcessCAS() throws UIMAException, IOException {
-		JCas baseJCas = annotator.newJCas();
+		JCas baseJCas = engine.newJCas();
 		jcas = baseJCas.createView(Views.CONTENT_TEXT.toString());
 		String text = "These are two nice sentences. And this could be getting better.";
 		String[] lemma = {
@@ -111,23 +110,20 @@ public class TestBioLemmatizerAnnotator {
 		addSentence(0, 29);
 		addSentence(30, 63);
 		addTokens(beginPositions, endPositions, tags);
-		annotator.process(baseJCas.getCas());
+		engine.process(baseJCas.getCas());
 
 		int count = 0;
-		FSIterator<Annotation> sentenceIt = SentenceAnnotator
-		    .getSentenceIterator(jcas);
-		FSMatchConstraint tokenConstraint = TokenAnnotator
-		    .makeTokenConstraint(jcas);
-		AnnotationIndex<Annotation> annIdx = jcas
-		    .getAnnotationIndex(SyntaxAnnotation.type);
+		FSIterator<Annotation> sentenceIt = SentenceAnnotation
+		    .getIterator(jcas);
+		AnnotationIndex<Annotation> tokenIdx = jcas
+		    .getAnnotationIndex(TokenAnnotation.type);
 
 		while (sentenceIt.hasNext()) {
-			SyntaxAnnotation sentence = (SyntaxAnnotation) sentenceIt.next();
-			FSIterator<Annotation> tokenIt = jcas.createFilteredIterator(
-			    annIdx.subiterator(sentence, true, true), tokenConstraint);
+			Annotation sentence = sentenceIt.next();
+			FSIterator<Annotation> tokenIt = tokenIdx.subiterator(sentence);
 
 			while (tokenIt.hasNext()) {
-				SyntaxAnnotation token = (SyntaxAnnotation) tokenIt.next();
+				TokenAnnotation token = (TokenAnnotation) tokenIt.next();
 				// make sure we are looking at the right token
 				assertEquals(Integer.toString(token.getBegin()) +
 				             " begin at " + count, beginPositions[count],
@@ -135,7 +131,7 @@ public class TestBioLemmatizerAnnotator {
 				assertEquals(Integer.toString(token.getEnd()) + " end at " +
 				             count, endPositions[count], token.getEnd());
 				assertEquals("token '" + token.getCoveredText() + "'",
-				    lemma[count], BioLemmatizerAnnotator.getLemma(token));
+				    lemma[count], token.getStem());
 				count++;
 			}
 		}
@@ -144,7 +140,7 @@ public class TestBioLemmatizerAnnotator {
 	}
 
 	private void addSentence(int begin, int end) {
-		SyntaxAnnotation ann = new SyntaxAnnotation(jcas, begin, end);
+		SentenceAnnotation ann = new SentenceAnnotation(jcas, begin, end);
 		ann.setAnnotator(SentenceAnnotator.URI);
 		ann.setConfidence(1.0);
 		ann.setIdentifier(SentenceAnnotator.IDENTIFIER);
@@ -154,22 +150,13 @@ public class TestBioLemmatizerAnnotator {
 
 	private void addTokens(int[] begins, int[] ends, String[] tags) {
 		for (int i = 0; i < begins.length; ++i) {
-			SyntaxAnnotation ann = new SyntaxAnnotation(jcas, begins[i],
+			TokenAnnotation ann = new TokenAnnotation(jcas, begins[i],
 			    ends[i]);
 			ann.setAnnotator(TokenAnnotator.URI);
 			ann.setConfidence(1.0);
 			ann.setIdentifier(TokenAnnotator.IDENTIFIER);
 			ann.setNamespace(TokenAnnotator.NAMESPACE);
-			Property tag = new Property(jcas);
-			Property prob = new Property(jcas);
-			tag.setName(PartOfSpeechAnnotator.POS_TAG_VALUE_PROPERTY_NAME);
-			prob.setName(PartOfSpeechAnnotator.POS_TAG_CONFIDENCE_PROPERTY_NAME);
-			tag.setValue(tags[i]);
-			prob.setValue("1.0");
-			FSArray properties = new FSArray(jcas, 2);
-			properties.set(0, tag);
-			properties.set(1, prob);
-			ann.setProperties(properties);
+			ann.setPos(tags[i]);
 			ann.addToIndexes(jcas);
 		}
 	}

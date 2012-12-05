@@ -14,8 +14,6 @@ import org.apache.uima.analysis_engine.AnalysisEngine;
 import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.FSIterator;
-import org.apache.uima.cas.FSMatchConstraint;
-import org.apache.uima.cas.text.AnnotationIndex;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
 
@@ -23,9 +21,8 @@ import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.Views;
-import txtfnnl.uima.analysis_component.opennlp.ChunkAnnotator;
-import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
-import txtfnnl.uima.tcas.SyntaxAnnotation;
+import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
+import txtfnnl.uima.tcas.TokenAnnotation;
 
 /**
  * 
@@ -48,12 +45,11 @@ public class TestGeniaTaggerAnnotator {
 		DisableLogging.enableLogging(Level.WARNING);
 
 		// set up AE descriptor under test
-		sentenceAnnotator = AnalysisEngineFactory
-		    .createAnalysisEngine("txtfnnl.uima.openNLPSentenceAEDescriptor");
+		sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure());
 		annotatorDesc = AnalysisEngineFactory
 		    .createPrimitiveDescription(GeniaTaggerAnnotator.class);
-		geniaTaggerAnnotator = AnalysisEngineFactory.createAnalysisEngine(
-		    annotatorDesc, Views.CONTENT_TEXT.toString());
+		geniaTaggerAnnotator = AnalysisEngineFactory.createAnalysisEngine(annotatorDesc,
+		    Views.CONTENT_TEXT.toString());
 		baseJCas = sentenceAnnotator.newJCas();
 		textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
 	}
@@ -64,16 +60,7 @@ public class TestGeniaTaggerAnnotator {
 		    .setDocumentText("ARL, a regulator of cell death localized inside the nucleus, has been shown to bind the p53 promoter.");
 		sentenceAnnotator.process(baseJCas.getCas());
 		geniaTaggerAnnotator.process(baseJCas.getCas());
-		AnnotationIndex<Annotation> idx = textJCas
-		    .getAnnotationIndex(SyntaxAnnotation.type);
-		FSMatchConstraint tokenCons = TokenAnnotator
-		    .makeTokenConstraint(textJCas);
-		FSMatchConstraint chunkCons = ChunkAnnotator
-		    .makeChunkConstraint(textJCas);
-		FSIterator<Annotation> tokenIt = textJCas.createFilteredIterator(idx.iterator(),
-		    tokenCons);
-		FSIterator<Annotation> chunkIt = textJCas.createFilteredIterator(idx.iterator(),
-		    chunkCons);
+		FSIterator<Annotation> tokenIt = TokenAnnotation.getIterator(textJCas);
 
 		String[] tokens = new String[] {
 		    "ARL",
@@ -99,25 +86,34 @@ public class TestGeniaTaggerAnnotator {
 		    "." };
 		String[] chunks = new String[] {
 		    "NP",
+		    null,
+		    "NP",
 		    "NP",
 		    "PP",
+		    "NP",
 		    "NP",
 		    "VP",
 		    "PP",
 		    "NP",
+		    "NP",
+		    null,
 		    "VP",
-		    "NP" };
+		    "VP",
+		    "VP",
+		    "VP",
+		    "VP",
+		    "NP",
+		    "NP",
+		    "NP",
+		    null };
+		assertEquals(tokens.length, chunks.length);
 		int tokenIdx = 0;
 		int chunkIdx = 0;
 
 		while (tokenIt.hasNext()) {
-			assertEquals("token " + tokenIdx, tokens[tokenIdx++], tokenIt
-			    .next().getCoveredText());
-		}
-
-		while (chunkIt.hasNext()) {
-			assertEquals("chunk " + chunkIdx, chunks[chunkIdx++],
-			    ((SyntaxAnnotation) chunkIt.next()).getIdentifier());
+			TokenAnnotation ann = (TokenAnnotation) tokenIt.next();
+			assertEquals("token " + tokenIdx, tokens[tokenIdx++], ann.getCoveredText());
+			assertEquals("chunk " + chunkIdx, chunks[chunkIdx++], ann.getChunk());
 		}
 
 		assertEquals("token count", tokens.length, tokenIdx);

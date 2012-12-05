@@ -1,6 +1,3 @@
-/**
- * 
- */
 package txtfnnl.uima.resource;
 
 /**
@@ -48,8 +45,7 @@ public class Entity {
 
 		Entity other = (Entity) o;
 
-		return type.equals(other.getType()) &&
-		       namespace.equals(other.getNamespace()) &&
+		return type.equals(other.getType()) && namespace.equals(other.getNamespace()) &&
 		       identifier.equals(other.getIdentifier());
 	}
 

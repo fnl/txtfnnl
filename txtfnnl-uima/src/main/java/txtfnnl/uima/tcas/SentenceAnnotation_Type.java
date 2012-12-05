@@ -1,5 +1,5 @@
 
-/* First created by JCasGen Fri Jun 22 11:12:49 CEST 2012 */
+/* First created by JCasGen Tue Nov 27 14:20:55 CET 2012 */
 package txtfnnl.uima.tcas;
 
 import org.apache.uima.jcas.JCas;
@@ -10,10 +10,10 @@ import org.apache.uima.cas.FeatureStructure;
 import org.apache.uima.cas.impl.TypeImpl;
 import org.apache.uima.cas.Type;
 
-/** TextAnnotations of syntactic elements (text segements such as sentences, tokens, etc.).
- * Updated by JCasGen Tue Nov 27 14:20:54 CET 2012
+/** An explicit text annoation type for sentences to simplify their index retrieval.
+ * Updated by JCasGen Tue Nov 27 14:20:55 CET 2012
  * @generated */
-public class SyntaxAnnotation_Type extends TextAnnotation_Type {
+public class SentenceAnnotation_Type extends TextAnnotation_Type {
   /** @generated */
   @Override
   protected FSGenerator getFSGenerator() {return fsGenerator;}
@@ -21,31 +21,31 @@ public class SyntaxAnnotation_Type extends TextAnnotation_Type {
   private final FSGenerator fsGenerator = 
     new FSGenerator() {
       public FeatureStructure createFS(int addr, CASImpl cas) {
-  			 if (SyntaxAnnotation_Type.this.useExistingInstance) {
+  			 if (SentenceAnnotation_Type.this.useExistingInstance) {
   			   // Return eq fs instance if already created
-  		     FeatureStructure fs = SyntaxAnnotation_Type.this.jcas.getJfsFromCaddr(addr);
+  		     FeatureStructure fs = SentenceAnnotation_Type.this.jcas.getJfsFromCaddr(addr);
   		     if (null == fs) {
-  		       fs = new SyntaxAnnotation(addr, SyntaxAnnotation_Type.this);
-  			   SyntaxAnnotation_Type.this.jcas.putJfsFromCaddr(addr, fs);
+  		       fs = new SentenceAnnotation(addr, SentenceAnnotation_Type.this);
+  			   SentenceAnnotation_Type.this.jcas.putJfsFromCaddr(addr, fs);
   			   return fs;
   		     }
   		     return fs;
-        } else return new SyntaxAnnotation(addr, SyntaxAnnotation_Type.this);
+        } else return new SentenceAnnotation(addr, SentenceAnnotation_Type.this);
   	  }
     };
   /** @generated */
   @SuppressWarnings ("hiding")
-  public final static int typeIndexID = SyntaxAnnotation.typeIndexID;
+  public final static int typeIndexID = SentenceAnnotation.typeIndexID;
   /** @generated 
      @modifiable */
   @SuppressWarnings ("hiding")
-  public final static boolean featOkTst = JCasRegistry.getFeatOkTst("txtfnnl.uima.tcas.SyntaxAnnotation");
+  public final static boolean featOkTst = JCasRegistry.getFeatOkTst("txtfnnl.uima.tcas.SentenceAnnotation");
 
 
 
   /** initialize variables to correspond with Cas Type and Features
 	* @generated */
-  public SyntaxAnnotation_Type(JCas jcas, Type casType) {
+  public SentenceAnnotation_Type(JCas jcas, Type casType) {
     super(jcas, casType);
     casImpl.getFSClassRegistry().addGeneratorForType((TypeImpl)this.casType, getFSGenerator());
 

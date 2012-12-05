@@ -14,7 +14,7 @@ import org.apache.uima.cas.Feature;
 import org.apache.uima.jcas.tcas.Annotation_Type;
 
 /** Annotations on a specific text span.
- * Updated by JCasGen Fri Oct 26 14:22:46 CEST 2012
+ * Updated by JCasGen Tue Nov 27 14:20:54 CET 2012
  * @generated */
 public class TextAnnotation_Type extends Annotation_Type {
   /** @generated */
@@ -139,7 +139,7 @@ public class TextAnnotation_Type extends Annotation_Type {
     if (lowLevelTypeChecks)
       return ll_cas.ll_getRefArrayValue(ll_cas.ll_getRefValue(addr, casFeatCode_properties), i, true);
     jcas.checkArrayBounds(ll_cas.ll_getRefValue(addr, casFeatCode_properties), i);
-	return ll_cas.ll_getRefArrayValue(ll_cas.ll_getRefValue(addr, casFeatCode_properties), i);
+  return ll_cas.ll_getRefArrayValue(ll_cas.ll_getRefValue(addr, casFeatCode_properties), i);
   }
    
   /** @generated */ 

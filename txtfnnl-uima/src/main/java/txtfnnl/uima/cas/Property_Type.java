@@ -13,7 +13,7 @@ import org.apache.uima.jcas.JCasRegistry;
 import org.apache.uima.jcas.cas.TOP_Type;
 
 /** A free-form property structure for annotations.
- * Updated by JCasGen Fri Oct 26 14:22:46 CEST 2012
+ * Updated by JCasGen Tue Nov 27 14:20:54 CET 2012
  * @generated */
 public class Property_Type extends TOP_Type {
   /** @generated */

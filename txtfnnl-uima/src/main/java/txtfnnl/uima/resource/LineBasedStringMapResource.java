@@ -10,7 +10,12 @@ import java.util.Map;
 
 import org.apache.uima.resource.DataResource;
 import org.apache.uima.resource.ResourceInitializationException;
-import org.apache.uima.resource.SharedResourceObject;
+
+import org.uimafit.component.ExternalResourceAware;
+import org.uimafit.component.initialize.ConfigurationParameterInitializer;
+import org.uimafit.descriptor.ConfigurationParameter;
+import org.uimafit.descriptor.ExternalResource;
+import org.uimafit.factory.ExternalResourceFactory;
 
 /**
  * A generic implementation of a StringMapResource that reads data from a
@@ -19,37 +24,35 @@ import org.apache.uima.resource.SharedResourceObject;
  * @author Florian Leitner
  * @param <V> is the value type to map
  */
-public abstract class LineBasedStringMapResource<V> implements
-        SharedResourceObject, StringMapResource<V> {
+public abstract class LineBasedStringMapResource<V> implements StringMapResource<V>,
+        ExternalResourceAware {
+
+	@ConfigurationParameter(name = ExternalResourceFactory.PARAM_RESOURCE_NAME)
+	private String resourceName;
 
 	public static final String DEFAULT_SEPARATOR = "\t";
-	
+
+	/** The (optional) field separator to use (defaults to tab). */
+	public static final String PARAM_SEPARATOR = "FieldSeparator";
+	@ExternalResource(key = PARAM_SEPARATOR, mandatory = false)
+	protected String separator = DEFAULT_SEPARATOR;
+
 	protected Map<String, V> resourceMap = new HashMap<String, V>();
 	protected String line;
 
-	/**
-	 * The separator used on each line to separate relevant items.
-	 */
-	String separator = DEFAULT_SEPARATOR;
-
-	/* (non-Javadoc)
-	 * 
-	 * @see
-	 * org.apache.uima.resource.SharedResourceObject#load(org.apache.uima
-	 * .resource.DataResource) */
 	public void load(DataResource data) throws ResourceInitializationException {
+		ConfigurationParameterInitializer.initialize(this, data);
 		InputStream inStr = null;
-		
+
 		try {
 			// open input stream to data
 			inStr = data.getInputStream();
 			// read each line
-			BufferedReader reader = new BufferedReader(new InputStreamReader(
-			    inStr));
+			BufferedReader reader = new BufferedReader(new InputStreamReader(inStr));
 
 			while ((line = reader.readLine()) != null) {
 				line = line.trim();
-				
+
 				if (line.length() == 0)
 					continue;
 
@@ -69,16 +72,13 @@ public abstract class LineBasedStringMapResource<V> implements
 	}
 
 	/**
-	 * Any implementing class must decide what to do with the parsed lines 
-	 * and fill the resourceMap.
+	 * Any implementing class must decide what to do with the parsed lines and
+	 * how to fill the resourceMap.
 	 * 
 	 * @param items to process
 	 */
 	abstract void parse(String[] items) throws ResourceInitializationException;
 
-	/* (non-Javadoc)
-	 * 
-	 * @see txtfnnl.uima.resource.StringMapResource#get(java.lang.String) */
 	public V get(String key) {
 		return resourceMap.get(key);
 	}
@@ -86,8 +86,16 @@ public abstract class LineBasedStringMapResource<V> implements
 	public int size() {
 		return resourceMap.size();
 	}
-	
+
 	public Iterator<String> iterator() {
 		return resourceMap.keySet().iterator();
+	}
+
+	public String getResourceName() {
+		return resourceName;
+	}
+
+	public void afterResourcesInitialized() {
+		// nothing to do here...
 	}
 }

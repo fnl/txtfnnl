@@ -1,73 +1,99 @@
 package txtfnnl.uima.resource;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
 import org.apache.uima.resource.DataResource;
+import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
-import org.apache.uima.resource.SharedResourceObject;
-import org.apache.uima.resource.metadata.ConfigurationParameterSettings;
+
+import org.uimafit.component.ExternalResourceAware;
+import org.uimafit.component.initialize.ConfigurationParameterInitializer;
+import org.uimafit.descriptor.ConfigurationParameter;
+import org.uimafit.descriptor.ExternalResource;
+import org.uimafit.factory.ExternalResourceFactory;
+
+import txtfnnl.uima.utils.UIMAUtils;
 
 /**
- * A JDBC connector.
+ * A JDBC connector for arbitrary databases.
+ * 
+ * Any DB that has a JDBC connector can be connected as an external resource
+ * of an AE.
  * 
  * Parameter settings:
  * <ul>
- *   <li>String {@link #PARAM_DRIVER_CLASS} (required)</li>
- *   <li>String {@link #PARAM_ISOLATION_LEVEL}</li>
- *   <li>String {@link #PARAM_USERNAME}</li>
- *   <li>String {@link #PARAM_PASSWORD}</li>
- *   <li>Boolean {@link #PARAM_READ_ONLY}</li>
- *   <li>Integer {@link #PARAM_LOGIN_TIMEOUT}</li>
+ * <li>String {@link #PARAM_DRIVER_CLASS} (required)</li>
+ * <li>String {@link #PARAM_USERNAME} (default: none)</li>
+ * <li>String {@link #PARAM_PASSWORD} (default: none)</li>
+ * <li>Boolean {@link #PARAM_READ_ONLY} (default: false)</li>
+ * <li>String {@link #PARAM_ISOLATION_LEVEL} (default: none)</li>
+ * <li>Integer {@link #PARAM_LOGIN_TIMEOUT} (default: no timeout)</li>
  * </ul>
  * 
  * @author Florian Leitner
  */
-public class JdbcConnectionResourceImpl implements JdbcConnectionResource,
-        SharedResourceObject {
+public class JdbcConnectionResourceImpl implements JdbcConnectionResource, ExternalResourceAware {
+
+	@ConfigurationParameter(name = ExternalResourceFactory.PARAM_RESOURCE_NAME)
+	private String resourceName;
 
 	/**
-	 * The (required) fully qualified name String of the JDBC driver to use.
+	 * The JDBC URL String for the connection to make, i.e., the data resource
+	 * URI.
+	 */
+	private String connectionUrl = null;
+
+	/**
+	 * The (required) fully qualified name of the JDBC driver to use.
 	 * 
 	 * Examples:
 	 * <ul>
-	 * <li><code>com.mysql.jdbc.Driver</code> MySQL</li>
-	 * <li><code>sun.jdbc.odbc.JdbcOdbcDriver</code> ODBC</li>
-	 * <li><code>oracle.jdbc.driver.OracleDriver</code> Oracle</li>
-	 * <li><code>org.postgresql.Driver</code> PostgreSQL</li>
-	 * <li><code>com.ibm.db2.jdbc.app.DB2Driver</code> DB2</li>
-	 * <li><code>org.h2.Driver</code> H2</li>
+	 * <li><code>com.mysql.jdbc.Driver</code> (for MySQL)</li>
+	 * <li><code>sun.jdbc.odbc.JdbcOdbcDriver</code> (for ODBC)</li>
+	 * <li><code>oracle.jdbc.driver.OracleDriver</code> (for Oracle)</li>
+	 * <li><code>org.postgresql.Driver</code> (for PostgreSQL)</li>
+	 * <li><code>com.ibm.db2.jdbc.app.DB2Driver</code> (for DB2)</li>
+	 * <li><code>org.h2.Driver</code> (for H2)</li>
 	 * </ul>
-	 * 
-	 * */
+	 */
 	public static final String PARAM_DRIVER_CLASS = "DriverClass";
-
-	// /** The JDBC URL String for the connection to make. */
-	// public static final String PARAM_CONNECTION_URL = "ConnectionURL";
+	@ConfigurationParameter(name = PARAM_DRIVER_CLASS, mandatory = true)
+	private String driverClass;
 
 	/** The (optional) username String for DB authentication. */
 	public static final String PARAM_USERNAME = "Username";
+	@ConfigurationParameter(name = PARAM_USERNAME, mandatory = false)
+	private String username;
 
 	/** The (optional) password String for DB authentication. */
 	public static final String PARAM_PASSWORD = "Password";
+	@ConfigurationParameter(name = PARAM_PASSWORD, mandatory = false)
+	private String password;
 
 	/**
 	 * The (optional) timeout (in seconds, i.e., Integer) that a driver will
 	 * wait while attempting to connect to a database.
 	 */
 	public static final String PARAM_LOGIN_TIMEOUT = "LoginTimeout";
+	@ConfigurationParameter(name = PARAM_LOGIN_TIMEOUT, mandatory = false, defaultValue = "-1")
+	private int loginTimeout = -1;
 
 	/** An (optional) Boolean flag to make the connections all read-only. */
 	public static final String PARAM_READ_ONLY = "ReadOnly";
+	@ConfigurationParameter(name = PARAM_READ_ONLY, mandatory = false, defaultValue = "false")
+	private boolean readOnly = false;
 
 	/**
 	 * An (optional) transaction isolation level String.
 	 * 
-	 * May be any of the following:
+	 * May be any of the following strings:
 	 * <ul>
 	 * <li>
 	 * <code>{@link java.sql.Connection#TRANSACTION_NONE TRANSACTION_NONE}</code>
@@ -87,15 +113,117 @@ public class JdbcConnectionResourceImpl implements JdbcConnectionResource,
 	 * </ul>
 	 */
 	public static final String PARAM_ISOLATION_LEVEL = "IsolationLevel";
-
-	private boolean readOnly = false;
+	@ExternalResource(key = PARAM_ISOLATION_LEVEL, mandatory = false)
+	private String isolationStr;
 	private int isolationLevel = -1;
-	private String connectionUrl = null;
-	private String password = null;
-	private String username = null;
 
 	private final Lock lock = new ReentrantLock();
+
 	private Logger logger = Logger.getLogger(getClass().getName());
+
+	/**
+	 * Configure an external resource description for an AE.
+	 * 
+	 * @param connectionUrl the (pure) URL to connect to (w/o driver)
+	 * @param driverClass the driver name to use (see
+	 *        {@link #PARAM_DRIVER_CLASS})
+	 * @param username the username to use
+	 * @param password the password to use
+	 * @param loginTimeout set to timeout the connection
+	 * @param isolationLevel set to an isolation level name (see
+	 *        {@link #PARAM_ISOLATION_LEVEL})
+	 * @param readOnly set to <code>true</code> if this connection should only
+	 *        read
+	 * @return a new resource descriptor
+	 * @throws IOException
+	 */
+	@SuppressWarnings("serial")
+	public static ExternalResourceDescription configure(String connectionUrl,
+	                                                    final String driverClass,
+	                                                    final String username,
+	                                                    final String password,
+	                                                    final int loginTimeout,
+	                                                    final String isolationLevel,
+	                                                    final boolean readOnly) throws IOException {
+		return ExternalResourceFactory.createExternalResourceDescription(
+		    JdbcConnectionResourceImpl.class, connectionUrl,
+		    UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
+
+			    {
+				    put(PARAM_DRIVER_CLASS, driverClass);
+				    put(PARAM_USERNAME, username);
+				    put(PARAM_PASSWORD, password);
+				    put(PARAM_ISOLATION_LEVEL, isolationLevel);
+				    put(PARAM_LOGIN_TIMEOUT, loginTimeout);
+				    put(PARAM_READ_ONLY, readOnly);
+			    }
+		    }));
+	}
+
+	public static ExternalResourceDescription configure(String connectionUrl, String driverClass,
+	                                                    String username, String password,
+	                                                    int loginTimeout, String isolationLevel)
+	        throws IOException {
+		return configure(connectionUrl, driverClass, username, password, loginTimeout,
+		    isolationLevel, false);
+	}
+
+	public static ExternalResourceDescription configure(String connectionUrl, String driverClass,
+	                                                    String username, String password,
+	                                                    int loginTimeout, boolean readOnly)
+	        throws IOException {
+		return configure(connectionUrl, driverClass, username, password, loginTimeout, null,
+		    readOnly);
+	}
+
+	public static ExternalResourceDescription configure(String connectionUrl, String driverClass,
+	                                                    String username, String password,
+	                                                    String isolationLevel, boolean readOnly)
+	        throws IOException {
+		return configure(connectionUrl, driverClass, username, password, -1, isolationLevel,
+		    readOnly);
+	}
+
+	public static ExternalResourceDescription configure(String connectionUrl, String driverClass,
+	                                                    int loginTimeout, String isolationLevel,
+	                                                    boolean readOnly) throws IOException {
+		return configure(connectionUrl, driverClass, null, null, loginTimeout, isolationLevel,
+		    readOnly);
+	}
+
+	public static ExternalResourceDescription configure(String connectionUrl, String driverClass,
+	                                                    String username, String password,
+	                                                    int loginTimeout) throws IOException {
+		return configure(connectionUrl, driverClass, username, password, loginTimeout, null);
+	}
+
+	public static ExternalResourceDescription configure(String connectionUrl, String driverClass,
+	                                                    String username, String password,
+	                                                    boolean readOnly) throws IOException {
+		return configure(connectionUrl, driverClass, username, password, -1, readOnly);
+	}
+
+	public static ExternalResourceDescription configure(String connectionUrl, String driverClass,
+	                                                    String username, String password,
+	                                                    String isolationLevel) throws IOException {
+		return configure(connectionUrl, driverClass, username, password, -1, isolationLevel);
+	}
+
+	public static ExternalResourceDescription configure(String connectionUrl, String driverClass,
+	                                                    String username, String password)
+	        throws IOException {
+		return configure(connectionUrl, driverClass, username, password, -1);
+	}
+
+	public static ExternalResourceDescription configure(String connectionUrl, String driverClass,
+	                                                    boolean readOnly) throws IOException {
+		return configure(connectionUrl, driverClass, null, null, readOnly);
+	}
+
+	public static ExternalResourceDescription configure(String connectionUrl, String driverClass)
+	        throws IOException {
+		return configure(connectionUrl, driverClass, null, null);
+	}
 
 	/** @see txtfnnl.uima.resource.JdbcConnectionResource#getConnection() */
 	public Connection getConnection() throws SQLException {
@@ -108,91 +236,62 @@ public class JdbcConnectionResourceImpl implements JdbcConnectionResource,
 			if (username == null || password == null)
 				conn = DriverManager.getConnection(connectionUrl);
 			else
-				conn = DriverManager.getConnection(connectionUrl, username,
-				    password);
+				conn = DriverManager.getConnection(connectionUrl, username, password);
 
 			if (isolationLevel > -1)
 				conn.setTransactionIsolation(isolationLevel);
 
 			conn.setReadOnly(readOnly);
+			logger.fine("connected to '" + connectionUrl + "'");
 			return conn;
 		} finally {
 			lock.unlock();
-			logger.fine("connected to '" + connectionUrl + "'");
 		}
 	}
 
-	public void load(DataResource dataResource)
-	        throws ResourceInitializationException {
-		lock.lock();
+	public void load(DataResource dataResource) throws ResourceInitializationException {
+		ConfigurationParameterInitializer.initialize(this, dataResource);
+		connectionUrl = dataResource.getUri().toString();
+	}
 
+	public String getResourceName() {
+		return resourceName;
+	}
+
+	public void afterResourcesInitialized() {
+		// load the driver
 		try {
-			ConfigurationParameterSettings settings = dataResource
-			    .getMetaData().getConfigurationParameterSettings();
-
-			connectionUrl = dataResource.getUri().toString();
-			String driverClassName = (String) settings
-			    .getParameterValue(PARAM_DRIVER_CLASS);
-			// connectionUrl = (String) settings
-			// .getParameterValue(PARAM_CONNECTION_URL);
-			String isolationStr = (String) settings
-			    .getParameterValue(PARAM_ISOLATION_LEVEL);
-			password = (String) settings.getParameterValue(PARAM_PASSWORD);
-			username = (String) settings.getParameterValue(PARAM_USERNAME);
-			Integer timeoutInt = (Integer) settings
-			    .getParameterValue(PARAM_LOGIN_TIMEOUT);
-			Boolean readOnlyBool = (Boolean) settings
-			    .getParameterValue(PARAM_READ_ONLY);
-
-			// CONNECTION_URL
-			// if (connectionUrl == null)
-			// throw new ResourceInitializationException(
-			// ResourceInitializationException.CONFIG_SETTING_ABSENT,
-			// new Object[] { PARAM_CONNECTION_URL });
-
-			// DRIVER_CLASS
-			if (driverClassName == null)
-				throw new ResourceInitializationException(
-				    ResourceInitializationException.CONFIG_SETTING_ABSENT,
-				    new Object[] { PARAM_DRIVER_CLASS });
-
-			try {
-				Class.forName(driverClassName);
-			} catch (ClassNotFoundException e) {
-				throw new ResourceInitializationException(
-				    ResourceInitializationException.RESOURCE_DATA_NOT_VALID,
-				    new Object[] { driverClassName, PARAM_DRIVER_CLASS }, e);
-			}
-
-			// ISLOLATION_LEVEL
-			if (isolationStr != null) {
-				try {
-					isolationLevel = Connection.class.getField(isolationStr)
-					    .getInt(null);
-				} catch (Exception e) {
-					throw new ResourceInitializationException(
-					    ResourceInitializationException.RESOURCE_DATA_NOT_VALID,
-					    new Object[] { isolationStr, PARAM_ISOLATION_LEVEL },
-					    e);
-				}
-			}
-
-			// LOGIN_TIMEOUT
-			if (timeoutInt != null) {
-				if (timeoutInt > 0)
-					DriverManager.setLoginTimeout(timeoutInt);
-				else
-					throw new ResourceInitializationException(
-					    ResourceInitializationException.RESOURCE_DATA_NOT_VALID,
-					    new Object[] { timeoutInt, PARAM_LOGIN_TIMEOUT });
-			}
-
-			// READ_ONLY
-			if (readOnlyBool != null)
-				readOnly = readOnlyBool.booleanValue();
-		} finally {
-			lock.unlock();
+			Class.forName(driverClass);
+		} catch (ClassNotFoundException e) {
+			throw new AssertionError(new ResourceInitializationException(
+			    ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] {
+			        driverClass,
+			        PARAM_DRIVER_CLASS }, e));
 		}
+
+		// determine the isolation level
+		if (isolationStr != null) {
+			try {
+				isolationLevel = Connection.class.getField(isolationStr).getInt(null);
+			} catch (Exception e) {
+				throw new AssertionError(new ResourceInitializationException(
+				    ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] {
+				        isolationStr,
+				        PARAM_ISOLATION_LEVEL }, e));
+			}
+		}
+
+		// set the login timeout
+		if (loginTimeout != -1) {
+			if (loginTimeout > 0)
+				DriverManager.setLoginTimeout(loginTimeout);
+			else
+				throw new AssertionError(new ResourceInitializationException(
+				    ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] {
+				        loginTimeout,
+				        PARAM_LOGIN_TIMEOUT }));
+		}
+		// nothing to do...
 	}
 
 }

@@ -23,59 +23,55 @@ import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
-import txtfnnl.uima.tcas.SyntaxAnnotation;
+import txtfnnl.uima.tcas.SentenceAnnotation;
 
 public class TestSentenceAnnotator {
 
 	AnalysisEngine sentenceAnnotator;
 
 	@Before
-	public void setUp() throws UIMAException, IOException {
+	public void setUp() {
 		DisableLogging.enableLogging(Level.WARNING);
-		sentenceAnnotator = AnalysisEngineFactory
-		    .createAnalysisEngine("txtfnnl.uima.openNLPSentenceAEDescriptor");
 	}
 
 	@Test
-	public void testDestroy() {
+	public void testDestroy() throws UIMAException, IOException {
+		sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure());
 		sentenceAnnotator.destroy();
 		assertTrue("success", true);
 	}
 
 	@Test
 	public void testProcessCAS() throws UIMAException, IOException {
+		sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure());
 		processTest("This is one sentence.", " ");
 	}
 
 	@Test
 	public void testDefaultMultilineSplit() throws UIMAException, IOException {
-		sentenceAnnotator = AnalysisEngineFactory.createAnalysisEngine(
-		    "txtfnnl.uima.openNLPSentenceAEDescriptor",
-		    SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, "multi");
+		sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator
+		    .configure("multi"));
 		processTest("This is a closed sentence.", "\n\n");
 	}
 
 	@Test
 	public void testMultilineSplit() throws UIMAException, IOException {
-		sentenceAnnotator = AnalysisEngineFactory.createAnalysisEngine(
-		    "txtfnnl.uima.openNLPSentenceAEDescriptor",
-		    SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, "multi");
+		sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator
+		    .configure("multi"));
 		processTest("This is an open sentence", "\n\t\n");
 	}
 
 	@Test
 	public void testDefaultLineSplit() throws UIMAException, IOException {
-		sentenceAnnotator = AnalysisEngineFactory.createAnalysisEngine(
-		    "txtfnnl.uima.openNLPSentenceAEDescriptor",
-		    SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, "single");
+		sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator
+		    .configure("single"));
 		processTest("This is a closed sentence.", "\n\n");
 	}
 
 	@Test
 	public void testLineSplit() throws UIMAException, IOException {
-		sentenceAnnotator = AnalysisEngineFactory.createAnalysisEngine(
-		    "txtfnnl.uima.openNLPSentenceAEDescriptor",
-		    SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, "single");
+		sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator
+		    .configure("single"));
 		processTest("This is an open sentence", "\n\n");
 	}
 
@@ -93,11 +89,10 @@ public class TestSentenceAnnotator {
 		sentenceAnnotator.process(baseJCas.getCas());
 		int count = 0;
 		int begin, end;
-		FSIterator<Annotation> it = SentenceAnnotator.getSentenceIterator(
-		    textJCas, SentenceAnnotator.SENTENCE_TYPE_NAME);
+		FSIterator<Annotation> it = SentenceAnnotation.getIterator(textJCas);
 
 		while (it.hasNext()) {
-			SyntaxAnnotation ann = (SyntaxAnnotation) it.next();
+			SentenceAnnotation ann = (SentenceAnnotation) it.next();
 			begin = offsets.next();
 			end = offsets.next();
 			assertEquals(ann.getOffset().toString(), begin, ann.getBegin());

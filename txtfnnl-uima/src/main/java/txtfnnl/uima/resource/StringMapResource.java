@@ -2,12 +2,14 @@ package txtfnnl.uima.resource;
 
 import java.util.Iterator;
 
+import org.apache.uima.resource.SharedResourceObject;
+
 /**
  * A resource specification that uses String keys to return (arbitrary) values.
  *
  * @author Florian Leitner
  */
-public interface StringMapResource<V> {
+public interface StringMapResource<V> extends SharedResourceObject {
 
 	/**
 	 * Return the mapped value V for a given key.

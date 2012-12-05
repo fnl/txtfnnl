@@ -21,7 +21,6 @@ import org.apache.uima.cas.CASRuntimeException;
 import org.apache.uima.collection.CollectionException;
 import org.apache.uima.collection.CollectionReader;
 import org.apache.uima.jcas.JCas;
-import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Progress;
 
 import org.easymock.EasyMock;
@@ -29,7 +28,7 @@ import org.uimafit.factory.CollectionReaderFactory;
 
 import txtfnnl.uima.Views;
 
-public class TestFileSystemCollectionReader {
+public class TestFileReader {
 
 	CollectionReader fileSystemReader;
 	CAS baseCasMock;
@@ -40,8 +39,9 @@ public class TestFileSystemCollectionReader {
 	@Before
 	public void setUp() throws Exception {
 		fileSystemReader = CollectionReaderFactory.createCollectionReader(
-		    FileSystemCollectionReader.class,
-		    FileSystemCollectionReader.PARAM_DIRECTORY, "src/test/resources");
+		    FileReader.configure(new String[] {
+		        "src/test/resources/test.html",
+		        "src/test/resources/test-subdir/test-sub.html" }));
 		baseCasMock = EasyMock.createMock(CAS.class);
 		rawCasMock = EasyMock.createMock(CAS.class);
 		jCasMock = EasyMock.createMock(JCas.class);
@@ -56,8 +56,7 @@ public class TestFileSystemCollectionReader {
 		fileSystemReader.close();
 	}
 
-	private void setGetNextMockExpectations(String path)
-	        throws CASException {
+	private void setGetNextMockExpectations(String path) throws CASException {
 		expect(baseCasMock.createView(Views.CONTENT_RAW.toString()))
 		    .andReturn(rawCasMock);
 		expect(rawCasMock.getJCas()).andReturn(jCasMock);
@@ -91,26 +90,6 @@ public class TestFileSystemCollectionReader {
 	}
 
 	@Test
-	public void testRecursiveReading() throws IOException, CASException {
-		try {
-			fileSystemReader = CollectionReaderFactory.createCollectionReader(
-			    FileSystemCollectionReader.class,
-			    FileSystemCollectionReader.PARAM_DIRECTORY,
-			    "src/test/resources",
-			    FileSystemCollectionReader.PARAM_RECURSIVE, Boolean.TRUE);
-		} catch (ResourceInitializationException e) {
-			e.printStackTrace();
-			fail("resource initialization exception: " + e.getMessage());
-		}
-
-		setGetNextMockExpectations(basePath + "test2.html");
-		setGetNextMockExpectations(basePath + "test-subdir/test-sub.html");
-		replayAll();
-		doGetNext(3);
-		verifyAll();
-	}
-
-	@Test
 	public void testGetNext() throws CASException, CASRuntimeException,
 	        IOException {
 		replayAll();
@@ -122,8 +101,8 @@ public class TestFileSystemCollectionReader {
 	public void testHasNext() throws CollectionException, IOException,
 	        CASException {
 		assertTrue(fileSystemReader.hasNext());
-
-		setGetNextMockExpectations(basePath + "test2.html");
+		
+		setGetNextMockExpectations(basePath + "test-subdir/test-sub.html");
 		replayAll();
 		doGetNext(2);
 
@@ -139,7 +118,7 @@ public class TestFileSystemCollectionReader {
 		assertEquals(2L, p[0].getTotal());
 		assertEquals("0 of 2 entities", p[0].toString());
 
-		setGetNextMockExpectations(basePath + "test2.html");
+		setGetNextMockExpectations(basePath + "test-subdir/test-sub.html");
 		replayAll();
 		doGetNext(2);
 		p = fileSystemReader.getProgress();

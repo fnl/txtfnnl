@@ -136,5 +136,37 @@
       <description>TextAnnotations of text structure (sections, paragraphs, headings, typeface, sub- and superscript, etc.)</description>
       <supertypeName>txtfnnl.uima.tcas.TextAnnotation</supertypeName>
     </typeDescription>
+    <typeDescription>
+      <name>txtfnnl.uima.tcas.TokenAnnotation</name>
+      <description>A subtype for tokens with additional features for the PoS and chunk tag and the token's stem.</description>
+      <supertypeName>txtfnnl.uima.tcas.SyntaxAnnotation</supertypeName>
+      <features>
+        <featureDescription>
+          <name>pos</name>
+          <description>The part-of-speech tag for this token.</description>
+          <rangeTypeName>uima.cas.String</rangeTypeName>
+        </featureDescription>
+        <featureDescription>
+          <name>stem</name>
+          <description>The stem or lemma of this token.</description>
+          <rangeTypeName>uima.cas.String</rangeTypeName>
+        </featureDescription>
+        <featureDescription>
+          <name>chunk</name>
+          <description>The chunk tag of this token.</description>
+          <rangeTypeName>uima.cas.String</rangeTypeName>
+        </featureDescription>
+        <featureDescription>
+          <name>inChunk</name>
+          <description>TRUE if this token is part of a chunk that started with an earlier token.</description>
+          <rangeTypeName>uima.cas.Boolean</rangeTypeName>
+        </featureDescription>
+      </features>
+    </typeDescription>
+    <typeDescription>
+      <name>txtfnnl.uima.tcas.SentenceAnnotation</name>
+      <description>An explicit text annoation type for sentences to simplify their index retrieval.</description>
+      <supertypeName>txtfnnl.uima.tcas.TextAnnotation</supertypeName>
+    </typeDescription>
   </types>
 </typeSystemDescription>

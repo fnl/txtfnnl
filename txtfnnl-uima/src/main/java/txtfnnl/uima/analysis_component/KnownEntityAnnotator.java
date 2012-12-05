@@ -25,53 +25,67 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
+import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
+import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceAccessException;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 
-import txtfnnl.uima.Offset;
+import org.uimafit.descriptor.ConfigurationParameter;
+import org.uimafit.descriptor.ExternalResource;
+import org.uimafit.factory.AnalysisEngineFactory;
+
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.resource.Entity;
+import txtfnnl.uima.resource.EntityStringMapResource;
 import txtfnnl.uima.resource.JdbcConnectionResource;
+import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
 import txtfnnl.uima.tcas.SemanticAnnotation;
+import txtfnnl.uima.utils.Offset;
+import txtfnnl.uima.utils.UIMAUtils;
 import txtfnnl.utils.StringLengthComparator;
 
 /**
- * A "NER" to detect the presence of names for a pre-defined list of entities.
+ * A "NER" to detect the presence of names from a pre-defined list of entities
+ * to look for.
  * 
- * Parameter settings:
- * <ul>
- * <li>String {@link #PARAM_NAMESPACE} (required)</li>
- * <li>String[] {@link #PARAM_QUERIES} (required)</li>
- * </ul>
+ * This AE requires a DB with entity names grouped by entity IDs and a mapping
+ * file that states which entity IDs to search for on each input document.
+ * 
  * Resources:
  * <dl>
- * <dt>KnownEntities</dt>
- * <dd>a TSV file of known entities</dd>
- * <dt>EntityNameDb</dt>
- * <dd>a SQL DB of names for the entities</dd>
+ * <dt>{@link KnownEvidenceAnnotator#MODEL_KEY_EVIDENCE_STRING_MAP}</dt>
+ * <dd>a TSV file of known entity IDs per input file</dd>
+ * <dt>{@link KnownEntityAnnotator#MODEL_KEY_JDBC_CONNECTION}</dt>
+ * <dd>a JDBC-enabled DB of names for the entities grouped by entity IDs</dd>
  * </dl>
- * The <b>KnownEntities</b> resource has to be a TSV file with the following
- * columns:
+ * 
+ * The <b>{@link KnownEvidenceAnnotator#MODEL_KEY_EVIDENCE_STRING_MAP}</b>
+ * resource has to be a TSV file with the following columns:
  * <ol>
  * <li>Document ID: SOFA URI basename (without the file suffix)</li>
- * <li>Entity Type: will be used as the IDs of the SemanticAnnotations, using
- * the <i>Namespace<i> parameter of this Annotator as the base namespace for
- * all SemanticAnnotations</li>
+ * <li>Entity Type: will be used as the identifier feature of the
+ * {@link SemanticAnnotation}s, using the <i>
+ * {@link KnownEntityAnnotator#PARAM_NAMESPACE}<i> parameter of this AE as the
+ * base namespace feature</li>
  * <li>Namespace: of the entity, as used in the EntityNameDb (and not to be
- * confused with the <i>Namespace<i> parameter of this Annotator)</li>
- * <li>Identifier: of the entity, as used in the EntityNameDb</li>
+ * confused with the <i>namespace<i> parameter of this Annotator)</li>
+ * <li>ID: of the entity, as used in the EntityNameDb</li>
  * </ol>
  * 
  * The <b>EntityNameDb</b> resource has to be a database that can produce a
- * list of String names for a given namespace and identifier from the
- * <i>KnownEntities</i> by executing all <i>Queries</i>. The namespace/ID
- * pairs from the <i>KnownEntities</i> will be used as positional parameters
- * in the Queries (namespace first, then identifier!). For example:
+ * list of String names for a given namespace and identifier from the <i>
+ * {@link KnownEvidenceAnnotator#MODEL_KEY_EVIDENCE_STRING_MAP}</i> by
+ * executing all <i>{@link KnownEntityAnnotator#PARAM_QUERIES}</i>. The
+ * namespace/ID pairs from the
+ * {@link KnownEvidenceAnnotator#MODEL_KEY_EVIDENCE_STRING_MAP} will be used
+ * as positional parameters in the DB queries (namespace first, then ID). For
+ * example:
  * 
  * <pre>
  *   SELECT name FROM entities WHERE namespace=? AND identifier=?
@@ -81,17 +95,24 @@ import txtfnnl.utils.StringLengthComparator;
  */
 public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 
-	/** The namespace to use for all annotated entites. */
+	/** The URI of this Annotator (namespace and ID are defined dynamically). */
+	public static final String URI = KnownEntityAnnotator.class.getName();
+
+	/** The namespace to use for all {@link SemanticAnnotation}s. */
 	public static final String PARAM_NAMESPACE = "EntityNamespace";
+	@ConfigurationParameter(name = PARAM_NAMESPACE, mandatory = true)
+	private String namespace;
 
 	/** The list of SQL queries to fetch the entity names. */
 	public static final String PARAM_QUERIES = "Queries";
+	@ConfigurationParameter(name = PARAM_QUERIES, mandatory = true)
+	private String[] queries; // PARAM_QUERIES
 
 	/** The key used for the JdbcConnectionResource. */
 	public static final String MODEL_KEY_JDBC_CONNECTION = "EntityNameDb";
-
-	/** The URI of this Annotator. */
-	public static final String URI = "http://txtfnnl/KnownEntityAnnotator";
+	@ExternalResource(key = MODEL_KEY_JDBC_CONNECTION)
+	private JdbcConnectionResource connector;
+	private Connection conn;
 
 	/** A separator between entity name tokens. */
 	static final String SEPARATOR = "[^\\p{L}\\p{Nd}\\p{Nl}]{,3}";
@@ -108,16 +129,103 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 	private static final int CASE_SENSITIVE = Pattern.UNICODE_CASE;
 
 	/* internal state of the AE */
-	private String namespace = null; // PARAM_NAMESPACE
-	private String[] queries; // PARAM_QUERIES
 	private PreparedStatement[] statements;
-	private JdbcConnectionResource connector; // MODEL_KEY_JDBC_CONNECTION
-	private Connection conn; // the connection from MODEL_KEY_JDBC_CONNECTION
 	private Set<Entity> unknownEntities; // entities not in the DB
 
+	/**
+	 * Configure an AE description for a pipeline.
+	 * 
+	 * @param namespace of the {@link SemanticAnnotation}s
+	 * @param queries to use for fetching entity names from the JDBC-connected
+	 *        DB
+	 * @param entityMap containing filename to entity type, namespace, and ID
+	 *        mappings
+	 * @param dbUrl of the DB to connect to
+	 * @param driverClass to use for connecting to the DB
+	 * @param dbUsername to use for connecting to the DB
+	 * @param dbPassword to use for connecting to the DB
+	 * @return a configured AE description
+	 * @throws ResourceInitializationException
+	 */
+	public static AnalysisEngineDescription configure(String namespace, String[] queries,
+	                                                  File entityMap, String dbUrl,
+	                                                  String driverClass, String dbUsername,
+	                                                  String dbPassword) throws UIMAException,
+	        IOException {
+		ExternalResourceDescription jdbcResource = JdbcConnectionResourceImpl.configure(dbUrl,
+		    driverClass, dbUsername, dbPassword, true);
+		return configure(namespace, queries, entityMap, jdbcResource);
+	}
+
+	/**
+	 * Configure an AE description for a pipeline.
+	 * 
+	 * @param namespace of the {@link SemanticAnnotation}s
+	 * @param queries to use for fetching entity names from the JDBC-connected
+	 *        DB
+	 * @param entityMap containing filename to entity type, namespace, and ID
+	 *        mappings
+	 * @param jdbcResource a (configured) JdbcConnectionResource descriptor
+	 * @return a configured AE description
+	 * @throws ResourceInitializationException
+	 */
+	@SuppressWarnings("serial")
+	public static AnalysisEngineDescription
+	        configure(final String namespace, final String[] queries, File entityMap,
+	                  final ExternalResourceDescription jdbcResource) throws UIMAException,
+	                IOException {
+		final ExternalResourceDescription evidenceMapResource = EntityStringMapResource
+		    .configure("file:" + entityMap.getAbsolutePath());
+
+		return AnalysisEngineFactory.createPrimitiveDescription(KnownEntityAnnotator.class,
+		    UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
+
+			    {
+				    put(MODEL_KEY_EVIDENCE_STRING_MAP, evidenceMapResource);
+				    put(MODEL_KEY_JDBC_CONNECTION, jdbcResource);
+				    put(PARAM_NAMESPACE, namespace);
+				    put(PARAM_QUERIES, queries);
+			    }
+		    }));
+	}
+
+	/**
+	 * Configure an AE description for a pipeline.
+	 * 
+	 * @param namespace of the {@link SemanticAnnotation}s
+	 * @param queries to use for fetching entity names from the JDBC-connected
+	 *        DB
+	 * @param entityMap containing filename to entity type, namespace, and ID
+	 *        mappings
+	 * @param dbUrl of the DB to connect to
+	 * @param driverClass to use for connecting to the DB
+	 * @return a configured AE description
+	 * @throws ResourceInitializationException
+	 */
+	@SuppressWarnings("serial")
+	public static AnalysisEngineDescription configure(final String namespace,
+	                                                  final String[] queries, File entityMap,
+	                                                  String dbUrl, String driverClass)
+	        throws UIMAException, IOException {
+		final ExternalResourceDescription evidenceMapResource = EntityStringMapResource
+		    .configure("file:" + entityMap.getAbsolutePath());
+		final ExternalResourceDescription jdbcResource = JdbcConnectionResourceImpl.configure(
+		    dbUrl, driverClass, true);
+
+		return AnalysisEngineFactory.createPrimitiveDescription(KnownEntityAnnotator.class,
+		    UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
+
+			    {
+				    put(MODEL_KEY_EVIDENCE_STRING_MAP, evidenceMapResource);
+				    put(MODEL_KEY_JDBC_CONNECTION, jdbcResource);
+				    put(PARAM_NAMESPACE, namespace);
+				    put(PARAM_QUERIES, queries);
+			    }
+		    }));
+	}
+
 	@Override
-	public void initialize(UimaContext ctx)
-	        throws ResourceInitializationException {
+	public void initialize(UimaContext ctx) throws ResourceInitializationException {
 		super.initialize(ctx);
 
 		unknownEntities = new HashSet<Entity>();
@@ -125,22 +233,18 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 		queries = (String[]) ctx.getConfigParameterValue(PARAM_QUERIES);
 
 		try {
-			connector = (JdbcConnectionResource) ctx
-			    .getResourceObject(MODEL_KEY_JDBC_CONNECTION);
+			connector = (JdbcConnectionResource) ctx.getResourceObject(MODEL_KEY_JDBC_CONNECTION);
 		} catch (ResourceAccessException e) {
 			throw new ResourceInitializationException(e);
 		}
 
-		ensureNotNull(namespace,
-		    ResourceInitializationException.CONFIG_SETTING_ABSENT,
+		ensureNotNull(namespace, ResourceInitializationException.CONFIG_SETTING_ABSENT,
 		    PARAM_NAMESPACE);
 
-		ensureNotNull(queries,
-		    ResourceInitializationException.CONFIG_SETTING_ABSENT,
+		ensureNotNull(queries, ResourceInitializationException.CONFIG_SETTING_ABSENT,
 		    PARAM_QUERIES);
 
-		ensureNotNull(connector,
-		    ResourceInitializationException.NO_RESOURCE_FOR_PARAMETERS,
+		ensureNotNull(connector, ResourceInitializationException.NO_RESOURCE_FOR_PARAMETERS,
 		    MODEL_KEY_JDBC_CONNECTION);
 
 		statements = new PreparedStatement[queries.length];
@@ -149,8 +253,8 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 			conn = connector.getConnection();
 
 			for (int idx = 0; idx < queries.length; ++idx)
-				statements[idx] = conn.prepareStatement(queries[idx],
-				    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+				statements[idx] = conn.prepareStatement(queries[idx], ResultSet.TYPE_FORWARD_ONLY,
+				    ResultSet.CONCUR_READ_ONLY);
 		} catch (SQLException e) {
 			throw new ResourceInitializationException(e);
 		}
@@ -167,8 +271,8 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 		checksum += numEntities;
 
 		// Match the names of those entities to the document text
-		Map<Entity, Integer> matches = annotateEntities(entities, matched,
-		    documentId, textCas, CASE_SENSITIVE);
+		Map<Entity, Integer> matches = annotateEntities(entities, matched, documentId, textCas,
+		    CASE_SENSITIVE);
 
 		if (matches != null) {
 			// Check missed matches: missed matches are either cases of no
@@ -194,17 +298,15 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 					logger.log(
 					    Level.FINE,
 					    "case-insensitive matching for " +
-					            Arrays.toString(entities
-					                .toArray(new Entity[] {})));
-				matches = annotateEntities(entities, matched, documentId,
-				    textCas, CASE_INSENSITIVE);
+					            Arrays.toString(entities.toArray(new Entity[] {})));
+				matches = annotateEntities(entities, matched, documentId, textCas,
+				    CASE_INSENSITIVE);
 
 				if (matches != null) {
 					for (Entity e : entities) {
 						if (matches.get(e) == 0) {
 							--tp;
-							logger.log(Level.INFO, "no names for " + e +
-							                       " found in doc '" +
+							logger.log(Level.INFO, "no names for " + e + " found in doc '" +
 							                       documentId + "'");
 						}
 					}
@@ -233,23 +335,21 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 	 * @throws AnalysisEngineProcessException if the SQL query or the JDBC
 	 *         fails
 	 */
-	        Map<Entity, Integer>
-	        annotateEntities(Set<Entity> entities,
-	                         Map<Offset, Set<Entity>> alreadyMatched,
-	                         String documentId, JCas textCas, int patternFlags)
-	                throws AnalysisEngineProcessException {
+	Map<Entity, Integer> annotateEntities(Set<Entity> entities,
+	                                      Map<Offset, Set<Entity>> alreadyMatched,
+	                                      String documentId, JCas textCas, int patternFlags)
+	        throws AnalysisEngineProcessException {
 		// Create a mapping of all names to their entities in the list
 		Map<String, Set<Entity>> nameMap = generateNameMap(entities);
 		Map<Entity, Integer> entityMatches = null;
 
 		if (nameMap.size() == 0) {
 			if (patternFlags == CASE_SENSITIVE)
-				logger.log(Level.WARNING,
-				    "no known names for any entity in doc '" + documentId +
-				            "' found");
+				logger.log(Level.WARNING, "no known names for any entity in doc '" + documentId +
+				                          "' found");
 		} else {
-			entityMatches = matchEntities(entities, documentId, textCas,
-			    patternFlags, nameMap, alreadyMatched);
+			entityMatches = matchEntities(entities, documentId, textCas, patternFlags, nameMap,
+			    alreadyMatched);
 		}
 
 		// Return the counted matches for each entity
@@ -293,8 +393,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 	 * @return a Set of names
 	 * @throws AnalysisEngineProcessException if the SQL query or JDBC fails
 	 */
-	private Set<String> getNames(Entity entity)
-	        throws AnalysisEngineProcessException {
+	private Set<String> getNames(Entity entity) throws AnalysisEngineProcessException {
 		Set<String> names = new HashSet<String>();
 		ResultSet result;
 
@@ -334,19 +433,15 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 	 * @param alreadyMatched entities at a given offset
 	 * @return the number of matches for each Entity in list
 	 */
-	Map<Entity, Integer>
-	        matchEntities(Set<Entity> entities, String documentId,
-	                      JCas textCas, int patternFlags,
-	                      Map<String, Set<Entity>> nameMap,
-	                      Map<Offset, Set<Entity>> alreadyMatched) {
+	Map<Entity, Integer> matchEntities(Set<Entity> entities, String documentId, JCas textCas,
+	                                   int patternFlags, Map<String, Set<Entity>> nameMap,
+	                                   Map<Offset, Set<Entity>> alreadyMatched) {
 		// Generate one "gigantic" regex from all names
-		Pattern regex = generateRegex(new ArrayList<String>(nameMap.keySet()),
-		    patternFlags);
+		Pattern regex = generateRegex(new ArrayList<String>(nameMap.keySet()), patternFlags);
 		String text = textCas.getDocumentText();
 		Matcher match = regex.matcher(text);
 		boolean caseInsensitiveMatching = (patternFlags == CASE_INSENSITIVE);
-		Map<Entity, Integer> matchCounts = new HashMap<Entity, Integer>(
-		    entities.size());
+		Map<Entity, Integer> matchCounts = new HashMap<Entity, Integer>(entities.size());
 
 		for (Entity e : entities)
 			matchCounts.put(e, Integer.valueOf(0));
@@ -399,8 +494,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 				alreadyMatched.put(offset, done);
 			}
 
-			if (!nameMap.containsKey(name) &&
-			    (lower == null || !nameMap.containsKey(lower))) {
+			if (!nameMap.containsKey(name) && (lower == null || !nameMap.containsKey(lower))) {
 				// If the name does not match, it *should* match to a
 				// name in the compressionMap
 				name = compressed(name);
@@ -409,14 +503,11 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 			}
 
 			if (map.containsKey(name)) {
-				annotateAll(entities, textCas, offset, matchCounts, done,
-				    map.get(name));
+				annotateAll(entities, textCas, offset, matchCounts, done, map.get(name));
 			} else if (lower != null && map.containsKey(lower)) {
-				annotateAll(entities, textCas, offset, matchCounts, done,
-				    map.get(lower));
+				annotateAll(entities, textCas, offset, matchCounts, done, map.get(lower));
 			} else {
-				logFailedMatch(documentId, nameMap, regex, text,
-				    compressionMap, name, offset);
+				logFailedMatch(documentId, nameMap, regex, text, compressionMap, name, offset);
 			}
 		}
 		return matchCounts;
@@ -484,9 +575,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 		return Pattern.compile(regex.substring(0, regex.length() - 1), flags);
 	}
 
-	private static boolean
-	        compressedNameIsTwoThirdsOfLength(String compressedName,
-	                                          String name) {
+	private static boolean compressedNameIsTwoThirdsOfLength(String compressedName, String name) {
 		return (float) compressedName.length() / name.length() > 2.0 / 3.0;
 	}
 
@@ -501,8 +590,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 			} // else skip (modifier letter)!
 		} else if (Character.isDigit(c)) {
 			state = handleDigit(buf, c, state);
-		} else if (state != OTHER && Character.isDefined(c) &&
-		           !Character.isISOControl(c)) {
+		} else if (state != OTHER && Character.isDefined(c) && !Character.isISOControl(c)) {
 			state = OTHER;
 			buf.append("\\W*");
 		}
@@ -568,8 +656,8 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 	}
 
 	private void annotateAll(Set<Entity> list, JCas textCas, Offset span,
-	                         Map<Entity, Integer> matchCount,
-	                         Set<Entity> alreadyMatched, Set<Entity> entities) {
+	                         Map<Entity, Integer> matchCount, Set<Entity> alreadyMatched,
+	                         Set<Entity> entities) {
 		for (Entity e : entities) {
 			if (!alreadyMatched.contains(e)) {
 				// Annotate all entities that map to that name on
@@ -601,42 +689,34 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 		}
 	}
 
-	private void logFailedMatch(String documentId,
-	                            Map<String, Set<Entity>> nameMap,
-	                            Pattern regex, String text,
-	                            Map<String, Set<Entity>> compressionMap,
-	                            String name, Offset offset) {
-		logger.log(Level.WARNING, "name='" + name +
-		                          "' not found in name map for doc '" +
+	private void
+	        logFailedMatch(String documentId, Map<String, Set<Entity>> nameMap, Pattern regex,
+	                       String text, Map<String, Set<Entity>> compressionMap, String name,
+	                       Offset offset) {
+		logger.log(Level.WARNING, "name='" + name + "' not found in name map for doc '" +
 		                          documentId + "'");
-		logger.log(Level.INFO,
-		    "map names=" + Arrays.toString(nameMap.keySet().toArray()) +
-		            " for doc '" + documentId + "'");
+		logger.log(Level.INFO, "map names=" + Arrays.toString(nameMap.keySet().toArray()) +
+		                       " for doc '" + documentId + "'");
 
 		if (logger.isLoggable(Level.FINE)) {
-			logger.log(
-			    Level.FINE,
-			    "surrounding text='" +
-			            text.substring(
-			                offset.start() - 10 > 0 ? offset.start() - 10 : 0,
-			                offset.end() + 10 < text.length()
-			                        ? offset.end() + 10
-			                        : text.length()) + "' in doc '" +
-			            documentId + "'");
-			logger.log(
-			    Level.FINE,
-			    "compressed names=" +
-			            Arrays.toString(compressionMap.keySet().toArray()) +
+			logger
+			    .log(
+			        Level.FINE,
+			        "surrounding text='" +
+			                text.substring(
+			                    offset.start() - 10 > 0 ? offset.start() - 10 : 0,
+			                    offset.end() + 10 < text.length() ? offset.end() + 10 : text
+			                        .length()) + "' in doc '" + documentId + "'");
+			logger.log(Level.FINE,
+			    "compressed names=" + Arrays.toString(compressionMap.keySet().toArray()) +
 			            " for doc '" + documentId + "'");
 
-			logger.log(Level.FINE, "regex='" + regex.pattern() +
-			                       "' for doc '" + documentId + "'");
+			logger.log(Level.FINE, "regex='" + regex.pattern() + "' for doc '" + documentId + "'");
 		}
 	}
 
-	public static File
-	        createFromRelationshipMap(File relMap, String separator)
-	                throws ResourceInitializationException {
+	public static File createFromRelationshipMap(File relMap, String separator)
+	        throws ResourceInitializationException {
 		InputStream inStr = null;
 		BufferedWriter outStr = null;
 		String line;
@@ -645,14 +725,12 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 		try {
 			// open input stream to data
 			inStr = new FileInputStream(relMap);
-			BufferedReader reader = new BufferedReader(new InputStreamReader(
-			    inStr));
+			BufferedReader reader = new BufferedReader(new InputStreamReader(inStr));
 
 			// open an output stream
 			output = File.createTempFile("gene_", ".map");
 			output.deleteOnExit();
-			outStr = new BufferedWriter(new OutputStreamWriter(
-			    new FileOutputStream(output)));
+			outStr = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(output)));
 
 			// read each Relationship line and convert to single Entity lines
 			while ((line = reader.readLine()) != null) {
@@ -663,9 +741,10 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 				String[] items = line.split(separator);
 
 				if ((items.length - 1) % 3 != 0)
-					new ResourceInitializationException(new AssertionError(
-					    "illegal line: '" + line + "' with " + items.length +
-					            " fields"));
+					new ResourceInitializationException(new AssertionError("illegal line: '" +
+					                                                       line + "' with " +
+					                                                       items.length +
+					                                                       " fields"));
 
 				int numEntities = (items.length - 1) / 3;
 
@@ -675,7 +754,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 
 					for (int i = 0; i < 3; ++i) {
 						outStr.write(items[1 + idx * 3 + i]);
-						
+
 						if (i != 2)
 							outStr.write(separator);
 					}

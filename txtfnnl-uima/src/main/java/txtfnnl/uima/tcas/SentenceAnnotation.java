@@ -1,5 +1,4 @@
-
-/* First created by JCasGen Fri Jun 22 11:12:49 CEST 2012 */
+/* First created by JCasGen Tue Nov 27 14:20:55 CET 2012 */
 package txtfnnl.uima.tcas;
 
 import org.apache.uima.cas.FSIterator;
@@ -12,15 +11,15 @@ import org.apache.uima.jcas.tcas.Annotation;
 import txtfnnl.uima.utils.Offset;
 
 /**
- * TextAnnotations of semantic elements (PoS, named entities, etc.). Updated
- * by JCasGen Tue Nov 27 14:20:54 CET 2012 XML source:
- * /Users/fleitner/Workspace
- * /txtfnnl/txtfnnl-uima/src/main/resources/txtfnnl/uima
+ * An explicit text annoation type for sentences to simplify their index
+ * retrieval. Updated by JCasGen Tue Nov 27 14:20:55 CET 2012 XML source:
+ * /Users
+ * /fleitner/Workspace/txtfnnl/txtfnnl-uima/src/main/resources/txtfnnl/uima
  * /typeSystemDescriptor.xml
  * 
  * @generated
  */
-public class SemanticAnnotation extends TextAnnotation {
+public class SentenceAnnotation extends SyntaxAnnotation {
 
 	/**
 	 * Return a specialized filter for this annotation type.
@@ -36,7 +35,7 @@ public class SemanticAnnotation extends TextAnnotation {
 	                                               String namespace,
 	                                               String identifier) {
 		return TextAnnotation.makeConstraint(
-		    SemanticAnnotation.class.getName(), jcas, annotatorUri, namespace,
+		    SentenceAnnotation.class.getName(), jcas, annotatorUri, namespace,
 		    identifier);
 	}
 
@@ -44,7 +43,7 @@ public class SemanticAnnotation extends TextAnnotation {
 	 * Return a specialized filter for sentence annotations.
 	 * 
 	 * @param jcas to create the constraint for
-	 * @param annoatorUri to filter on
+	 * @param annotatorUri to filter on
 	 * @param namespace to filter on
 	 * @return a particular sentence annotation constraint
 	 */
@@ -58,12 +57,12 @@ public class SemanticAnnotation extends TextAnnotation {
 	 * Return a specialized filter for sentence annotations.
 	 * 
 	 * @param jcas to create the constraint for
-	 * @param annoatorUri to filter on
+	 * @param namespace to filter on
 	 * @return a particular sentence annotation constraint
 	 */
 	public static FSMatchConstraint makeConstraint(JCas jcas,
-	                                               String annotatorUri) {
-		return makeConstraint(jcas, annotatorUri, null);
+	                                               String namespace) {
+		return makeConstraint(jcas, null, namespace);
 	}
 
 	/**
@@ -73,10 +72,10 @@ public class SemanticAnnotation extends TextAnnotation {
 	 * @return
 	 */
 	public static FSIterator<Annotation> getIterator(JCas jcas) {
-		return jcas.getAnnotationIndex(SemanticAnnotation.type).iterator();
+		return jcas.getAnnotationIndex(SentenceAnnotation.type).iterator();
 	}
 
-	public SemanticAnnotation(JCas jcas, Offset offset) {
+	public SentenceAnnotation(JCas jcas, Offset offset) {
 		super(jcas, offset);
 		readObject();
 	}
@@ -87,7 +86,7 @@ public class SemanticAnnotation extends TextAnnotation {
 	 */
 	@SuppressWarnings("hiding")
 	public final static int typeIndexID = JCasRegistry
-	    .register(SemanticAnnotation.class);
+	    .register(SentenceAnnotation.class);
 	/**
 	 * @generated
 	 * @ordered
@@ -106,26 +105,26 @@ public class SemanticAnnotation extends TextAnnotation {
 	 * 
 	 * @generated
 	 */
-	protected SemanticAnnotation() {/* intentionally empty block */}
+	protected SentenceAnnotation() {/* intentionally empty block */}
 
 	/**
 	 * Internal - constructor used by generator
 	 * 
 	 * @generated
 	 */
-	public SemanticAnnotation(int addr, TOP_Type type) {
+	public SentenceAnnotation(int addr, TOP_Type type) {
 		super(addr, type);
 		readObject();
 	}
 
 	/** @generated */
-	public SemanticAnnotation(JCas jcas) {
+	public SentenceAnnotation(JCas jcas) {
 		super(jcas);
 		readObject();
 	}
 
 	/** @generated */
-	public SemanticAnnotation(JCas jcas, int begin, int end) {
+	public SentenceAnnotation(JCas jcas, int begin, int end) {
 		super(jcas);
 		setBegin(begin);
 		setEnd(end);

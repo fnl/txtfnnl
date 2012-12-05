@@ -1,14 +1,16 @@
 package txtfnnl.uima.analysis_component;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import opennlp.uima.util.UimaUtil;
-
+import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
+import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.cas.ConstraintFactory;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.cas.FSMatchConstraint;
@@ -20,25 +22,32 @@ import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.jcas.cas.TOP;
 import org.apache.uima.jcas.tcas.Annotation;
+import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 
-import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
+import org.uimafit.descriptor.ConfigurationParameter;
+import org.uimafit.factory.AnalysisEngineFactory;
+
 import txtfnnl.uima.resource.Entity;
+import txtfnnl.uima.resource.RelationshipStringMapResource;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
 import txtfnnl.uima.tcas.SemanticAnnotation;
-import txtfnnl.uima.tcas.SyntaxAnnotation;
+import txtfnnl.uima.tcas.SentenceAnnotation;
+import txtfnnl.uima.utils.UIMAUtils;
 
 /**
- * An AE that annotates sentences as (potentially) containing a relationship
- * (description) between pre-defined sets of entities.
+ * An AE that annotates {@link SemanticAnnotation} {@link Entity} instances in
+ * {@link SentenceAnnotation}s as (potentially) describing a relation between
+ * those entities by creating {@link RelationshipAnnotation}s between the
+ * sentences and entities.
  * 
  * Note that the entities should have been annotated by the
  * {@link KnownEntityAnnotator} or at least obey the following requirements:
  * <ul>
- * <li>The must be {@link txtfnnl.uima.tcas.SemanticAnnotation} types</li>
- * <li>The :identifier annotation must represent the Entity type value</li>
- * <li>The first Property value must hold the Entity namespace value</li>
- * <li>The second Property value must hold the Entity identifier value</li>
+ * <li>They must be {@link SemanticAnnotation} types</li>
+ * <li>The :identifier feature must represent the Entity type value</li>
+ * <li>The first :property value must hold the Entity's namespace value</li>
+ * <li>The second :property value must hold the Entity's identifier value</li>
  * </ul>
  * 
  * Parameter settings:
@@ -69,55 +78,67 @@ import txtfnnl.uima.tcas.SyntaxAnnotation;
  * 
  * @author Florian Leitner
  */
-public class KnownRelationshipAnnotator extends
-        KnownEvidenceAnnotator<List<Set<Entity>>> {
+public class KnownRelationshipAnnotator extends KnownEvidenceAnnotator<List<Set<Entity>>> {
 
 	/** The URI of this Annotator. */
-	public static final String URI = "http://txtfnnl/KnownRelationshipAnnotator";
+	public static final String URI = KnownRelationshipAnnotator.class.getName();
 
-	/** The namespace for the Relationship annotations. */
 	public static final String PARAM_RELATIONSHIP_NAMESPACE = "RelationshipNamespace";
-
-	/** The namespace used by the Entity annotations. */
-	public static final String PARAM_ENTITY_NAMESPACE = KnownEntityAnnotator.PARAM_NAMESPACE;
-
-	/** Remove sentence annotations that contain no relationship. */
-	public static final String PARAM_REMOVE_SENTENCE_ANNOTATIONS = "RemoveSentenceAnnotations";
-
-	/**
-	 * The name of the sentence annotation type.
-	 * 
-	 * Defaults to {@link SentenceAnnotator#SENTENCE_TYPE_NAME}. Can be set as
-	 * an AE descriptor parameter with the name
-	 * {@link UimaUtil#SENTENCE_TYPE_PARAMETER}.
-	 */
-	private String sentenceTypeName;
-
-	/**
-	 * The namespace used to annotate Entities.
-	 * 
-	 * Should be set as an AE descriptor parameter with the name
-	 * {@link KnownRelationshipAnnotator#PARAM_ENTITY_NAMESPACE}.
-	 * */
-	private String entityNamespace;
-
-	/**
-	 * The namespace used to annotate Relationships.
-	 * 
-	 * Should be set as an AE descriptor parameter with the name
-	 * {@link KnownRelationshipAnnotator#PARAM_RELATIONSHIP_NAMESPACE}.
-	 * */
+	@ConfigurationParameter(name = PARAM_RELATIONSHIP_NAMESPACE, mandatory = true)
 	private String relationshipNamespace;
 
 	/**
-	 * Flag indicating if sentence annotations without relationships should
-	 * be removed from the CAS.
-	 * 
-	 * Should be set as an AE descriptor parameter with the name
-	 * {@link KnownRelationshipAnnotator#PARAM_REMOVE_SENTENCE_ANNOTATIONS}.
+	 * The namespace that was used to annotate entities (as
+	 * {@link SemanticAnnotation} :namespace features).
 	 */
-	private boolean removeSentenceAnnotations = false;
+	public static final String PARAM_ENTITY_NAMESPACE = KnownEntityAnnotator.PARAM_NAMESPACE;
+	@ConfigurationParameter(name = PARAM_ENTITY_NAMESPACE, mandatory = true)
+	private String entityNamespace;
 
+	/**
+	 * Remove sentence annotations that contain no relationship.
+	 * 
+	 * An optional flag indicating if sentence annotations without
+	 * relationships should be removed from the CAS.
+	 */
+	public static final String PARAM_REMOVE_SENTENCE_ANNOTATIONS = "RemoveSentenceAnnotations";
+	@ConfigurationParameter(name = PARAM_REMOVE_SENTENCE_ANNOTATIONS, defaultValue = "false")
+	private boolean removeSentenceAnnotations;
+
+	/**
+	 * Configure an AE description for a pipeline.
+	 * 
+	 * @param namespace of the {@link SemanticAnnotation}s
+	 * @param queries to use for fetching entity names from the JDBC-connected DB
+	 * @param entityMap containing filename to entity type, namespace, and ID mappings
+	 * @param dbUrl of the DB to connect to
+	 * @param driverClass to use for connecting to the DB
+	 * @param dbUsername to use for connecting to the DB
+	 * @param dbPassword to use for connecting to the DB
+	 * @return a configured AE description
+	 * @throws ResourceInitializationException
+	 */
+	@SuppressWarnings("serial")
+	public static AnalysisEngineDescription configure(final String entityNamespace,
+	                                                  final String relationshipNamespace,
+	                                                  File relationshipMap,
+	                                                  final boolean removeSentenceAnnotations)
+	        throws UIMAException, IOException {
+		final ExternalResourceDescription evidenceMapResource = RelationshipStringMapResource
+		    .configure("file:" + relationshipMap.getAbsolutePath());
+
+		return AnalysisEngineFactory.createPrimitiveDescription(KnownRelationshipAnnotator.class,
+		    UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
+
+			    {
+				    put(MODEL_KEY_EVIDENCE_STRING_MAP, evidenceMapResource);
+				    put(PARAM_ENTITY_NAMESPACE, entityNamespace);
+				    put(PARAM_RELATIONSHIP_NAMESPACE, relationshipNamespace);
+				    put(PARAM_REMOVE_SENTENCE_ANNOTATIONS, removeSentenceAnnotations);
+			    }
+		    }));
+	}
+	
 	/**
 	 * Create an iterator over
 	 * {@link txtfnnl.uima.tcas.RelationshipAnnotation} annotation types of
@@ -127,8 +148,7 @@ public class KnownRelationshipAnnotator extends
 	 * @param namespace to filter on (<code>null</code> to use all)
 	 * @return an iterator over RelationshipAnnotation elements
 	 */
-	public static FSIterator<TOP> getRelationshipIterator(JCas jcas,
-	                                                      String namespace) {
+	public static FSIterator<TOP> getRelationshipIterator(JCas jcas, String namespace) {
 		FSIterator<TOP> annIt = jcas.getJFSIndexRepository().getAllIndexedFS(
 		    RelationshipAnnotation.type);
 
@@ -147,31 +167,22 @@ public class KnownRelationshipAnnotator extends
 	}
 
 	@Override
-	public void initialize(UimaContext ctx)
-	        throws ResourceInitializationException {
+	public void initialize(UimaContext ctx) throws ResourceInitializationException {
 		super.initialize(ctx);
-		sentenceTypeName = (String) ctx
-		    .getConfigParameterValue(UimaUtil.SENTENCE_TYPE_PARAMETER);
-		entityNamespace = (String) ctx
-		    .getConfigParameterValue(PARAM_ENTITY_NAMESPACE);
-		relationshipNamespace = (String) ctx
-		    .getConfigParameterValue(PARAM_RELATIONSHIP_NAMESPACE);
+		entityNamespace = (String) ctx.getConfigParameterValue(PARAM_ENTITY_NAMESPACE);
+		relationshipNamespace = (String) ctx.getConfigParameterValue(PARAM_RELATIONSHIP_NAMESPACE);
 
-		if (sentenceTypeName == null)
-			sentenceTypeName = SentenceAnnotator.SENTENCE_TYPE_NAME;
-
-		ensureNotNull(entityNamespace,
-		    ResourceInitializationException.CONFIG_SETTING_ABSENT,
+		ensureNotNull(entityNamespace, ResourceInitializationException.CONFIG_SETTING_ABSENT,
 		    PARAM_ENTITY_NAMESPACE);
 
 		ensureNotNull(relationshipNamespace,
-		    ResourceInitializationException.CONFIG_SETTING_ABSENT,
-		    PARAM_RELATIONSHIP_NAMESPACE);
+		    ResourceInitializationException.CONFIG_SETTING_ABSENT, PARAM_RELATIONSHIP_NAMESPACE);
 
 		Boolean rsaBoolean = (Boolean) ctx
 		    .getConfigParameterValue(PARAM_REMOVE_SENTENCE_ANNOTATIONS);
-		removeSentenceAnnotations = (rsaBoolean != null && rsaBoolean
-		    .booleanValue()) ? true : false;
+		removeSentenceAnnotations = (rsaBoolean != null && rsaBoolean.booleanValue())
+		        ? true
+		        : false;
 	}
 
 	/**
@@ -187,40 +198,28 @@ public class KnownRelationshipAnnotator extends
 	 *        to annotate
 	 */
 	@Override
-	void process(String documentId, JCas textJCas,
-	             List<Set<Entity>> relationships) {
+	void process(String documentId, JCas textJCas, List<Set<Entity>> relationships) {
 		int numRels = relationships.size();
 		int[] found = new int[numRels];
 		checksum += numRels;
 		boolean hadRelations = false;
-		List<SyntaxAnnotation> remove = new LinkedList<SyntaxAnnotation>();
+		List<Annotation> remove = new LinkedList<Annotation>();
 
-		// Fetch the sentence iterator and the entity annotation index
-		FSIterator<Annotation> sentenceIt = SentenceAnnotator
-		    .getSentenceIterator(textJCas, sentenceTypeName);
+		// Fetch a sentence iterator and the entity annotation index
+		FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textJCas);
 		AnnotationIndex<Annotation> semanticAnnIdx = textJCas
 		    .getAnnotationIndex(SemanticAnnotation.type);
 
 		// Create an FSIterator constraint for entity annotations
-		Feature namespaceFeat = textJCas.getTypeSystem().getFeatureByFullName(
-		    SemanticAnnotation.class.getName() + ":namespace");
-		ConstraintFactory cf = textJCas.getConstraintFactory();
-		FeaturePath namespacePath = textJCas.createFeaturePath();
-		namespacePath.addFeature(namespaceFeat);
-		FSStringConstraint namespaceCons = cf.createStringConstraint();
-		namespaceCons.equals(entityNamespace);
-		FSMatchConstraint entityCons = cf.embedConstraint(namespacePath,
-		    namespaceCons);
+		FSMatchConstraint entityCons = SemanticAnnotation
+		    .makeConstraint(textJCas, entityNamespace);
 
 		// Iterate over every sentence
 		while (sentenceIt.hasNext()) {
 			hadRelations = false;
-			SyntaxAnnotation sentenceAnn = (SyntaxAnnotation) sentenceIt
-			    .next();
-			FSIterator<Annotation> semanticAnnIt = semanticAnnIdx
-			    .subiterator(sentenceAnn);
+			Annotation sentenceAnn = sentenceIt.next();
 			FSIterator<Annotation> entityIt = textJCas.createFilteredIterator(
-			    semanticAnnIt, entityCons);
+			    semanticAnnIdx.subiterator(sentenceAnn), entityCons);
 
 			// If the sentence has entities...
 			if (entityIt.hasNext()) {
@@ -228,15 +227,12 @@ public class KnownRelationshipAnnotator extends
 
 				// Collect all annotations into an entity map
 				while (entityIt.hasNext()) {
-					SemanticAnnotation entityAnn = (SemanticAnnotation) entityIt
-					    .next();
-					Entity entity = new Entity(entityAnn.getIdentifier(),
-					    entityAnn.getProperties(0).getValue(), entityAnn
-					        .getProperties(1).getValue());
+					SemanticAnnotation entityAnn = (SemanticAnnotation) entityIt.next();
+					Entity entity = new Entity(entityAnn.getIdentifier(), entityAnn.getProperties(
+					    0).getValue(), entityAnn.getProperties(1).getValue());
 
 					if (!entityMap.containsKey(entity))
-						entityMap.put(entity,
-						    new LinkedList<SemanticAnnotation>());
+						entityMap.put(entity, new LinkedList<SemanticAnnotation>());
 
 					entityMap.get(entity).add(entityAnn);
 				}
@@ -247,8 +243,7 @@ public class KnownRelationshipAnnotator extends
 				// with the entities found in the sentence, annotate it
 				if (pos != -1) {
 					found[pos] = 1;
-					annotateRelationship(entitySet, textJCas, entityMap,
-					    sentenceAnn);
+					annotateRelationship(entitySet, textJCas, entityMap, sentenceAnn);
 					hadRelations = true;
 				} else {
 					List<Set<Entity>> done = new LinkedList<Set<Entity>>();
@@ -258,21 +253,20 @@ public class KnownRelationshipAnnotator extends
 
 						if (entitySet.containsAll(rel) && !done.contains(rel)) {
 							found[pos] = 1;
-							annotateRelationship(rel, textJCas, entityMap,
-							    sentenceAnn);
+							annotateRelationship(rel, textJCas, entityMap, sentenceAnn);
 							done.add(rel);
 							hadRelations = true;
 						}
 					}
 				}
 			}
-			
+
 			if (!hadRelations && removeSentenceAnnotations)
 				remove.add(sentenceAnn);
 		}
-		
+
 		if (removeSentenceAnnotations) {
-			for (SyntaxAnnotation sentenceAnn : remove) {
+			for (Annotation sentenceAnn : remove) {
 				textJCas.removeFsFromIndexes(sentenceAnn);
 			}
 		}
@@ -288,9 +282,10 @@ public class KnownRelationshipAnnotator extends
 	 * @param entityMap of entities all their to SemanticAnnotation objects
 	 * @param sentence containing the SemanticAnnotation objects
 	 */
-	void annotateRelationship(Set<Entity> relationship, JCas jcas,
-	                          Map<Entity, List<SemanticAnnotation>> entityMap,
-	                          SyntaxAnnotation sentence) {
+	void
+	        annotateRelationship(Set<Entity> relationship, JCas jcas,
+	                             Map<Entity, List<SemanticAnnotation>> entityMap,
+	                             Annotation sentence) {
 		RelationshipAnnotation ann = new RelationshipAnnotation(jcas);
 		FSArray relSource = new FSArray(jcas, 1);
 		int targetSize = 0;
@@ -310,7 +305,7 @@ public class KnownRelationshipAnnotator extends
 
 		ann.setAnnotator(URI);
 		ann.setConfidence(1.0);
-		ann.setIdentifier("TODO-relationship-id"); // TODO
+		ann.setIdentifier("known-relationship"); // TODO
 		ann.setNamespace(relationshipNamespace);
 		ann.setSources(relSource);
 		ann.setTargets(relTarget);

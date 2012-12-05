@@ -15,8 +15,8 @@ import org.junit.Test;
 import org.apache.tika.metadata.Metadata;
 import org.apache.uima.UIMAException;
 import org.apache.uima.analysis_engine.AnalysisEngine;
+import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.CASRuntimeException;
 import org.apache.uima.jcas.JCas;
 
@@ -31,28 +31,44 @@ import txtfnnl.uima.tcas.StructureAnnotation;
 
 public class TestTikaAnnotator {
 
-	AnalysisEngine tikaAnnotator;
-	JCas baseJCas;
-
 	@Before
 	public void setUp() throws UIMAException, IOException {
-		tikaAnnotator = AnalysisEngineFactory
-		    .createAnalysisEngine("txtfnnl.uima.tikaAEDescriptor");
-		baseJCas = tikaAnnotator.newJCas();
 		DisableLogging.enableLogging(Level.WARNING);
 	}
 
+	AnalysisEngine getEngine(String encoding, boolean normalizeGreek, String xmlHandler)
+	        throws UIMAException, IOException {
+		AnalysisEngineDescription aed = TikaAnnotator.configure(encoding, normalizeGreek,
+			xmlHandler);
+		return AnalysisEngineFactory.createPrimitive(aed);
+	}
+	
+	AnalysisEngine getEngine()
+	        throws UIMAException, IOException {
+		return getEngine(null, false, null);
+	}
+
 	@Test
-	public void testProcessRequiresRawView() throws CASException {
+	public void testConfiguration() throws UIMAException, IOException {
+		AnalysisEngineDescription aed = TikaAnnotator.configure();
+		aed.doFullValidation();
+	}
+
+	@Test
+	public void testProcessRequiresRawView() throws UIMAException, IOException {
 		DisableLogging.disableLogging();
-		assertThrows(baseJCas, "No sofaFS with name CONTENT_RAW found.",
-		    CASRuntimeException.class);
+		AnalysisEngine tikaAnnotator = getEngine();
+		JCas baseJCas = tikaAnnotator.newJCas();
+		
+		assertThrows(baseJCas, "No sofaFS with name CONTENT_RAW found.", CASRuntimeException.class);
 		baseJCas.createView(Views.CONTENT_RAW.toString());
 		assertThrows(baseJCas, "no SOFA data stream", AssertionError.class);
 	}
 
-	private void assertThrows(JCas cas, String message, Class<?> type) {
+	private void assertThrows(JCas cas, String message, Class<?> type)
+	        throws UIMAException, IOException {
 		boolean thrown = false;
+		AnalysisEngine tikaAnnotator = getEngine();
 
 		try {
 			tikaAnnotator.process(cas);
@@ -66,31 +82,33 @@ public class TestTikaAnnotator {
 	}
 
 	@Test
-	public void testProcessCreatesNewPlainTextView()
-	        throws AnalysisEngineProcessException, CASException {
+	public void testProcessCreatesNewPlainTextView() throws UIMAException, IOException {
+		AnalysisEngine tikaAnnotator = getEngine(null, true, null);
+		JCas baseJCas = tikaAnnotator.newJCas();
+
 		JCas jCas = baseJCas.createView(Views.CONTENT_RAW.toString());
 		jCas.setSofaDataString("text ß", "text/plain"); // latin small sharp S
 		tikaAnnotator.process(baseJCas);
 		assertNotNull(baseJCas.getView(Views.CONTENT_TEXT.toString()));
-		assertEquals("text beta",
-		    baseJCas.getView(Views.CONTENT_TEXT.toString()).getDocumentText());
+		assertEquals("text beta", baseJCas.getView(Views.CONTENT_TEXT.toString())
+		    .getDocumentText());
 	}
 
 	@Test
-	public void testProcessHTML() throws AnalysisEngineProcessException,
-	        CASException {
+	public void testProcessHTML() throws UIMAException, IOException {
+		AnalysisEngine tikaAnnotator = getEngine();
+		JCas baseJCas = tikaAnnotator.newJCas();
 		JCas jCas = baseJCas.createView(Views.CONTENT_RAW.toString());
-		jCas.setSofaDataString("<html><body><p id=1>test</p></body></html>",
-		    "text/html");
+		
+		jCas.setSofaDataString("<html><body><p id=1>test</p></body></html>", "text/html");
 		tikaAnnotator.process(baseJCas);
 		jCas = baseJCas.getView(Views.CONTENT_TEXT.toString());
 		int count = 0;
 
-		for (StructureAnnotation ann : JCasUtil.select(jCas,
-		    StructureAnnotation.class)) {
+		for (StructureAnnotation ann : JCasUtil.select(jCas, StructureAnnotation.class)) {
 			assertEquals(0, ann.getBegin());
 			assertEquals(4, ann.getEnd());
-			assertEquals("http://txtfnnl/TikaAnnotator", ann.getAnnotator());
+			assertEquals(TikaAnnotator.class.getName(), ann.getAnnotator());
 			assertEquals("http://www.w3.org/1999/xhtml#", ann.getNamespace());
 			assertEquals("p", ann.getIdentifier());
 			assertEquals(1.0, ann.getConfidence(), 0.0000001);
@@ -107,21 +125,21 @@ public class TestTikaAnnotator {
 
 	@Test
 	public void testProcessElsevierXML() throws UIMAException, IOException {
+		AnalysisEngine tikaAnnotator = getEngine();
+		JCas baseJCas = tikaAnnotator.newJCas();
 		JCas jCas = baseJCas.createView(Views.CONTENT_RAW.toString());
+		
 		jCas.setSofaDataString("<ce:para xmlns:ce=\"url\" val='1' >"
-		                       + "<ce:para val='1' >test</ce:para>"
-		                       + "again</ce:para>", "text/xml");
+		                       + "<ce:para val='1' >test</ce:para>" + "again</ce:para>",
+		    "text/xml");
 		tikaAnnotator = AnalysisEngineFactory.createAnalysisEngine(
-		    "txtfnnl.uima.tikaAEDescriptor", "UseElsevierXMLHandler",
-		    Boolean.TRUE);
+		    "txtfnnl.uima.tikaAEDescriptor", "UseElsevierXMLHandler", Boolean.TRUE);
 		tikaAnnotator.process(baseJCas);
 		jCas = baseJCas.getView(Views.CONTENT_TEXT.toString());
 		assertEquals("test\n\nagain", jCas.getDocumentText());
 		int count = 0;
 
-		for (StructureAnnotation ann : JCasUtil.select(jCas,
-		    StructureAnnotation.class)) {
-			assertEquals("http://txtfnnl/TikaAnnotator", ann.getAnnotator());
+		for (StructureAnnotation ann : JCasUtil.select(jCas, StructureAnnotation.class)) {
 			assertEquals("url#", ann.getNamespace());
 			assertEquals("ce:para", ann.getIdentifier());
 			assertEquals(1.0, ann.getConfidence(), 0.0000001);
@@ -137,15 +155,17 @@ public class TestTikaAnnotator {
 	}
 
 	@Test
-	public void testHandleMetadata() {
+	public void testHandleMetadata() throws UIMAException, IOException {
+		AnalysisEngine tikaAnnotator = getEngine();
+		JCas baseJCas = tikaAnnotator.newJCas();
 		Metadata metadata = new Metadata();
-		metadata.add("test_name", "test_value");
 		TikaAnnotator real = new TikaAnnotator();
+		
+		metadata.add("test_name", "test_value");
 		real.handleMetadata(metadata, baseJCas);
 		int count = 0;
 
-		for (DocumentAnnotation ann : JCasUtil.select(baseJCas,
-		    DocumentAnnotation.class)) {
+		for (DocumentAnnotation ann : JCasUtil.select(baseJCas, DocumentAnnotation.class)) {
 			assertEquals(real.getAnnotatorURI(), ann.getAnnotator());
 			assertEquals("test_name", ann.getNamespace());
 			assertEquals("test_value", ann.getIdentifier());
@@ -158,14 +178,12 @@ public class TestTikaAnnotator {
 	}
 
 	@Test
-	public void testEncoding() throws CASRuntimeException, IOException,
-	        UIMAException {
-		tikaAnnotator = AnalysisEngineFactory.createAnalysisEngine(
-		    "txtfnnl.uima.tikaAEDescriptor", TikaAnnotator.PARAM_ENCODING,
-		    "UTF-8");
-		baseJCas = tikaAnnotator.newJCas();
+	public void testEncoding() throws CASRuntimeException, IOException, UIMAException {
+		AnalysisEngine tikaAnnotator = getEngine("UTF-8", true, null);
+		JCas baseJCas = tikaAnnotator.newJCas();
 		JCas jCas = baseJCas.createView(Views.CONTENT_RAW.toString());
 		File infile = new File("src/test/resources/encoding.html");
+		
 		jCas.setSofaDataURI("file:" + infile.getCanonicalPath(), null);
 		tikaAnnotator.process(baseJCas);
 		jCas = baseJCas.getView(Views.CONTENT_TEXT.toString());

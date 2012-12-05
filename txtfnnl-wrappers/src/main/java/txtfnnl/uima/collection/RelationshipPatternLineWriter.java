@@ -4,8 +4,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
-import java.io.Writer;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -19,8 +17,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_component.CasAnnotator_ImplBase;
+import org.apache.uima.UIMAException;
+import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CAS;
 import org.apache.uima.cas.CASException;
@@ -38,7 +36,9 @@ import org.apache.uima.jcas.cas.TOP;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
-import org.apache.uima.util.Logger;
+
+import org.uimafit.descriptor.ConfigurationParameter;
+import org.uimafit.factory.AnalysisEngineFactory;
 
 import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.KnownRelationshipAnnotator;
@@ -46,7 +46,7 @@ import txtfnnl.uima.analysis_component.LinkGrammarAnnotator;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
-import txtfnnl.utils.IOUtils;
+import txtfnnl.uima.utils.UIMAUtils;
 import txtfnnl.utils.SetUtils;
 
 /**
@@ -57,43 +57,13 @@ import txtfnnl.utils.SetUtils;
  * 
  * @author Florian Leitner
  */
-public final class RelationshipPatternLineWriter extends
-        CasAnnotator_ImplBase {
+public final class RelationshipPatternLineWriter extends TextWriter {
 
 	/** The namespace for the Relationship annotations. */
 	public static final String PARAM_RELATIONSHIP_NAMESPACE = KnownRelationshipAnnotator.PARAM_RELATIONSHIP_NAMESPACE;
-
-	/**
-	 * A String representing the path of the output directory.
-	 * 
-	 * With the use of this option, a file named just as the basename of the
-	 * CAS URI with ".txt" attached is produced for each SOFA, and these SOFAs
-	 * are all written to this output directory.
-	 */
-	public static final String PARAM_OUTPUT_DIRECTORY = "OutputDirectory";
-
-	/**
-	 * <code>True</code> if the output should also go to <b>STDOUT</b>.
-	 * 
-	 * With the use of this option, all lines are written to <b>STDOUT</b>;
-	 * this may be set in <i>addition</i> to any file output.
-	 */
-	public static final String PARAM_PRINT_TO_STDOUT = "PrintToStdout";
-
-	/**
-	 * <code>True</code> if all files written to the
-	 * {@link #PARAM_OUTPUT_DIRECTORY} should replace any already existing
-	 * ones.
-	 * 
-	 * By default, if a file exits, ".<i>n</i>" is inserted between the file
-	 * name and the ".txt" suffix, where <i>n</i> is an integer chosen as to
-	 * make the file name unique wrt. the directory.
-	 */
-	public static final String PARAM_OVERWRITE_FILES = "OverwriteFiles";
-
-	/** Define a particular output encoding String. */
-	public static final String PARAM_ENCODING = "Encoding";
-
+	@ConfigurationParameter(name = PARAM_RELATIONSHIP_NAMESPACE, mandatory = true) // TODO: default value?
+	private String relationshipNamespace;
+	
 	/**
 	 * Define the maximum number of characters a pattern may contain.
 	 * 
@@ -101,28 +71,16 @@ public final class RelationshipPatternLineWriter extends
 	 * to 0.
 	 */
 	public static final String PARAM_MAX_PATTERN_LENGTH = "MaxPatternLength";
+	@ConfigurationParameter(name = PARAM_MAX_PATTERN_LENGTH, defaultValue = "0")
+	private int maxPatternLength;
 
 	static final Pattern REGEX_SPACES = Pattern.compile("[ \\t\\v\\f]+");
 	static final Pattern REGEX_LINEBREAK_SPACE = Pattern.compile("(\\r?\\n) ");
 	static final Pattern REGEX_SINGLE_LINEBREAK = Pattern
 	    .compile("(?<!\\r?\\n)\\r?\\n(?!\\r?\\n)");
-	static final Pattern REGEX_EMPTY_MODIFIER = Pattern
-	    .compile(" ?[\\-,] [\\-,] ");
+	static final Pattern REGEX_EMPTY_MODIFIER = Pattern.compile(" ?[\\-,] [\\-,] ");
 
 	static final String LINEBREAK = System.getProperty("line.separator");
-
-	// parameter settings
-	File outputDirectory = null;
-	boolean printToStdout = false;
-	private boolean overwriteFiles = false;
-	private String encoding = null;
-	private Writer outputWriter;
-	private int maxPatternLength;
-
-	// annotator state (thread-independent)
-	private Logger logger;
-	private int counter = 0;
-	private String relationshipNamespace;
 
 	static final Set<String> SKIPPABLE_TAGS = new HashSet<String>() {
 
@@ -157,11 +115,9 @@ public final class RelationshipPatternLineWriter extends
 		}
 	};
 
-	public static FSMatchConstraint
-	        makeConstituentSyntaxAnnotationConstraint(JCas jcas) {
-		Feature constituentNamespace = jcas.getTypeSystem()
-		    .getFeatureByFullName(
-		        SyntaxAnnotation.class.getName() + ":namespace");
+	public static FSMatchConstraint makeConstituentSyntaxAnnotationConstraint(JCas jcas) {
+		Feature constituentNamespace = jcas.getTypeSystem().getFeatureByFullName(
+		    SyntaxAnnotation.class.getName() + ":namespace");
 		ConstraintFactory cf = jcas.getConstraintFactory();
 		FeaturePath namespacePath = jcas.createFeaturePath();
 		namespacePath.addFeature(constituentNamespace);
@@ -171,90 +127,43 @@ public final class RelationshipPatternLineWriter extends
 	}
 
 	/**
-	 * Load the sentence detector model resource and initialize the model
-	 * evaluator.
+	 * Configure an CAS consumer descriptor for a pipeline.
+	 * 
+	 * Note that if the {@link #outputDirectory} is <code>null</code> and
+	 * {@link #printToStdout} is <code>false</code>, a
+	 * {@link ResourceInitializationException} will occur when creating the
+	 * AE.
+	 * 
+	 * @param outputDirectory path to the output directory (or null)
+	 * @param encoding encoding to use for writing (or null)
+	 * @param printToStdout whether to print to STDOUT or not
+	 * @param overwriteFiles whether to overwrite existing files or not
+	 * @return a configured AE description
+	 * @throws IOException
+	 * @throws UIMAException
 	 */
-	public void initialize(UimaContext ctx)
-	        throws ResourceInitializationException {
-		super.initialize(ctx);
-		logger = ctx.getLogger();
+	@SuppressWarnings("serial")
+	public static AnalysisEngineDescription configure(final String relationshipNamespace,
+	                                                  final File outputDirectory,
+	                                                  final String encoding,
+	                                                  final boolean printToStdout,
+	                                                  final boolean overwriteFiles,
+	                                                  final int maxPatternLength)
+	        throws UIMAException, IOException {
+		return AnalysisEngineFactory.createPrimitiveDescription(TextWriter.class,
+		    UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
 
-		String outputDirName = (String) ctx
-		    .getConfigParameterValue(PARAM_OUTPUT_DIRECTORY);
-
-		relationshipNamespace = (String) ctx
-		    .getConfigParameterValue(PARAM_RELATIONSHIP_NAMESPACE);
-
-		Integer maxPatternLengthInteger = (Integer) ctx
-		    .getConfigParameterValue(PARAM_MAX_PATTERN_LENGTH);
-		maxPatternLength = (maxPatternLengthInteger == null)
-		        ? 0
-		        : maxPatternLengthInteger.intValue();
-
-		if (relationshipNamespace == null)
-			throw new ResourceInitializationException(
-			    ResourceInitializationException.CONFIG_SETTING_ABSENT,
-			    new Object[] { PARAM_RELATIONSHIP_NAMESPACE });
-
-		if (outputDirName != null && outputDirName.length() > 0) {
-			outputDirectory = new File(outputDirName);
-
-			if (!outputDirectory.isDirectory() || !outputDirectory.canWrite())
-				throw new ResourceInitializationException(new IOException(
-				    "Parameter " + PARAM_OUTPUT_DIRECTORY + " '" +
-				            outputDirName + "' not a writeable directory"));
-		}
-
-		Boolean printToStdoutVal = (Boolean) ctx
-		    .getConfigParameterValue(PARAM_PRINT_TO_STDOUT);
-
-		encoding = (String) ctx.getConfigParameterValue(PARAM_ENCODING);
-
-		if (printToStdoutVal != null && printToStdoutVal)
-			printToStdout = true;
-		else if (printToStdoutVal == null && outputDirName == null)
-			printToStdout = true;
-		else if (printToStdoutVal != null && outputDirName == null)
-			throw new ResourceInitializationException(new AssertionError(
-			    "no output stream (no directory or STDOUT specified)"));
-
-		if (printToStdout) {
-			if (encoding == null && IOUtils.isMacOSX()) {
-				// fix broken Mac JDK that uses MacRoman instead of the LANG
-				// setting as default encoding; if LANG is not set, use UTF-8.
-				// TODO: make this change work across the entire library
-				encoding = IOUtils.getLocaleEncoding();
-
-				if (encoding == null)
-					encoding = "UTF-8";
-
-				try {
-					IOUtils.setOutputEncoding(encoding);
-				} catch (UnsupportedEncodingException e) {
-					throw new ResourceInitializationException(e);
-				}
-			} else if (encoding != null) {
-				try {
-					IOUtils.setOutputEncoding(encoding);
-				} catch (UnsupportedEncodingException e) {
-					throw new ResourceInitializationException(e);
-				}
-			}
-
-			if (encoding != null)
-				logger.log(Level.INFO, "set STDOUT to use '" + encoding +
-				                       "' encoding");
-		}
-
-		Boolean overwriteFilesVal = (Boolean) ctx
-		    .getConfigParameterValue(PARAM_OVERWRITE_FILES);
-
-		if (overwriteFilesVal != null && overwriteFilesVal)
-			overwriteFiles = true;
-
-		counter = 0;
+			    {
+				    put(PARAM_RELATIONSHIP_NAMESPACE, relationshipNamespace);
+				    put(PARAM_OUTPUT_DIRECTORY, outputDirectory);
+				    put(PARAM_ENCODING, encoding);
+				    put(PARAM_PRINT_TO_STDOUT, printToStdout);
+				    put(PARAM_OVERWRITE_FILES, overwriteFiles);
+				    put(PARAM_MAX_PATTERN_LENGTH, maxPatternLength);
+			    }
+		    }));
 	}
-
+	
 	/**
 	 * For all annotated relationship sentences in the
 	 * {@link Views.CONTENT_TEXT} view of a CAS, extract patterns expressing
@@ -270,8 +179,7 @@ public final class RelationshipPatternLineWriter extends
 			textJCas = cas.getView(Views.CONTENT_TEXT.toString()).getJCas();
 			rawJCas = cas.getView(Views.CONTENT_RAW.toString()).getJCas();
 			setStream(rawJCas);
-			documentId = new File(new URI(rawJCas.getSofaDataURI()).getPath())
-			    .getName();
+			documentId = new File(new URI(rawJCas.getSofaDataURI()).getPath()).getName();
 		} catch (CASException e) {
 			throw new AnalysisEngineProcessException(e);
 		} catch (IOException e) {
@@ -283,16 +191,15 @@ public final class RelationshipPatternLineWriter extends
 		if (documentId.indexOf('.') > -1)
 			documentId = documentId.substring(0, documentId.lastIndexOf('.'));
 
-		FSIterator<TOP> relationshipIt = KnownRelationshipAnnotator
-		    .getRelationshipIterator(textJCas, relationshipNamespace);
+		FSIterator<TOP> relationshipIt = KnownRelationshipAnnotator.getRelationshipIterator(
+		    textJCas, relationshipNamespace);
 		String text = textJCas.getDocumentText();
-		AnnotationIndex<Annotation> annIdx = textJCas
-		    .getAnnotationIndex(SyntaxAnnotation.type);
+		AnnotationIndex<Annotation> annIdx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
 		FSMatchConstraint constituentConstraint = makeConstituentSyntaxAnnotationConstraint(textJCas);
 
 		while (relationshipIt.hasNext()) {
-			process((RelationshipAnnotation) relationshipIt.next(), text,
-			    annIdx, constituentConstraint, textJCas);
+			process((RelationshipAnnotation) relationshipIt.next(), text, annIdx,
+			    constituentConstraint, textJCas);
 		}
 
 		try {
@@ -322,34 +229,20 @@ public final class RelationshipPatternLineWriter extends
 				int idx = 2;
 
 				while (outputFile.exists())
-					outputFile = new File(outputDirectory, inputName + "." +
-					                                       idx++ + ".txt");
+					outputFile = new File(outputDirectory, inputName + "." + idx++ + ".txt");
 			}
 
 			if (encoding == null) {
-				logger.log(Level.INFO, String.format(
-				    "writing to '%s' using '%s' encoding", outputFile,
-				    System.getProperty("file.encoding")));
-				outputWriter = new OutputStreamWriter(new FileOutputStream(
-				    outputFile));
+				logger.log(
+				    Level.INFO,
+				    String.format("writing to '%s' using '%s' encoding", outputFile,
+				        System.getProperty("file.encoding")));
+				outputWriter = new OutputStreamWriter(new FileOutputStream(outputFile));
 			} else {
-				logger.log(Level.INFO, String.format(
-				    "writing to '%s' using '%s' encoding", outputFile,
-				    encoding));
-				outputWriter = new OutputStreamWriter(new FileOutputStream(
-				    outputFile), encoding);
+				logger.log(Level.INFO,
+				    String.format("writing to '%s' using '%s' encoding", outputFile, encoding));
+				outputWriter = new OutputStreamWriter(new FileOutputStream(outputFile), encoding);
 			}
-		}
-	}
-
-	/**
-	 * Close the output stream (if necessary).
-	 * 
-	 * @throws IOException if the stream could not be closed correctly
-	 */
-	void unsetStream() throws IOException {
-		if (outputDirectory != null) {
-			outputWriter.close();
 		}
 	}
 
@@ -363,42 +256,36 @@ public final class RelationshipPatternLineWriter extends
 	 * @param jcas
 	 * @throws AnalysisEngineProcessException if the extraction fails
 	 */
-	void process(RelationshipAnnotation relAnn, String text,
-	             AnnotationIndex<Annotation> annIdx,
+	void process(RelationshipAnnotation relAnn, String text, AnnotationIndex<Annotation> annIdx,
 	             FSMatchConstraint constituentConstraint, JCas jcas)
 	        throws AnalysisEngineProcessException {
 		SyntaxAnnotation sentAnn = (SyntaxAnnotation) relAnn.getSources(0);
-		LinkedList<Annotation> nounPhrases = extractNounPhrases(jcas
-		    .createFilteredIterator(annIdx.subiterator(sentAnn, true, true),
-		        constituentConstraint));
+		LinkedList<Annotation> nounPhrases = extractNounPhrases(jcas.createFilteredIterator(
+		    annIdx.subiterator(sentAnn, true, true), constituentConstraint));
 		FSIterator<Annotation> constituentIt = jcas.createFilteredIterator(
 		    annIdx.subiterator(sentAnn, true, true), constituentConstraint);
 		List<List<Annotation>> constituentCombinations = listConstituentArrangements(constituentIt);
 
-		for (TextAnnotation[] entities : listSeparateEntities(relAnn
-		    .getTargets())) {
+		for (TextAnnotation[] entities : listSeparateEntities(relAnn.getTargets())) {
 			Set<String> patterns = new HashSet<String>();
 			LinkedList<Annotation> sentenceSpan = new LinkedList<Annotation>();
-			List<TextAnnotation[]> entityPermutations = combine(findNPReplacements(
-			    entities, nounPhrases));
+			List<TextAnnotation[]> entityPermutations = combine(findNPReplacements(entities,
+			    nounPhrases));
 
 			sentenceSpan.add(sentAnn);
 			patterns.add(extractPattern(entities, sentenceSpan));
-			patterns.addAll(extractNounPhraseSkippedPatterns(sentenceSpan,
-			    entityPermutations));
+			patterns.addAll(extractNounPhraseSkippedPatterns(sentenceSpan, entityPermutations));
 
 			for (List<Annotation> spans : constituentCombinations) {
 				if (containsAllEntities(spans, entities)) {
 					patterns.add(extractPattern(entities, spans));
-					patterns.addAll(extractNounPhraseSkippedPatterns(spans,
-					    entityPermutations));
+					patterns.addAll(extractNounPhraseSkippedPatterns(spans, entityPermutations));
 				}
 			}
 
 			try {
 				for (String p : patterns) {
-					if (maxPatternLength == 0 ||
-					    p.length() <= maxPatternLength) {
+					if (maxPatternLength == 0 || p.length() <= maxPatternLength) {
 						write(p);
 						write("\n");
 					}
@@ -417,8 +304,7 @@ public final class RelationshipPatternLineWriter extends
 	 * @param constituents iterating over a constituent tree
 	 * @return a list of NPs
 	 */
-	LinkedList<Annotation>
-	        extractNounPhrases(FSIterator<Annotation> constituents) {
+	LinkedList<Annotation> extractNounPhrases(FSIterator<Annotation> constituents) {
 		LinkedList<Annotation> nps = new LinkedList<Annotation>();
 
 		while (constituents.hasNext()) {
@@ -439,8 +325,7 @@ public final class RelationshipPatternLineWriter extends
 	 * @param constituentIt that iterates over all annotated constituents
 	 * @return all arrangements possible except for the entire sentence
 	 */
-	List<List<Annotation>>
-	        listConstituentArrangements(FSIterator<Annotation> constituentIt) {
+	List<List<Annotation>> listConstituentArrangements(FSIterator<Annotation> constituentIt) {
 		List<List<Annotation>> arrangements = new ArrayList<List<Annotation>>();
 		SyntaxAnnotation ann;
 
@@ -458,8 +343,7 @@ public final class RelationshipPatternLineWriter extends
 							last = spans.get(spans.size() - 2);
 
 							if (last.getEnd() <= ann.getBegin()) {
-								List<Annotation> clone = new LinkedList<Annotation>(
-								    spans);
+								List<Annotation> clone = new LinkedList<Annotation>(spans);
 								clone.remove(clone.size() - 1);
 								clone.add(ann);
 								arrangements.add(clone);
@@ -472,12 +356,10 @@ public final class RelationshipPatternLineWriter extends
 			if (mayBeSkipped(ann)) {
 				for (int i = arrangements.size(); i-- > 0;) {
 					List<Annotation> spans = arrangements.get(i);
-					SyntaxAnnotation last = (SyntaxAnnotation) spans.get(spans
-					    .size() - 1);
+					SyntaxAnnotation last = (SyntaxAnnotation) spans.get(spans.size() - 1);
 
 					if (last.contains(ann)) {
-						List<Annotation> clone = new LinkedList<Annotation>(
-						    spans);
+						List<Annotation> clone = new LinkedList<Annotation>(spans);
 						clone.remove(clone.size() - 1);
 						arrangements.add(clone);
 
@@ -505,8 +387,7 @@ public final class RelationshipPatternLineWriter extends
 			} else {
 				for (int i = arrangements.size(); i-- > 0;) {
 					List<Annotation> spans = arrangements.get(i);
-					SyntaxAnnotation last = (SyntaxAnnotation) spans.get(spans
-					    .size() - 1);
+					SyntaxAnnotation last = (SyntaxAnnotation) spans.get(spans.size() - 1);
 
 					if (last.getEnd() <= ann.getBegin()) {
 						expandWithAndWithout(spans, ann, last, arrangements);
@@ -578,8 +459,7 @@ public final class RelationshipPatternLineWriter extends
 
 						for (int j = 0; j < size; j++) {
 							TextAnnotation[] anns = list.get(j);
-							TextAnnotation[] copy = Arrays.copyOf(anns,
-							    anns.length);
+							TextAnnotation[] copy = Arrays.copyOf(anns, anns.length);
 							copy[choice] = e;
 							list.add(copy);
 						}
@@ -617,11 +497,9 @@ public final class RelationshipPatternLineWriter extends
 	 * @param nounPhrases
 	 * @return all possible replacement spans for each entity
 	 */
-	List<Set<Annotation>>
-	        findNPReplacements(TextAnnotation[] entities,
-	                           LinkedList<Annotation> nounPhrases) {
-		List<Set<Annotation>> replacements = new ArrayList<Set<Annotation>>(
-		    entities.length);
+	List<Set<Annotation>> findNPReplacements(TextAnnotation[] entities,
+	                                         LinkedList<Annotation> nounPhrases) {
+		List<Set<Annotation>> replacements = new ArrayList<Set<Annotation>>(entities.length);
 		int eb, ee;
 
 		// collect all possible NP replacements for the entities plus the
@@ -669,8 +547,7 @@ public final class RelationshipPatternLineWriter extends
 			int start = begin;
 
 			// write entities starting before the current annotation span
-			while (entityIdx < entities.length &&
-			       entities[entityIdx].getBegin() <= start) {
+			while (entityIdx < entities.length && entities[entityIdx].getBegin() <= start) {
 				// move the start position if the entity span reaches into
 				// the current text
 				if (entities[entityIdx].getEnd() > start)
@@ -680,8 +557,7 @@ public final class RelationshipPatternLineWriter extends
 					// add a space before the first inter-span entity if the
 					// SB is not proceeded by one already
 					checkSpace(sb);
-				} else if (entities[entityIdx - 1].getEnd() <= entities[entityIdx]
-				    .getBegin()) {
+				} else if (entities[entityIdx - 1].getEnd() <= entities[entityIdx].getBegin()) {
 					// close entities before writing the next, non-overlapping
 					// entity
 					closeTags = writeCloseTags(sb, closeTags);
@@ -700,8 +576,7 @@ public final class RelationshipPatternLineWriter extends
 			closeTags = writeCloseTags(sb, closeTags);
 
 			// write entities within the current annotations
-			while (entityIdx < entities.length &&
-			       entities[entityIdx].getBegin() < end) {
+			while (entityIdx < entities.length && entities[entityIdx].getBegin() < end) {
 				int stop = entities[entityIdx].getBegin();
 
 				if (stop > start) {
@@ -769,10 +644,9 @@ public final class RelationshipPatternLineWriter extends
 	 *         containing the entities
 	 * @throws AnalysisEngineProcessException
 	 */
-	        Set<String>
-	        extractNounPhraseSkippedPatterns(List<Annotation> spans,
-	                                         List<TextAnnotation[]> permutations)
-	                throws AnalysisEngineProcessException {
+	Set<String> extractNounPhraseSkippedPatterns(List<Annotation> spans,
+	                                             List<TextAnnotation[]> permutations)
+	        throws AnalysisEngineProcessException {
 		Set<String> patterns = new HashSet<String>();
 
 		// iterate over all possible entity permutations
@@ -794,8 +668,7 @@ public final class RelationshipPatternLineWriter extends
 		return SENTENCE_STARTER_TAGS.contains(ann.getIdentifier());
 	}
 
-	private void startNewSpans(SyntaxAnnotation ann,
-	                           List<List<Annotation>> arrangements) {
+	private void startNewSpans(SyntaxAnnotation ann, List<List<Annotation>> arrangements) {
 		List<Annotation> list = new LinkedList<Annotation>();
 		list.add(ann);
 		arrangements.add(list);
@@ -808,8 +681,7 @@ public final class RelationshipPatternLineWriter extends
 	 * @param entities
 	 * @return true if all entities are covered by at least one of the spans
 	 */
-	private boolean containsAllEntities(List<Annotation> spans,
-	                                    TextAnnotation[] entities) {
+	private boolean containsAllEntities(List<Annotation> spans, TextAnnotation[] entities) {
 		int idx = 0;
 
 		for (Annotation ann : spans) {
@@ -838,8 +710,7 @@ public final class RelationshipPatternLineWriter extends
 	 * @param arrangements
 	 * @throws CASRuntimeException
 	 */
-	private void expandWithAndWithout(List<Annotation> spans,
-	                                  SyntaxAnnotation currentAnnotation,
+	private void expandWithAndWithout(List<Annotation> spans, SyntaxAnnotation currentAnnotation,
 	                                  SyntaxAnnotation lastAnnotation,
 	                                  List<List<Annotation>> arrangements)
 	        throws CASRuntimeException {
@@ -870,8 +741,7 @@ public final class RelationshipPatternLineWriter extends
 	 */
 	private List<TextAnnotation[]> combine(List<Set<Annotation>> replacements) {
 		List<List<Annotation>> combinations = SetUtils.combinate(replacements);
-		List<TextAnnotation[]> result = new ArrayList<TextAnnotation[]>(
-		    combinations.size());
+		List<TextAnnotation[]> result = new ArrayList<TextAnnotation[]>(combinations.size());
 		int len = replacements.size();
 
 		for (List<Annotation> list : combinations) {
@@ -919,8 +789,7 @@ public final class RelationshipPatternLineWriter extends
 			TextAnnotation last = null;
 
 			for (TextAnnotation e : entities) {
-				if (last != null && e.getBegin() < last.getEnd() &&
-				    e.getEnd() > last.getEnd()) {
+				if (last != null && e.getBegin() < last.getEnd() && e.getEnd() > last.getEnd()) {
 					// partially overlapping entities detected
 					return null;
 				}
@@ -950,8 +819,7 @@ public final class RelationshipPatternLineWriter extends
 	 * @param sb
 	 */
 	private void checkSpace(StringBuilder sb) {
-		if (sb.length() > 0 &&
-		    !Character.isSpaceChar(sb.charAt(sb.length() - 1)))
+		if (sb.length() > 0 && !Character.isSpaceChar(sb.charAt(sb.length() - 1)))
 			sb.append(' ');
 	}
 
@@ -993,21 +861,17 @@ public final class RelationshipPatternLineWriter extends
 	 * @return the text with these "dangling" characters replaced
 	 */
 	private String replaceEmptyModifierPhrases(String text) {
-		String replacement = REGEX_EMPTY_MODIFIER.matcher(text)
-		    .replaceAll(" ").replace(" , ", " ").trim();
+		String replacement = REGEX_EMPTY_MODIFIER.matcher(text).replaceAll(" ")
+		    .replace(" , ", " ").trim();
 
 		if (replacement.endsWith(" ."))
-			replacement = replacement.substring(0, replacement.length() - 2)
-			    .trim();
+			replacement = replacement.substring(0, replacement.length() - 2).trim();
 
 		if (replacement.endsWith(","))
-			replacement = replacement.substring(0, replacement.length() - 1)
-			    .trim();
+			replacement = replacement.substring(0, replacement.length() - 1).trim();
 
-		if (!Character.isUpperCase(replacement.charAt(0)) &&
-		    replacement.endsWith("."))
-			replacement = replacement.substring(0, replacement.length() - 1)
-			    .trim();
+		if (!Character.isUpperCase(replacement.charAt(0)) && replacement.endsWith("."))
+			replacement = replacement.substring(0, replacement.length() - 1).trim();
 
 		return replacement;
 	}
@@ -1029,22 +893,8 @@ public final class RelationshipPatternLineWriter extends
 	 * @return the text with single line-breaks trimmed
 	 */
 	private String replaceSingleBreaksAndSpaces(String text) {
-		return REGEX_SINGLE_LINEBREAK.matcher(
-		    REGEX_LINEBREAK_SPACE.matcher(text).replaceAll("$1")).replaceAll(
-		    " ");
+		return REGEX_SINGLE_LINEBREAK
+		    .matcher(REGEX_LINEBREAK_SPACE.matcher(text).replaceAll("$1")).replaceAll(" ");
 	}
 
-	/**
-	 * Write text to the output stream.
-	 * 
-	 * @param text to write
-	 * @throws IOException if writing to the stream fails
-	 */
-	private void write(String text) throws IOException {
-		if (outputDirectory != null)
-			outputWriter.write(text);
-
-		if (printToStdout)
-			System.out.print(text);
-	}
 }

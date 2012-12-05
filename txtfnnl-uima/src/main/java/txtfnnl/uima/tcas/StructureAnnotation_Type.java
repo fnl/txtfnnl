@@ -11,7 +11,7 @@ import org.apache.uima.cas.impl.TypeImpl;
 import org.apache.uima.cas.Type;
 
 /** TextAnnotations of text structure (sections, paragraphs, headings, typeface, sub- and superscript, etc.)
- * Updated by JCasGen Fri Oct 26 14:22:46 CEST 2012
+ * Updated by JCasGen Tue Nov 27 14:20:54 CET 2012
  * @generated */
 public class StructureAnnotation_Type extends TextAnnotation_Type {
   /** @generated */
