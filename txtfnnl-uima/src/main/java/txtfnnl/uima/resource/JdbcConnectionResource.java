@@ -20,4 +20,6 @@ public interface JdbcConnectionResource extends SharedResourceObject {
 	 * @return a JDBC connection
 	 */
 	public Connection getConnection() throws SQLException;
+
+	public String getUrl();
 }

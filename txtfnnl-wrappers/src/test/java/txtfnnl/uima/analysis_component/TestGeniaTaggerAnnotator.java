@@ -42,9 +42,7 @@ public class TestGeniaTaggerAnnotator {
 	 */
 	@Before
 	public void setUp() throws Exception {
-		DisableLogging.enableLogging(Level.WARNING);
-
-		// set up AE descriptor under test
+		DisableLogging.enableLogging(Level.SEVERE); // silence GENIA output
 		sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure());
 		annotatorDesc = AnalysisEngineFactory
 		    .createPrimitiveDescription(GeniaTaggerAnnotator.class);

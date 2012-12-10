@@ -34,13 +34,12 @@ import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
 import txtfnnl.uima.tcas.SemanticAnnotation;
+import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
 import txtfnnl.utils.IOUtils;
 
 public class TestRelationshipPatternLineWriter {
-
-	public static final String DESCRIPTOR = "txtfnnl.uima.relationshipPatternLineWriterDescriptor";
 
 	RelationshipPatternLineWriter writer;
 	AnalysisEngine ae;
@@ -50,8 +49,8 @@ public class TestRelationshipPatternLineWriter {
 	public void setUp() throws UIMAException, IOException {
 		DisableLogging.enableLogging(Level.WARNING);
 		writer = new RelationshipPatternLineWriter();
-		ae = AnalysisEngineFactory.createAnalysisEngine(DESCRIPTOR,
-		    RelationshipPatternLineWriter.PARAM_PRINT_TO_STDOUT, Boolean.TRUE);
+		ae = AnalysisEngineFactory.createPrimitive(RelationshipPatternLineWriter
+		    .configure("http://purl.org/relationship/"));
 		jcas = ae.newJCas();
 	}
 
@@ -59,17 +58,15 @@ public class TestRelationshipPatternLineWriter {
 	public void testInitializeUimaContext() throws UIMAException, IOException {
 		for (String p : new String[] {
 		    RelationshipPatternLineWriter.PARAM_OUTPUT_DIRECTORY,
-		    RelationshipPatternLineWriter.PARAM_OVERWRITE_FILES,
-		    // RelationshipPatternLineWriter.PARAM_PRINT_TO_STDOUT,
 		    RelationshipPatternLineWriter.PARAM_ENCODING }) {
 			assertNull("Parameter " + p + " does not default to null.",
 			    ae.getConfigParameterValue(p));
+
 		}
-		String p = RelationshipPatternLineWriter.PARAM_PRINT_TO_STDOUT;
-		AnalysisEngine check = AnalysisEngineFactory
-		    .createAnalysisEngine(DESCRIPTOR);
-		assertNull("Parameter " + p + " does not default to null.",
-		    check.getConfigParameterValue(p));
+		assertFalse((Boolean) ae
+		    .getConfigParameterValue(RelationshipPatternLineWriter.PARAM_OVERWRITE_FILES));
+		assertTrue((Boolean) ae
+		    .getConfigParameterValue(RelationshipPatternLineWriter.PARAM_PRINT_TO_STDOUT));
 	}
 
 	@Test
@@ -99,8 +96,7 @@ public class TestRelationshipPatternLineWriter {
 
 	@Test
 	public void testIterateAnnotationsThreeTypes() {
-		List<TextAnnotation[]> result = writer
-		    .listSeparateEntities(createTAArray(3, true));
+		List<TextAnnotation[]> result = writer.listSeparateEntities(createTAArray(3, true));
 
 		assertEquals(1, result.size());
 		assertEquals(3, result.get(0).length);
@@ -264,9 +260,7 @@ public class TestRelationshipPatternLineWriter {
 		FSArray a = new FSArray(jcas, size);
 
 		for (int i = 0; i < size; i++) {
-			a.set(i, getTextAnnotation(randomId
-			        ? UUID.randomUUID().toString()
-			        : "id"));
+			a.set(i, getTextAnnotation(randomId ? UUID.randomUUID().toString() : "id"));
 		}
 
 		return a;
@@ -285,69 +279,62 @@ public class TestRelationshipPatternLineWriter {
 	}
 
 	@Test
-	public void testProcessRelationship()
-	        throws AnalysisEngineProcessException {
+	public void testProcessRelationship() throws AnalysisEngineProcessException {
 		String test = "This is a sentence.";
 		jcas.setDocumentText(test);
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 		System.setOut(new PrintStream(outputStream));
 		RelationshipAnnotation relAnn = createDummyAnnotation(test, jcas);
-		AnnotationIndex<Annotation> annIdx = jcas
-		    .getAnnotationIndex(SyntaxAnnotation.type);
+		AnnotationIndex<Annotation> annIdx = jcas.getAnnotationIndex(SyntaxAnnotation.type);
 		writer.printToStdout = true;
-		writer.process(relAnn, test, annIdx, RelationshipPatternLineWriter
-		    .makeConstituentSyntaxAnnotationConstraint(jcas), jcas);
-		assertTrue(outputStream.toString(), outputStream.toString()
-		    .startsWith("[[ns:id]]" + test.substring(0, test.length() - 1)));
+		writer.process(relAnn, test, annIdx,
+		    RelationshipPatternLineWriter.makeConstituentSyntaxAnnotationConstraint(jcas), jcas);
+		assertTrue(outputStream.toString(),
+		    outputStream.toString().startsWith("[[ns:id]]" + test.substring(0, test.length() - 1)));
 	}
 
 	@Test
-	public void testProcessInnerRelationship()
-	        throws AnalysisEngineProcessException {
+	public void testProcessInnerRelationship() throws AnalysisEngineProcessException {
 		String test = "This is a sentence.";
 		jcas.setDocumentText(test);
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 		System.setOut(new PrintStream(outputStream));
-		RelationshipAnnotation relAnn = createDummyAnnotation(test, jcas, 5, 7);
-		AnnotationIndex<Annotation> annIdx = jcas
-		    .getAnnotationIndex(SyntaxAnnotation.type);
+		RelationshipAnnotation relAnn = createDummyAnnotation(test, jcas, 5, 7); // is
+		AnnotationIndex<Annotation> annIdx = jcas.getAnnotationIndex(SyntaxAnnotation.type);
 		writer.printToStdout = true;
-		writer.process(relAnn, test, annIdx, RelationshipPatternLineWriter
-		    .makeConstituentSyntaxAnnotationConstraint(jcas), jcas);
-		assertTrue(outputStream.toString(), outputStream.toString()
-		    .startsWith("This [[ns:id]] a sentence."));
+		writer.process(relAnn, test, annIdx,
+		    RelationshipPatternLineWriter.makeConstituentSyntaxAnnotationConstraint(jcas), jcas);
+		assertTrue(outputStream.toString(),
+		    outputStream.toString().startsWith("This [[ns:id]] a sentence."));
 	}
 
 	RelationshipAnnotation createDummyAnnotation(String test, JCas aJCas) {
 		return createDummyAnnotation(test, aJCas, 0, 0);
 	}
 
-	RelationshipAnnotation createDummyAnnotation(String text, JCas aJCas,
-	                                             int start, int end) {
+	RelationshipAnnotation createDummyAnnotation(String text, JCas aJCas, int start, int end) {
 		// sentence
-		SyntaxAnnotation sentAnn = new SyntaxAnnotation(aJCas, 0,
-		    text.length());
+		SentenceAnnotation sentAnn = new SentenceAnnotation(aJCas, 0, text.length());
 		sentAnn.setNamespace(SentenceAnnotator.NAMESPACE);
 		sentAnn.setIdentifier(SentenceAnnotator.IDENTIFIER);
-		sentAnn.addToIndexes();
+		sentAnn.addToIndexes(aJCas);
 		// entity
-		SemanticAnnotation entityAnn = new SemanticAnnotation(aJCas, start,
-		    end);
+		SemanticAnnotation entityAnn = new SemanticAnnotation(aJCas, start, end);
 		entityAnn.setNamespace("ns:");
 		entityAnn.setIdentifier("id");
-		entityAnn.addToIndexes();
+		entityAnn.addToIndexes(aJCas);
 		// relationship
 		RelationshipAnnotation relAnn = new RelationshipAnnotation(aJCas);
 		relAnn.setNamespace("http://purl.org/relationship/");
 		FSArray sources = new FSArray(aJCas, 1);
 		sources.set(0, sentAnn);
-		sources.addToIndexes();
+		sources.addToIndexes(aJCas);
 		FSArray targets = new FSArray(aJCas, 1);
 		targets.set(0, entityAnn);
-		targets.addToIndexes();
+		targets.addToIndexes(aJCas);
 		relAnn.setSources(sources);
 		relAnn.setTargets(targets);
-		relAnn.addToIndexes();
+		relAnn.addToIndexes(aJCas);
 		return relAnn;
 	}
 
@@ -368,10 +355,8 @@ public class TestRelationshipPatternLineWriter {
 
 		assertTrue(existing.createNewFile());
 
-		ae = AnalysisEngineFactory.createAnalysisEngine(DESCRIPTOR,
-		    RelationshipPatternLineWriter.PARAM_OUTPUT_DIRECTORY,
-		    tmpDir.getCanonicalPath(),
-		    RelationshipPatternLineWriter.PARAM_ENCODING, "UTF-32");
+		ae = AnalysisEngineFactory.createPrimitive(RelationshipPatternLineWriter.configure(
+		    "http://purl.org/relationship/", tmpDir, "UTF-32", false, false, 0));
 		String input = "Hello World!";
 		processHelper(input);
 		File created = new File(tmpDir, "test.txt.2.txt");

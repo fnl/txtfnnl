@@ -166,7 +166,7 @@
     <typeDescription>
       <name>txtfnnl.uima.tcas.SentenceAnnotation</name>
       <description>An explicit text annoation type for sentences to simplify their index retrieval.</description>
-      <supertypeName>txtfnnl.uima.tcas.TextAnnotation</supertypeName>
+      <supertypeName>txtfnnl.uima.tcas.SyntaxAnnotation</supertypeName>
     </typeDescription>
   </types>
 </typeSystemDescription>

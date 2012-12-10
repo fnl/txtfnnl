@@ -24,6 +24,7 @@ import org.apache.uima.jcas.cas.TOP;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.AnalysisEngineFactory;
@@ -109,8 +110,10 @@ public class KnownRelationshipAnnotator extends KnownEvidenceAnnotator<List<Set<
 	 * Configure an AE description for a pipeline.
 	 * 
 	 * @param namespace of the {@link SemanticAnnotation}s
-	 * @param queries to use for fetching entity names from the JDBC-connected DB
-	 * @param entityMap containing filename to entity type, namespace, and ID mappings
+	 * @param queries to use for fetching entity names from the JDBC-connected
+	 *        DB
+	 * @param entityMap containing filename to entity type, namespace, and ID
+	 *        mappings
 	 * @param dbUrl of the DB to connect to
 	 * @param driverClass to use for connecting to the DB
 	 * @param dbUsername to use for connecting to the DB
@@ -138,7 +141,7 @@ public class KnownRelationshipAnnotator extends KnownEvidenceAnnotator<List<Set<
 			    }
 		    }));
 	}
-	
+
 	/**
 	 * Create an iterator over
 	 * {@link txtfnnl.uima.tcas.RelationshipAnnotation} annotation types of
@@ -169,20 +172,9 @@ public class KnownRelationshipAnnotator extends KnownEvidenceAnnotator<List<Set<
 	@Override
 	public void initialize(UimaContext ctx) throws ResourceInitializationException {
 		super.initialize(ctx);
-		entityNamespace = (String) ctx.getConfigParameterValue(PARAM_ENTITY_NAMESPACE);
-		relationshipNamespace = (String) ctx.getConfigParameterValue(PARAM_RELATIONSHIP_NAMESPACE);
-
-		ensureNotNull(entityNamespace, ResourceInitializationException.CONFIG_SETTING_ABSENT,
-		    PARAM_ENTITY_NAMESPACE);
-
-		ensureNotNull(relationshipNamespace,
-		    ResourceInitializationException.CONFIG_SETTING_ABSENT, PARAM_RELATIONSHIP_NAMESPACE);
-
-		Boolean rsaBoolean = (Boolean) ctx
-		    .getConfigParameterValue(PARAM_REMOVE_SENTENCE_ANNOTATIONS);
-		removeSentenceAnnotations = (rsaBoolean != null && rsaBoolean.booleanValue())
-		        ? true
-		        : false;
+		logger.log(Level.INFO, "initialized with relationship namespace='" +
+		                       relationshipNamespace + "', entity namespace='" + entityNamespace +
+		                       "', removing sentence annotations=" + removeSentenceAnnotations);
 	}
 
 	/**
@@ -212,14 +204,14 @@ public class KnownRelationshipAnnotator extends KnownEvidenceAnnotator<List<Set<
 
 		// Create an FSIterator constraint for entity annotations
 		FSMatchConstraint entityCons = SemanticAnnotation
-		    .makeConstraint(textJCas, entityNamespace);
+		    .makeConstraint(textJCas, null, entityNamespace);
 
 		// Iterate over every sentence
 		while (sentenceIt.hasNext()) {
 			hadRelations = false;
 			Annotation sentenceAnn = sentenceIt.next();
 			FSIterator<Annotation> entityIt = textJCas.createFilteredIterator(
-			    semanticAnnIdx.subiterator(sentenceAnn), entityCons);
+			    semanticAnnIdx.subiterator(sentenceAnn, true, true), entityCons);
 
 			// If the sentence has entities...
 			if (entityIt.hasNext()) {
@@ -320,6 +312,15 @@ public class KnownRelationshipAnnotator extends KnownEvidenceAnnotator<List<Set<
 
 		truePositives += tp_sum;
 		falseNegatives += total - tp_sum;
+
+		if (tp_sum > 0) {
+			logger.log(Level.INFO, "found " + tp_sum + " known relationships");
+
+			if (total > tp_sum)
+				logger.log(Level.INFO, "missed " + (total - tp_sum) + " known relationships");
+		} else {
+			logger.log(Level.WARNING, "missed all " + total + " known relationships");
+		}
 	}
 
 }

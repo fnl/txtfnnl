@@ -1,9 +1,7 @@
 package txtfnnl.uima.collection;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -44,6 +42,7 @@ import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.KnownRelationshipAnnotator;
 import txtfnnl.uima.analysis_component.LinkGrammarAnnotator;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
+import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
 import txtfnnl.uima.utils.UIMAUtils;
@@ -59,16 +58,16 @@ import txtfnnl.utils.SetUtils;
  */
 public final class RelationshipPatternLineWriter extends TextWriter {
 
-	/** The namespace for the Relationship annotations. */
+	/** The namespace for the relationship annotations. */
 	public static final String PARAM_RELATIONSHIP_NAMESPACE = KnownRelationshipAnnotator.PARAM_RELATIONSHIP_NAMESPACE;
-	@ConfigurationParameter(name = PARAM_RELATIONSHIP_NAMESPACE, mandatory = true) // TODO: default value?
+	@ConfigurationParameter(name = PARAM_RELATIONSHIP_NAMESPACE, mandatory = true)
 	private String relationshipNamespace;
-	
+
 	/**
 	 * Define the maximum number of characters a pattern may contain.
 	 * 
-	 * If unset, all are printed, which is the same as setting this parameter
-	 * to 0.
+	 * If unset, all lengths are printed, which is the same as setting this
+	 * parameter to 0.
 	 */
 	public static final String PARAM_MAX_PATTERN_LENGTH = "MaxPatternLength";
 	@ConfigurationParameter(name = PARAM_MAX_PATTERN_LENGTH, defaultValue = "0")
@@ -115,15 +114,30 @@ public final class RelationshipPatternLineWriter extends TextWriter {
 		}
 	};
 
-	public static FSMatchConstraint makeConstituentSyntaxAnnotationConstraint(JCas jcas) {
-		Feature constituentNamespace = jcas.getTypeSystem().getFeatureByFullName(
+	/**
+	 * Make a constraint that allows iterating constituent annotations in a
+	 * CAS.
+	 */
+	public static FSMatchConstraint
+	        makeConstituentSyntaxAnnotationConstraint(JCas jcas, String constituentNamespace) {
+		Feature constituentNamespaceFeat = jcas.getTypeSystem().getFeatureByFullName(
 		    SyntaxAnnotation.class.getName() + ":namespace");
 		ConstraintFactory cf = jcas.getConstraintFactory();
 		FeaturePath namespacePath = jcas.createFeaturePath();
-		namespacePath.addFeature(constituentNamespace);
+		namespacePath.addFeature(constituentNamespaceFeat);
 		FSStringConstraint namespaceCons = cf.createStringConstraint();
-		namespaceCons.equals(LinkGrammarAnnotator.NAMESPACE);
+		namespaceCons.equals(constituentNamespace);
 		return cf.embedConstraint(namespacePath, namespaceCons);
+	}
+
+	/**
+	 * Make a constraint that allows iterating constituent annotations in a
+	 * CAS.
+	 * 
+	 * Defaults to using the LinkGrammarAnnotator namespace.
+	 */
+	public static FSMatchConstraint makeConstituentSyntaxAnnotationConstraint(JCas jcas) {
+		return makeConstituentSyntaxAnnotationConstraint(jcas, LinkGrammarAnnotator.NAMESPACE);
 	}
 
 	/**
@@ -134,10 +148,14 @@ public final class RelationshipPatternLineWriter extends TextWriter {
 	 * {@link ResourceInitializationException} will occur when creating the
 	 * AE.
 	 * 
+	 * @param relationshipNamespace the namespace of the annotated
+	 *        relationships
 	 * @param outputDirectory path to the output directory (or null)
 	 * @param encoding encoding to use for writing (or null)
 	 * @param printToStdout whether to print to STDOUT or not
 	 * @param overwriteFiles whether to overwrite existing files or not
+	 * @param maxPatternLength the max length of patterns to extract (or 0 for
+	 *        unlimited)
 	 * @return a configured AE description
 	 * @throws IOException
 	 * @throws UIMAException
@@ -150,7 +168,8 @@ public final class RelationshipPatternLineWriter extends TextWriter {
 	                                                  final boolean overwriteFiles,
 	                                                  final int maxPatternLength)
 	        throws UIMAException, IOException {
-		return AnalysisEngineFactory.createPrimitiveDescription(TextWriter.class,
+		return AnalysisEngineFactory.createPrimitiveDescription(
+		    RelationshipPatternLineWriter.class,
 		    UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
 
 			    {
@@ -163,7 +182,24 @@ public final class RelationshipPatternLineWriter extends TextWriter {
 			    }
 		    }));
 	}
-	
+
+	/**
+	 * Configure a default CAS consumer descriptor for a pipeline.
+	 * 
+	 * This consumer will print to STDOUT, using the system's default
+	 * encoding, and will print patterns of any size.
+	 * 
+	 * @param relationshipNamespace the namespace of the annotated
+	 *        relationships
+	 * @return a configured AE description
+	 * @throws IOException
+	 * @throws UIMAException
+	 */
+	public static AnalysisEngineDescription configure(String relationshipNamespace)
+	        throws UIMAException, IOException {
+		return configure(relationshipNamespace, null, null, true, false, 0);
+	}
+
 	/**
 	 * For all annotated relationship sentences in the
 	 * {@link Views.CONTENT_TEXT} view of a CAS, extract patterns expressing
@@ -172,12 +208,13 @@ public final class RelationshipPatternLineWriter extends TextWriter {
 	 */
 	@Override
 	public void process(CAS cas) throws AnalysisEngineProcessException {
-		JCas textJCas, rawJCas;
+		JCas textJCas;
+		CAS rawJCas;
 		String documentId;
 
 		try {
 			textJCas = cas.getView(Views.CONTENT_TEXT.toString()).getJCas();
-			rawJCas = cas.getView(Views.CONTENT_RAW.toString()).getJCas();
+			rawJCas = cas.getView(Views.CONTENT_RAW.toString());
 			setStream(rawJCas);
 			documentId = new File(new URI(rawJCas.getSofaDataURI()).getPath()).getName();
 		} catch (CASException e) {
@@ -196,6 +233,7 @@ public final class RelationshipPatternLineWriter extends TextWriter {
 		String text = textJCas.getDocumentText();
 		AnnotationIndex<Annotation> annIdx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
 		FSMatchConstraint constituentConstraint = makeConstituentSyntaxAnnotationConstraint(textJCas);
+		logger.log(Level.FINE, "processing document '" + documentId + "'");
 
 		while (relationshipIt.hasNext()) {
 			process((RelationshipAnnotation) relationshipIt.next(), text, annIdx,
@@ -206,43 +244,6 @@ public final class RelationshipPatternLineWriter extends TextWriter {
 			unsetStream();
 		} catch (IOException e) {
 			throw new AnalysisEngineProcessException(e);
-		}
-	}
-
-	/**
-	 * Set the output stream according to the input stream's URL basename.
-	 * 
-	 * @param jCas of the input stream (raw)
-	 * @throws CASException if fetching the stream fails
-	 * @throws IOException if creating an output stream fails
-	 */
-	void setStream(JCas jCas) throws CASException, IOException {
-		if (outputDirectory != null) {
-			String inputName = (new File(jCas.getSofaDataURI())).getName();
-
-			if (inputName == null || inputName.length() == 0)
-				inputName = String.format("doc-%06d", ++counter);
-
-			File outputFile = new File(outputDirectory, inputName + ".txt");
-
-			if (!overwriteFiles && outputFile.exists()) {
-				int idx = 2;
-
-				while (outputFile.exists())
-					outputFile = new File(outputDirectory, inputName + "." + idx++ + ".txt");
-			}
-
-			if (encoding == null) {
-				logger.log(
-				    Level.INFO,
-				    String.format("writing to '%s' using '%s' encoding", outputFile,
-				        System.getProperty("file.encoding")));
-				outputWriter = new OutputStreamWriter(new FileOutputStream(outputFile));
-			} else {
-				logger.log(Level.INFO,
-				    String.format("writing to '%s' using '%s' encoding", outputFile, encoding));
-				outputWriter = new OutputStreamWriter(new FileOutputStream(outputFile), encoding);
-			}
 		}
 	}
 
@@ -259,12 +260,15 @@ public final class RelationshipPatternLineWriter extends TextWriter {
 	void process(RelationshipAnnotation relAnn, String text, AnnotationIndex<Annotation> annIdx,
 	             FSMatchConstraint constituentConstraint, JCas jcas)
 	        throws AnalysisEngineProcessException {
-		SyntaxAnnotation sentAnn = (SyntaxAnnotation) relAnn.getSources(0);
+		SentenceAnnotation sentAnn = (SentenceAnnotation) relAnn.getSources(0);
 		LinkedList<Annotation> nounPhrases = extractNounPhrases(jcas.createFilteredIterator(
 		    annIdx.subiterator(sentAnn, true, true), constituentConstraint));
 		FSIterator<Annotation> constituentIt = jcas.createFilteredIterator(
 		    annIdx.subiterator(sentAnn, true, true), constituentConstraint);
 		List<List<Annotation>> constituentCombinations = listConstituentArrangements(constituentIt);
+
+		if (logger != null)
+			logger.log(Level.FINER, "processing sentence '" + sentAnn.getCoveredText() + "'");
 
 		for (TextAnnotation[] entities : listSeparateEntities(relAnn.getTargets())) {
 			Set<String> patterns = new HashSet<String>();
@@ -281,6 +285,18 @@ public final class RelationshipPatternLineWriter extends TextWriter {
 					patterns.add(extractPattern(entities, spans));
 					patterns.addAll(extractNounPhraseSkippedPatterns(spans, entityPermutations));
 				}
+			}
+
+			if (logger != null && logger.isLoggable(Level.FINER) && entities.length > 0) {
+				StringBuilder sb = new StringBuilder();
+				for (TextAnnotation e : entities) {
+					sb.append('"');
+					sb.append(e.getCoveredText());
+					sb.append("\", ");
+				}
+				sb.delete(sb.length() - 2, sb.length());
+				logger.log(Level.FINER,
+				    "the entities: " + sb.toString() + " have " + patterns.size() + " patterns");
 			}
 
 			try {

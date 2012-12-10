@@ -56,29 +56,12 @@ public abstract class KnownEvidenceAnnotator<Evidence> extends JCasAnnotator_Imp
 		checksum = 0;
 
 		if (documentEvidenceMap.size() == 0)
-			logger.log(Level.WARNING, "no evidences loaded by resource {0}", this.getClass()
+			logger.log(Level.WARNING, "no evidence strings loaded by the {0}", this.getClass()
 			    .getSimpleName());
 		else
-			logger
-			    .log(Level.INFO, "loaded evidence for {0} documents", documentEvidenceMap.size());
-
-		ensureNotNull(documentEvidenceMap,
-		    ResourceInitializationException.NO_RESOURCE_FOR_PARAMETERS,
-		    MODEL_KEY_EVIDENCE_STRING_MAP);
-	}
-
-	/**
-	 * Ensure theObject is not <code>null</code>.
-	 * 
-	 * @param theObject to ensure
-	 * @param msg key to use for the exception
-	 * @param params for the message associated to the msg key
-	 * @throws ResourceInitializationException if theObject is null
-	 */
-	void ensureNotNull(Object theObject, String msg, Object... params)
-	        throws ResourceInitializationException {
-		if (theObject == null)
-			throw new ResourceInitializationException(msg, params);
+			logger.log(Level.INFO, this.getClass().getSimpleName() +
+			                       " loaded evidence for {0} documents",
+			    documentEvidenceMap.size());
 	}
 
 	/**
@@ -124,6 +107,8 @@ public abstract class KnownEvidenceAnnotator<Evidence> extends JCasAnnotator_Imp
 			        "no evidence mapped to doc '" + documentId + "' (" + rawCas.getSofaDataURI() +
 			                ")");
 		} else {
+			logger.log(Level.INFO, this.getClass().getSimpleName() + " processing doc '" +
+			                       documentId + "'");
 			process(documentId, textCas, evidence);
 		}
 	}

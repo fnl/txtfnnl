@@ -13,7 +13,7 @@ import org.apache.uima.cas.Type;
 /** An explicit text annoation type for sentences to simplify their index retrieval.
  * Updated by JCasGen Tue Nov 27 14:20:55 CET 2012
  * @generated */
-public class SentenceAnnotation_Type extends TextAnnotation_Type {
+public class SentenceAnnotation_Type extends SyntaxAnnotation_Type {
   /** @generated */
   @Override
   protected FSGenerator getFSGenerator() {return fsGenerator;}

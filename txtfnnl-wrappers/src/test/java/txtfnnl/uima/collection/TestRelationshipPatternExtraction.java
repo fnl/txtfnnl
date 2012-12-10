@@ -34,16 +34,13 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.InvalidXMLException;
 
 import org.uimafit.factory.AnalysisEngineFactory;
-import org.uimafit.factory.ExternalResourceFactory;
 import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.KnownEntityAnnotator;
 import txtfnnl.uima.analysis_component.KnownRelationshipAnnotator;
 import txtfnnl.uima.analysis_component.LinkGrammarAnnotator;
-import txtfnnl.uima.resource.EntityStringMapResource;
-import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
-import txtfnnl.uima.resource.RelationshipStringMapResource;
+import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 
 public class TestRelationshipPatternExtraction {
 
@@ -57,13 +54,13 @@ public class TestRelationshipPatternExtraction {
 
 	@Before
 	public void setUp() throws UIMAException, IOException, SQLException {
-		DisableLogging.enableLogging(Level.WARNING);
+		DisableLogging.enableLogging(Level.SEVERE); // silence LinkGrammar output
 		docId = UUID.randomUUID().toString();
 		setUpSentenceAE();
 		setUpEntityAE();
 		setUpRelationshipAE();
 		setUpParserAE();
-		setUpPatternAE();
+		setUpPatternWriterAE();
 	}
 
 	/**
@@ -74,45 +71,22 @@ public class TestRelationshipPatternExtraction {
 	 * @throws InvalidXMLException
 	 * @throws ResourceInitializationException
 	 */
-	void finalizeSetUp() throws IOException, SQLException,
-	        InvalidXMLException, ResourceInitializationException {
+	void finalizeSetUp() throws IOException, SQLException, InvalidXMLException,
+	        ResourceInitializationException {
 		entityDBStmt.close();
 		entityDBConnection.commit();
 		entityDBConnection.close();
 		entityTSVWriter.close();
 		relationshipTSVWriter.close();
-
-		ExternalResourceFactory.createDependencyAndBind(entityAEDesc,
-		    KnownEntityAnnotator.MODEL_KEY_EVIDENCE_STRING_MAP,
-		    EntityStringMapResource.class,
-		    "file:" + entityMap.getCanonicalPath());
-		ExternalResourceFactory.createDependencyAndBind(entityAEDesc,
-		    KnownEntityAnnotator.MODEL_KEY_JDBC_CONNECTION,
-		    JdbcConnectionResourceImpl.class, dbConnectionUrl,
-		    JdbcConnectionResourceImpl.PARAM_DRIVER_CLASS, "org.h2.Driver");
 		entityAE = AnalysisEngineFactory.createPrimitive(entityAEDesc);
-
-		ExternalResourceFactory.createDependencyAndBind(relationshipAEDesc,
-		    KnownRelationshipAnnotator.MODEL_KEY_EVIDENCE_STRING_MAP,
-		    RelationshipStringMapResource.class,
-		    "file:" + relationshipMap.getCanonicalPath());
-		relationshipAE = AnalysisEngineFactory
-		    .createPrimitive(relationshipAEDesc);
+		relationshipAE = AnalysisEngineFactory.createPrimitive(relationshipAEDesc);
 	}
 
 	void setUpSentenceAE() throws UIMAException, IOException {
-		sentenceAE = AnalysisEngineFactory
-		    .createAnalysisEngine("txtfnnl.uima.openNLPSentenceAEDescriptor");
+		sentenceAE = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure());
 	}
 
-	void setUpEntityAE() throws ResourceInitializationException, IOException,
-	        SQLException {
-		entityAEDesc = AnalysisEngineFactory.createPrimitiveDescription(
-		    KnownEntityAnnotator.class, KnownEntityAnnotator.PARAM_NAMESPACE,
-		    "entity:", KnownEntityAnnotator.PARAM_QUERIES,
-		    new String[] { "SELECT name FROM entities "
-		                   + "WHERE ns=? AND id=?" });
-
+	void setUpEntityAE() throws IOException, SQLException, UIMAException {
 		// set up an entity string map TSV file resource
 		entityMap = File.createTempFile("entity_string_map_", null);
 		entityMap.deleteOnExit();
@@ -127,46 +101,35 @@ public class TestRelationshipPatternExtraction {
 		stmt.executeUpdate("CREATE TABLE entities(ns VARCHAR, id VARCHAR, "
 		                   + "                    name VARCHAR)");
 		stmt.close();
-		entityDBStmt = entityDBConnection
-		    .prepareStatement("INSERT INTO entities VALUES(?, ?, ?)");
+		entityDBStmt = entityDBConnection.prepareStatement("INSERT INTO entities VALUES(?, ?, ?)");
+
+		entityAEDesc = KnownEntityAnnotator.configure("entity:",
+		    new String[] { "SELECT name FROM entities " + "WHERE ns=? AND id=?" }, entityMap,
+		    dbConnectionUrl, "org.h2.Driver");
 	}
 
-	void setUpRelationshipAE() throws ResourceInitializationException,
-	        IOException, InvalidXMLException {
-		relationshipAEDesc = AnalysisEngineFactory.createPrimitiveDescription(
-		    KnownRelationshipAnnotator.class,
-		    KnownRelationshipAnnotator.PARAM_ENTITY_NAMESPACE, "entity:",
-		    KnownRelationshipAnnotator.PARAM_RELATIONSHIP_NAMESPACE,
-		    "relationship:",
-		    KnownRelationshipAnnotator.PARAM_REMOVE_SENTENCE_ANNOTATIONS,
-		    Boolean.TRUE);
-
+	void setUpRelationshipAE() throws IOException, UIMAException {
 		// set up an entity string map TSV file resource
 		relationshipMap = File.createTempFile("relationship_map_", null);
 		relationshipMap.deleteOnExit();
-		relationshipTSVWriter = new BufferedWriter(new FileWriter(
-		    relationshipMap));
+		relationshipTSVWriter = new BufferedWriter(new FileWriter(relationshipMap));
+
+		relationshipAEDesc = KnownRelationshipAnnotator.configure("entity:", "relationship:",
+		    relationshipMap, true);
 	}
 
-	void setUpParserAE() throws ResourceInitializationException {
-		AnalysisEngineDescription annotatorDesc = AnalysisEngineFactory
-		    .createPrimitiveDescription(LinkGrammarAnnotator.class);
+	void setUpParserAE() throws UIMAException, IOException {
+		AnalysisEngineDescription annotatorDesc = LinkGrammarAnnotator.configure();
 		parserAE = AnalysisEngineFactory.createPrimitive(annotatorDesc);
 	}
 
-	void setUpPatternAE() throws ResourceInitializationException {
-		AnalysisEngineDescription annotatorDesc = AnalysisEngineFactory
-		    .createPrimitiveDescription(RelationshipPatternLineWriter.class,
-		        RelationshipPatternLineWriter.PARAM_PRINT_TO_STDOUT,
-		        Boolean.TRUE,
-		        RelationshipPatternLineWriter.PARAM_RELATIONSHIP_NAMESPACE,
-		        "relationship:");
-
+	void setUpPatternWriterAE() throws UIMAException, IOException {
+		AnalysisEngineDescription annotatorDesc = RelationshipPatternLineWriter.configure(
+		    "relationship:", null, null, true, false, 0);
 		patternAE = AnalysisEngineFactory.createPrimitive(annotatorDesc);
 	}
 
-	JCas setUpJCas(String text) throws ResourceInitializationException,
-	        CASException {
+	JCas setUpJCas(String text) throws ResourceInitializationException, CASException {
 		JCas baseCas = sentenceAE.newJCas();
 		JCas textCas = baseCas.createView(Views.CONTENT_TEXT.toString());
 		JCas rawCas = baseCas.createView(Views.CONTENT_RAW.toString());
@@ -194,8 +157,8 @@ public class TestRelationshipPatternExtraction {
 		relationshipTSVWriter.write("\n");
 	}
 
-	private void addEntity(String type, String ns, String id, String name)
-	        throws IOException, SQLException {
+	private void addEntity(String type, String ns, String id, String name) throws IOException,
+	        SQLException {
 		entityTSVWriter.write(docId);
 		entityTSVWriter.write("\t");
 		entityTSVWriter.write(type);
@@ -210,8 +173,7 @@ public class TestRelationshipPatternExtraction {
 		assertEquals(1, entityDBStmt.executeUpdate());
 	}
 
-	String process(JCas jcas) throws AnalysisEngineProcessException,
-	        UnsupportedEncodingException {
+	String process(JCas jcas) throws AnalysisEngineProcessException, UnsupportedEncodingException {
 		sentenceAE.process(jcas);
 		entityAE.process(jcas);
 		relationshipAE.process(jcas);
@@ -225,8 +187,7 @@ public class TestRelationshipPatternExtraction {
 	}
 
 	void checkForResult(String pattern, String result) {
-		assertTrue("Pattern\n'" + pattern + "'\nnot found in:\n" +
-		           prettyPrint(result),
+		assertTrue("Pattern\n'" + pattern + "'\nnot found in:\n" + prettyPrint(result),
 		    ("\n" + result).contains("\n" + pattern + "\n"));
 	}
 
@@ -243,85 +204,72 @@ public class TestRelationshipPatternExtraction {
 	}
 
 	Set<String> resultSet(String output) {
-		return new HashSet<String>(Arrays.asList(output.substring(0,
-		    output.length() - 2).split("\n")));
+		return new HashSet<String>(Arrays.asList(output.substring(0, output.length() - 2).split(
+		    "\n")));
 	}
 
 	@Test
-	public void testExtractionSystem() throws UIMAException, IOException,
-	        SQLException {
+	public void testExtractionSystem() throws UIMAException, IOException, SQLException {
 		addRelationship("ENT1", "ENT2");
 		finalizeSetUp();
 		JCas jcas = setUpJCas("ENT1 interacts with ENT2.");
-		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]]",
-		    process(jcas));
+		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]]", process(jcas));
 	}
 
 	@Test
-	public void testExtractionSkipsNounPhrases() throws UIMAException,
-	        IOException, SQLException {
+	public void testExtractionSkipsNounPhrases() throws UIMAException, IOException, SQLException {
 		addRelationship("ENT1", "ENT2");
 		finalizeSetUp();
 		JCas jcas = setUpJCas("ENT1, a regulator, interacts with ENT2.");
 		String result = process(jcas);
-		checkForResult(
-		    "[[entity:type-1]], a regulator, interacts with [[entity:type-2]]",
-		    result);
-		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]]",
-		    result);
+		checkForResult("[[entity:type-1]], a regulator, interacts with [[entity:type-2]]", result);
+		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]]", result);
 	}
 
-	public void testExtractionRemovesEmptyApposition() throws IOException,
-	        SQLException, UIMAException {
+	public void testExtractionRemovesEmptyApposition() throws IOException, SQLException,
+	        UIMAException {
 		addRelationship("ENT1", "ENT2");
 		finalizeSetUp();
 		JCas jcas = setUpJCas("ENT1 - a regulator - interacts with ENT2.");
 		String result = process(jcas);
-		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]]",
-		    result);
+		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]]", result);
 	}
 
 	@Test
-	public void testExtractionSkipsVerbPhrases() throws UIMAException,
-	        IOException, SQLException {
+	public void testExtractionSkipsVerbPhrases() throws UIMAException, IOException, SQLException {
 		addRelationship("ENT1", "ENT2");
 		finalizeSetUp();
 		JCas jcas = setUpJCas("ENT1 is a regulator that interacts with ENT2.");
-		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]]",
-		    process(jcas));
+		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]]", process(jcas));
 	}
 
 	@Test
-	public void testExtractionSkipsPrepositionPhrases() throws UIMAException,
-	        IOException, SQLException {
+	public void testExtractionSkipsPrepositionPhrases() throws UIMAException, IOException,
+	        SQLException {
 		addRelationship("ENT1", "ENT2");
 		finalizeSetUp();
 		JCas jcas = setUpJCas("ENT1 interacts with ENT2 inside the nucleus.");
 		String result = process(jcas);
-		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]]",
-		    result);
-		checkForResult(
-		    "[[entity:type-1]] interacts with [[entity:type-2]] inside the nucleus",
+		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]]", result);
+		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]] inside the nucleus",
 		    result);
 	}
 
 	@Test
-	public void testExtractionCompressesNounPhrases() throws UIMAException,
-	        IOException, SQLException {
+	public void testExtractionCompressesNounPhrases() throws UIMAException, IOException,
+	        SQLException {
 		addRelationship("ENT1", "ENT2");
 		finalizeSetUp();
 		JCas jcas = setUpJCas("The ENT1 transcription factor interacts with the ENT2 promoter.");
 		String result = process(jcas);
-		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]]",
-		    result);
+		checkForResult("[[entity:type-1]] interacts with [[entity:type-2]]", result);
 		checkForResult(
 		    "The [[entity:type-1]] transcription factor interacts with the [[entity:type-2]] promoter",
 		    result);
 	}
 
 	@Test
-	public void testParsingLongPhrase() throws UIMAException, IOException,
-	        SQLException {
+	public void testParsingLongPhrase() throws UIMAException, IOException, SQLException {
 		String sentence = "The inability of TERT overexpression to substitute "
 		                  + "for Myc in the REF cooperation assay, in "
 		                  + "conjunction with the previous observation that "
@@ -340,30 +288,27 @@ public class TestRelationshipPatternExtraction {
 		                 + "activation of [[entity:type-1]] gene expression and "
 		                 + "telomerase activity";
 		assertTrue(
-		    "Pattern\n'" + pattern + "'\nnot found in:\n" +
-		            prettyPrint(result),
+		    "Pattern\n'" + pattern + "'\nnot found in:\n" + prettyPrint(result),
 		    ("\n" + result).contains("\n" + pattern) ||
 		            ("\n" + result).contains("\nthat " + pattern));
 	}
 
 	@Test
-	public void testExtractionOfComplexPhrases() throws UIMAException,
-	        IOException, SQLException {
+	public void testExtractionOfComplexPhrases() throws UIMAException, IOException, SQLException {
 		addRelationship("ENT1", "ENT2");
 		finalizeSetUp();
 		JCas jcas = setUpJCas("The ENT1 factor, a nice gene, "
 		                      + "binds ENT2 promoter in the nucleus.");
 		String result = process(jcas);
-		checkForResult("[[entity:type-1]] binds "
-		               + "[[entity:type-2]] promoter", result);
+		checkForResult("[[entity:type-1]] binds " + "[[entity:type-2]] promoter", result);
+		checkForResult("[[entity:type-1]], a nice gene, binds " + "[[entity:type-2]] promoter",
+		    result);
+		checkForResult("[[entity:type-1]] binds " + "[[entity:type-2]] promoter in the nucleus",
+		    result);
 		checkForResult("[[entity:type-1]], a nice gene, binds "
-		               + "[[entity:type-2]] promoter", result);
-		checkForResult("[[entity:type-1]] binds "
 		               + "[[entity:type-2]] promoter in the nucleus", result);
-		checkForResult("[[entity:type-1]], a nice gene, binds "
-		               + "[[entity:type-2]] promoter in the nucleus", result);
-		checkForResult("The [[entity:type-1]] factor binds "
-		               + "[[entity:type-2]] promoter", result);
+		checkForResult("The [[entity:type-1]] factor binds " + "[[entity:type-2]] promoter",
+		    result);
 		checkForResult("The [[entity:type-1]] factor, a nice gene, "
 		               + "binds [[entity:type-2]] promoter", result);
 		checkForResult("The [[entity:type-1]] factor binds "
@@ -373,35 +318,31 @@ public class TestRelationshipPatternExtraction {
 	}
 
 	@Test
-	public void testSkippingOfModifierPhrases() throws UIMAException,
-	        IOException, SQLException {
+	public void testSkippingOfModifierPhrases() throws UIMAException, IOException, SQLException {
 		addRelationship("AAA-1", "BBB-2");
 		finalizeSetUp();
 		JCas jcas = setUpJCas("Inhibition of AAA-1 expression in "
 		                      + "HCT116 cells results in growth suppression "
 		                      + "in a BBB-2-dependent manner.");
 		String result = process(jcas);
-		checkForResult(
-		    "Inhibition of [[entity:type-1]] expression results in growth "
-		            + "suppression in a [[entity:type-2]]-dependent manner",
-		    result);
-		checkForResult(
-		    "Inhibition of [[entity:type-1]] expression in HCT116 cells "
-		            + "results in growth suppression in a "
-		            + "[[entity:type-2]]-dependent manner", result);
+		checkForResult("Inhibition of [[entity:type-1]] expression results in growth "
+		               + "suppression in a [[entity:type-2]]-dependent manner", result);
+		checkForResult("Inhibition of [[entity:type-1]] expression in HCT116 cells "
+		               + "results in growth suppression in a "
+		               + "[[entity:type-2]]-dependent manner", result);
 	}
 
-	@Ignore // TODO: FIXME
-	@Test
-	public void testExtractionOfInnerSentences() throws UIMAException,
-	        IOException, SQLException {
+	@Ignore
+	// TODO: FIXME
+	        @Test
+	        public
+	        void testExtractionOfInnerSentences() throws UIMAException, IOException, SQLException {
 		String e1 = "ENT1";
 		String e2 = "ENT2";
 		String e3 = "ENT3";
 		addRelationship(e1, e2, e3);
-		String text = "This test shows how " + e1 +
-		              ", an experimental phrase, interacts with " + e2 +
-		              " and " + e3 + ".";
+		String text = "This test shows how " + e1 + ", an experimental phrase, interacts with " +
+		              e2 + " and " + e3 + ".";
 		finalizeSetUp();
 		JCas jcas = setUpJCas(text);
 		String result = process(jcas);
@@ -410,22 +351,19 @@ public class TestRelationshipPatternExtraction {
 	}
 
 	@Test
-	public void testExtractionOfRelevantPhrases() throws UIMAException,
-	        IOException, SQLException {
+	public void testExtractionOfRelevantPhrases() throws UIMAException, IOException, SQLException {
 		addRelationship("AAA-1", "BBB-2");
 		finalizeSetUp();
 		JCas jcas = setUpJCas("We tested the effect of expressing HMG-I in "
 		                      + "S2 cells on activation of the BBB-2 promoter "
-		                      + "by ATF-2/c-Jun, IRFs, AAA-1 and "
-		                      + "coactivators.");
+		                      + "by ATF-2/c-Jun, IRFs, AAA-1 and " + "coactivators.");
 		String result = process(jcas);
-		checkForResult("on activation of the [[entity:type-2]] "
-		               + "promoter by [[entity:type-1]]", result);
+		checkForResult(
+		    "on activation of the [[entity:type-2]] " + "promoter by [[entity:type-1]]", result);
 	}
 
 	@Test
-	public void testExtractionOfRelevantPhrases2() throws UIMAException,
-	        IOException, SQLException {
+	public void testExtractionOfRelevantPhrases2() throws UIMAException, IOException, SQLException {
 		addRelationship("AAA", "BBB");
 		finalizeSetUp();
 		JCas jcas = setUpJCas("Taken together, our data strongly suggest "
@@ -439,8 +377,7 @@ public class TestRelationshipPatternExtraction {
 	}
 
 	@Test
-	public void testExtractionOfRelevantPhrases3() throws UIMAException,
-	        IOException, SQLException {
+	public void testExtractionOfRelevantPhrases3() throws UIMAException, IOException, SQLException {
 		addRelationship("AAA", "BBB");
 		finalizeSetUp();
 		JCas jcas = setUpJCas("The importance of these interactions was "
@@ -450,8 +387,7 @@ public class TestRelationshipPatternExtraction {
 		                      + "NF-kappaB prevented cooperative binding in "
 		                      + "the context of the BBB promoter.");
 		String result = process(jcas);
-		checkForResult(
-		    "[[entity:type-1]] prevented cooperative binding in the context "
-		            + "of the [[entity:type-2]] promoter", result);
+		checkForResult("[[entity:type-1]] prevented cooperative binding in the context "
+		               + "of the [[entity:type-2]] promoter", result);
 	}
 }

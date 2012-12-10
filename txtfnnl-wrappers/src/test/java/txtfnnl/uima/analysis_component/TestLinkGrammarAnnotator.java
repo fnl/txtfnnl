@@ -5,11 +5,13 @@ package txtfnnl.uima.analysis_component;
 
 import static org.junit.Assert.*;
 
+import java.io.IOException;
 import java.util.logging.Level;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.uima.UIMAException;
 import org.apache.uima.analysis_engine.AnalysisEngine;
 import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
@@ -19,7 +21,6 @@ import org.apache.uima.cas.text.AnnotationIndex;
 import org.apache.uima.cas.text.AnnotationTreeNode;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
-import org.apache.uima.resource.ResourceInitializationException;
 
 import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
@@ -28,6 +29,7 @@ import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
+import txtfnnl.uima.tcas.TextAnnotation;
 
 /**
  * 
@@ -47,8 +49,7 @@ public class TestLinkGrammarAnnotator {
 	 */
 	@Before
 	public void setUp() throws Exception {
-		DisableLogging.enableLogging(Level.WARNING);
-
+		DisableLogging.enableLogging(Level.SEVERE);
 		// set up AE descriptor under test
 		sentenceAnnotator = AnalysisEngineFactory.createAnalysisEngine(
 		    SentenceAnnotator.configure(), Views.CONTENT_TEXT.toString());
@@ -66,7 +67,7 @@ public class TestLinkGrammarAnnotator {
 		sentenceAnnotator.process(baseJCas.getCas());
 		linkGrammarAnnotator.process(baseJCas.getCas());
 		AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
-		FSIterator<Annotation> it = idx.iterator();
+		FSIterator<Annotation> it = SyntaxAnnotation.getIterator(textJCas);
 		String[][] annotations = new String[][] {
 		    // {
 		    // "S",
@@ -96,7 +97,7 @@ public class TestLinkGrammarAnnotator {
 				assertEquals(annotations[a][0], ann.getIdentifier());
 				assertEquals(annotations[a++][1], ann.getCoveredText());
 			} else {
-				ensureTreeStructure(idx, ann);
+				ensureTreeStructure(idx, (SentenceAnnotation) ann);
 			}
 		}
 
@@ -113,7 +114,7 @@ public class TestLinkGrammarAnnotator {
 			sentenceAnnotator.process(baseJCas.getCas());
 			linkGrammarAnnotator.process(baseJCas.getCas());
 			AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
-			FSIterator<Annotation> it = idx.iterator();
+			FSIterator<Annotation> it = SyntaxAnnotation.getIterator(textJCas);
 			String[][] annotations = new String[][] {
 			    // { "S", "ARL " + npInBrackets +
 			    // " binds to the p53 promoter." },
@@ -138,7 +139,7 @@ public class TestLinkGrammarAnnotator {
 					            ann.getEnd() + "]", annotations[a][0], ann.getIdentifier());
 					assertEquals(brackets + " a=" + a, annotations[a++][1], ann.getCoveredText());
 				} else {
-					ensureTreeStructure(idx, ann);
+					ensureTreeStructure(idx, (SentenceAnnotation) ann);
 				}
 			}
 
@@ -160,7 +161,7 @@ public class TestLinkGrammarAnnotator {
 		int count = 0;
 
 		while (it.hasNext()) {
-			ensureTreeStructure(idx, (SyntaxAnnotation) it.next());
+			ensureTreeStructure(idx, (SentenceAnnotation) it.next());
 			++count;
 		}
 
@@ -185,7 +186,7 @@ public class TestLinkGrammarAnnotator {
 		int count = 0;
 
 		while (it.hasNext()) {
-			ensureTreeStructure(idx, (SyntaxAnnotation) it.next());
+			ensureTreeStructure(idx, (SentenceAnnotation) it.next());
 			++count;
 		}
 
@@ -193,16 +194,14 @@ public class TestLinkGrammarAnnotator {
 	}
 
 	@Test
-	public void doesNotHangForever() throws AnalysisEngineProcessException, CASException,
-	        ResourceInitializationException {
-		annotatorDesc = AnalysisEngineFactory.createPrimitiveDescription(
-		    LinkGrammarAnnotator.class, LinkGrammarAnnotator.PARAM_TIMEOUT_SECONDS, 1);
+	public void doesNotHangForever() throws UIMAException, IOException {
+		annotatorDesc = LinkGrammarAnnotator.configure(1);
 		linkGrammarAnnotator = AnalysisEngineFactory.createAnalysisEngine(annotatorDesc,
 		    Views.CONTENT_TEXT.toString());
 		baseJCas = sentenceAnnotator.newJCas();
 		textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
 		textJCas
-		    .setDocumentText("Original article Telomerase reverse transcriptase gene is a direct target of c-Myc but is not functionally equivalent in cellular transformation Roger A Greenberg 1,b , Rónán C O'Hagan 2,b , Hongyu Deng 1 , Qiurong Xiao 5 , Steven R Hann 5 , Robert R Adams 6 , Serge Lichtsteiner 6 , Lynda Chin 2,4 , Gregg B Morin 6 and Ronald A DePinho 2,3,a 1 Department of Microbiology & Immunology, Albert Einstein College of Medicine, 1300 Morris Park Avenue, Bronx, New York 10461, USA.\n\nThis is a clean sentence.");
+		    .setDocumentText("Original article Telomerase reverse transcriptase gene is a direct target of c-Myc but is not functionally equivalent in cellular transformation Roger A Greenberg 1,b , Rónán C O'Hagan 2,b , Hongyu Deng 1 , Qiurong Xiao 5 , Steven R Hann 5 , Robert R Adams 6 , Serge Lichtsteiner 6 , Lynda Chin 2,4 , Gregg B Morin 6 and Ronald A DePinho 2,3,a 1 Department of Microbiology & Immunology, Albert Einstein College of Medicine, 1300 Morris Park Avenue, Bronx, New York 10461, USA.");
 		sentenceAnnotator.process(baseJCas.getCas());
 		linkGrammarAnnotator.process(baseJCas.getCas());
 		AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
@@ -210,19 +209,28 @@ public class TestLinkGrammarAnnotator {
 		int count = 0;
 
 		while (it.hasNext()) {
-			ensureTreeStructure(idx, (SyntaxAnnotation) it.next());
+			SentenceAnnotation ann = (SentenceAnnotation) it.next();
+			AnnotationTreeNode<Annotation> root = idx.tree(ann).getRoot();
+			Annotation rootAnn = root.get();
+			assertEquals("Sentence", ((TextAnnotation) rootAnn).getIdentifier());
+			assertEquals(ann.getBegin(), rootAnn.getBegin());
+			assertEquals(ann.getEnd(), rootAnn.getEnd());
+			assertEquals("sentence '" + ann.getCoveredText() + "' has unexpected child nodes", 0,
+			    root.getChildCount());
 			++count;
 		}
 
-		assertEquals(2, count);
+		assertEquals(1, count);
 	}
 
-	private void ensureTreeStructure(AnnotationIndex<Annotation> idx, SyntaxAnnotation ann) {
+	private void ensureTreeStructure(AnnotationIndex<Annotation> idx, SentenceAnnotation ann) {
 		AnnotationTreeNode<Annotation> root = idx.tree(ann).getRoot();
-		SyntaxAnnotation rootAnn = (SyntaxAnnotation) root.get();
-		assertEquals("Sentence", rootAnn.getIdentifier());
-		assertEquals(ann.getOffset(), rootAnn.getOffset());
-		assertNotSame(root.get().getCoveredText(), 0, root.getChildCount());
+		Annotation rootAnn = root.get();
+		assertEquals("Sentence", ((TextAnnotation) rootAnn).getIdentifier());
+		assertEquals(ann.getBegin(), rootAnn.getBegin());
+		assertEquals(ann.getEnd(), rootAnn.getEnd());
+		assertNotSame("sentence '" + ann.getCoveredText() + "' has no child nodes / node count ",
+		    0, root.getChildCount());
 	}
 
 }

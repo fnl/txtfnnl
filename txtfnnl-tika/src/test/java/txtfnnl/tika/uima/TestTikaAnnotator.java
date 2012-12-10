@@ -39,12 +39,11 @@ public class TestTikaAnnotator {
 	AnalysisEngine getEngine(String encoding, boolean normalizeGreek, String xmlHandler)
 	        throws UIMAException, IOException {
 		AnalysisEngineDescription aed = TikaAnnotator.configure(encoding, normalizeGreek,
-			xmlHandler);
+		    xmlHandler);
 		return AnalysisEngineFactory.createPrimitive(aed);
 	}
-	
-	AnalysisEngine getEngine()
-	        throws UIMAException, IOException {
+
+	AnalysisEngine getEngine() throws UIMAException, IOException {
 		return getEngine(null, false, null);
 	}
 
@@ -59,14 +58,14 @@ public class TestTikaAnnotator {
 		DisableLogging.disableLogging();
 		AnalysisEngine tikaAnnotator = getEngine();
 		JCas baseJCas = tikaAnnotator.newJCas();
-		
+
 		assertThrows(baseJCas, "No sofaFS with name CONTENT_RAW found.", CASRuntimeException.class);
 		baseJCas.createView(Views.CONTENT_RAW.toString());
 		assertThrows(baseJCas, "no SOFA data stream", AssertionError.class);
 	}
 
-	private void assertThrows(JCas cas, String message, Class<?> type)
-	        throws UIMAException, IOException {
+	private void assertThrows(JCas cas, String message, Class<?> type) throws UIMAException,
+	        IOException {
 		boolean thrown = false;
 		AnalysisEngine tikaAnnotator = getEngine();
 
@@ -99,7 +98,7 @@ public class TestTikaAnnotator {
 		AnalysisEngine tikaAnnotator = getEngine();
 		JCas baseJCas = tikaAnnotator.newJCas();
 		JCas jCas = baseJCas.createView(Views.CONTENT_RAW.toString());
-		
+
 		jCas.setSofaDataString("<html><body><p id=1>test</p></body></html>", "text/html");
 		tikaAnnotator.process(baseJCas);
 		jCas = baseJCas.getView(Views.CONTENT_TEXT.toString());
@@ -128,12 +127,12 @@ public class TestTikaAnnotator {
 		AnalysisEngine tikaAnnotator = getEngine();
 		JCas baseJCas = tikaAnnotator.newJCas();
 		JCas jCas = baseJCas.createView(Views.CONTENT_RAW.toString());
-		
+
 		jCas.setSofaDataString("<ce:para xmlns:ce=\"url\" val='1' >"
 		                       + "<ce:para val='1' >test</ce:para>" + "again</ce:para>",
 		    "text/xml");
-		tikaAnnotator = AnalysisEngineFactory.createAnalysisEngine(
-		    "txtfnnl.uima.tikaAEDescriptor", "UseElsevierXMLHandler", Boolean.TRUE);
+		tikaAnnotator = AnalysisEngineFactory.createPrimitive(TikaAnnotator.configure(null, false,
+		    "txtfnnl.tika.sax.ElsevierXMLContentHandler"));
 		tikaAnnotator.process(baseJCas);
 		jCas = baseJCas.getView(Views.CONTENT_TEXT.toString());
 		assertEquals("test\n\nagain", jCas.getDocumentText());
@@ -160,7 +159,7 @@ public class TestTikaAnnotator {
 		JCas baseJCas = tikaAnnotator.newJCas();
 		Metadata metadata = new Metadata();
 		TikaAnnotator real = new TikaAnnotator();
-		
+
 		metadata.add("test_name", "test_value");
 		real.handleMetadata(metadata, baseJCas);
 		int count = 0;
@@ -183,7 +182,7 @@ public class TestTikaAnnotator {
 		JCas baseJCas = tikaAnnotator.newJCas();
 		JCas jCas = baseJCas.createView(Views.CONTENT_RAW.toString());
 		File infile = new File("src/test/resources/encoding.html");
-		
+
 		jCas.setSofaDataURI("file:" + infile.getCanonicalPath(), null);
 		tikaAnnotator.process(baseJCas);
 		jCas = baseJCas.getView(Views.CONTENT_TEXT.toString());

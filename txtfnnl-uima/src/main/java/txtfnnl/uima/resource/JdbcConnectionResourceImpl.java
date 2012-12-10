@@ -294,4 +294,9 @@ public class JdbcConnectionResourceImpl implements JdbcConnectionResource, Exter
 		// nothing to do...
 	}
 
+	public String getUrl() {
+	    // TODO Auto-generated method stub
+	    return connectionUrl;
+    }
+
 }

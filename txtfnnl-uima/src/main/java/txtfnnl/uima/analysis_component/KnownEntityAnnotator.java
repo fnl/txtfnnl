@@ -32,7 +32,6 @@ import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.resource.ExternalResourceDescription;
-import org.apache.uima.resource.ResourceAccessException;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 
@@ -106,7 +105,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 	/** The list of SQL queries to fetch the entity names. */
 	public static final String PARAM_QUERIES = "Queries";
 	@ConfigurationParameter(name = PARAM_QUERIES, mandatory = true)
-	private String[] queries; // PARAM_QUERIES
+	private String[] queries;
 
 	/** The key used for the JdbcConnectionResource. */
 	public static final String MODEL_KEY_JDBC_CONNECTION = "EntityNameDb";
@@ -232,21 +231,6 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 		namespace = (String) ctx.getConfigParameterValue(PARAM_NAMESPACE);
 		queries = (String[]) ctx.getConfigParameterValue(PARAM_QUERIES);
 
-		try {
-			connector = (JdbcConnectionResource) ctx.getResourceObject(MODEL_KEY_JDBC_CONNECTION);
-		} catch (ResourceAccessException e) {
-			throw new ResourceInitializationException(e);
-		}
-
-		ensureNotNull(namespace, ResourceInitializationException.CONFIG_SETTING_ABSENT,
-		    PARAM_NAMESPACE);
-
-		ensureNotNull(queries, ResourceInitializationException.CONFIG_SETTING_ABSENT,
-		    PARAM_QUERIES);
-
-		ensureNotNull(connector, ResourceInitializationException.NO_RESOURCE_FOR_PARAMETERS,
-		    MODEL_KEY_JDBC_CONNECTION);
-
 		statements = new PreparedStatement[queries.length];
 
 		try {
@@ -258,6 +242,9 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 		} catch (SQLException e) {
 			throw new ResourceInitializationException(e);
 		}
+
+		logger.log(Level.INFO, "initialized with entity namespace='" + namespace + "' and " +
+		                       queries.length + " queries for URL='" + connector.getUrl() + "'");
 	}
 
 	@Override
@@ -316,8 +303,13 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 			}
 			truePositives += tp;
 			falseNegatives += numEntities - tp;
+			logger.log(Level.INFO, "found " + tp + " known entities");
+
+			if (numEntities - tp > 0)
+				logger.log(Level.WARNING, "missed " + (numEntities - tp) + " known entities");
 		} else {
 			falseNegatives += numEntities;
+			logger.log(Level.WARNING, "missed all " + numEntities + " known entities");
 		}
 	}
 
@@ -661,15 +653,13 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 		for (Entity e : entities) {
 			if (!alreadyMatched.contains(e)) {
 				// Annotate all entities that map to that name on
-				// the
-				// matched text span
+				// the matched text span
 				SemanticAnnotation ann = new SemanticAnnotation(textCas, span);
 				ann.setNamespace(namespace);
 				ann.setIdentifier(e.getType());
 				ann.setAnnotator(URI);
 				ann.setConfidence(1.0);
-				// Add the original entity ns & id, so we can
-				// backtrace
+				// Add the original entity ns & id, so we can backtrace
 				Property ns = new Property(textCas);
 				Property id = new Property(textCas);
 				ns.setName("namespace");
@@ -685,6 +675,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
 				// Note: lots of auto-boxing...
 				matchCount.put(e, 1 + matchCount.get(e));
 				alreadyMatched.add(e);
+
 			}
 		}
 	}
