@@ -1,172 +1,192 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <typeSystemDescription xmlns="http://uima.apache.org/resourceSpecifier">
-  <name>txtfnnlTypeSystem</name>
-  <description>A universal type system for the entire txtfnnl pipeline.</description>
-  <version>1.0</version>
-  <vendor>txtfnnl</vendor>
-  <types>
-    <typeDescription>
-      <name>txtfnnl.uima.tcas.TextAnnotation</name>
-      <description>Annotations on a specific text span.</description>
-      <supertypeName>uima.tcas.Annotation</supertypeName>
-      <features>
-        <featureDescription>
-          <name>annotator</name>
-          <description>A URI identifying the annotator (humans: e-mail, automated: URL).</description>
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-        </featureDescription>
-        <featureDescription>
-          <name>confidence</name>
-          <description>The annotator's confidence in this annotation (range: (0,1]).</description>
-          <rangeTypeName>uima.cas.Double</rangeTypeName>
-        </featureDescription>
-        <featureDescription>
-          <name>namespace</name>
-          <description>The namespace URL defining the annotation type system (e.g., the URL of the used ontology).</description>
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-        </featureDescription>
-        <featureDescription>
-          <name>identifier</name>
-          <description>The annotation type ID that should usually form a fully valid URL by joining the namespace and this value with a slash ("/").</description>
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-        </featureDescription>
-        <featureDescription>
-          <name>properties</name>
-          <description>Additional, free-form properties for this annotation.</description>
-          <rangeTypeName>uima.cas.FSArray</rangeTypeName>
-          <elementType>txtfnnl.uima.cas.Property</elementType>
-          <multipleReferencesAllowed>false</multipleReferencesAllowed>
-        </featureDescription>
-      </features>
-    </typeDescription>
-    <typeDescription>
-      <name>txtfnnl.uima.tcas.SofaAnnotation</name>
-      <description>A base type for SOFA-wide annotations.</description>
-      <supertypeName>uima.cas.AnnotationBase</supertypeName>
-      <features>
-        <featureDescription>
-          <name>annotator</name>
-          <description>A URI identifying the annotator (humans: e-mail, automated: URL).</description>
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-        </featureDescription>
-        <featureDescription>
-          <name>confidence</name>
-          <description>The annotator's confidence in this annotation (range: (0,1]).</description>
-          <rangeTypeName>uima.cas.Double</rangeTypeName>
-        </featureDescription>
-        <featureDescription>
-          <name>namespace</name>
-          <description>The namespace URL defining the annotation type system (e.g., the URL of the used ontology).</description>
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-        </featureDescription>
-        <featureDescription>
-          <name>identifier</name>
-          <description>The annotation type ID that should usually form a fully valid URL by joining the namespace and this value with a slash ("/").</description>
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-        </featureDescription>
-        <featureDescription>
-          <name>properties</name>
-          <description>Additional, free-form properties for this annotation.</description>
-          <rangeTypeName>uima.cas.FSArray</rangeTypeName>
-          <elementType>txtfnnl.uima.cas.Property</elementType>
-          <multipleReferencesAllowed>false</multipleReferencesAllowed>
-        </featureDescription>
-      </features>
-    </typeDescription>
-    <typeDescription>
-      <name>txtfnnl.uima.tcas.RelationshipAnnotation</name>
-      <description>Annotations of relationships between text annotations. All listed source participants interact with all listed target participants (i.e., add particpants to both slots to create undirected relationships).</description>
-      <supertypeName>txtfnnl.uima.tcas.SofaAnnotation</supertypeName>
-      <features>
-        <featureDescription>
-          <name>sources</name>
-          <description>Source participants in this relationship.</description>
-          <rangeTypeName>uima.cas.FSArray</rangeTypeName>
-          <elementType>txtfnnl.uima.tcas.TextAnnotation</elementType>
-          <multipleReferencesAllowed>true</multipleReferencesAllowed>
-        </featureDescription>
-        <featureDescription>
-          <name>targets</name>
-          <description>Target participants in this relationship.</description>
-          <rangeTypeName>uima.cas.FSArray</rangeTypeName>
-          <elementType>txtfnnl.uima.tcas.TextAnnotation</elementType>
-          <multipleReferencesAllowed>true</multipleReferencesAllowed>
-        </featureDescription>
-        <featureDescription>
-          <name>isAuto</name>
-          <description>Allow interactions between annotations that are both in source and target (i.e., "self-interactions").</description>
-          <rangeTypeName>uima.cas.Boolean</rangeTypeName>
-        </featureDescription>
-      </features>
-    </typeDescription>
-    <typeDescription>
-      <name>txtfnnl.uima.cas.Property</name>
-      <description>A free-form property structure for annotations.</description>
-      <supertypeName>uima.cas.TOP</supertypeName>
-      <features>
-        <featureDescription>
-          <name>name</name>
-          <description>The name of this property.</description>
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-        </featureDescription>
-        <featureDescription>
-          <name>value</name>
-          <description>The value of this property.</description>
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-        </featureDescription>
-      </features>
-    </typeDescription>
-    <typeDescription>
-      <name>txtfnnl.uima.tcas.DocumentAnnotation</name>
-      <description>Annotations on an entire SOFA.</description>
-      <supertypeName>txtfnnl.uima.tcas.SofaAnnotation</supertypeName>
-    </typeDescription>
-    <typeDescription>
-      <name>txtfnnl.uima.tcas.SyntaxAnnotation</name>
-      <description>TextAnnotations of syntactic elements (text segements such as sentences, tokens, etc.).</description>
-      <supertypeName>txtfnnl.uima.tcas.TextAnnotation</supertypeName>
-    </typeDescription>
-    <typeDescription>
-      <name>txtfnnl.uima.tcas.SemanticAnnotation</name>
-      <description>TextAnnotations of semantic elements (PoS, named entities, etc.).</description>
-      <supertypeName>txtfnnl.uima.tcas.TextAnnotation</supertypeName>
-    </typeDescription>
-    <typeDescription>
-      <name>txtfnnl.uima.tcas.StructureAnnotation</name>
-      <description>TextAnnotations of text structure (sections, paragraphs, headings, typeface, sub- and superscript, etc.)</description>
-      <supertypeName>txtfnnl.uima.tcas.TextAnnotation</supertypeName>
-    </typeDescription>
-    <typeDescription>
-      <name>txtfnnl.uima.tcas.TokenAnnotation</name>
-      <description>A subtype for tokens with additional features for the PoS and chunk tag and the token's stem.</description>
-      <supertypeName>txtfnnl.uima.tcas.SyntaxAnnotation</supertypeName>
-      <features>
-        <featureDescription>
-          <name>pos</name>
-          <description>The part-of-speech tag for this token.</description>
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-        </featureDescription>
-        <featureDescription>
-          <name>stem</name>
-          <description>The stem or lemma of this token.</description>
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-        </featureDescription>
-        <featureDescription>
-          <name>chunk</name>
-          <description>The chunk tag of this token.</description>
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-        </featureDescription>
-        <featureDescription>
-          <name>inChunk</name>
-          <description>TRUE if this token is part of a chunk that started with an earlier token.</description>
-          <rangeTypeName>uima.cas.Boolean</rangeTypeName>
-        </featureDescription>
-      </features>
-    </typeDescription>
-    <typeDescription>
-      <name>txtfnnl.uima.tcas.SentenceAnnotation</name>
-      <description>An explicit text annoation type for sentences to simplify their index retrieval.</description>
-      <supertypeName>txtfnnl.uima.tcas.SyntaxAnnotation</supertypeName>
-    </typeDescription>
-  </types>
+	<name>txtfnnlTypeSystem</name>
+	<description>A universal type system for the entire txtfnnl pipeline.</description>
+	<version>1.1</version>
+	<vendor>txtfnnl</vendor>
+	<types>
+		<typeDescription>
+			<name>txtfnnl.uima.tcas.TextAnnotation</name>
+			<description>Annotations on a specific text span.</description>
+			<supertypeName>uima.tcas.Annotation</supertypeName>
+			<features>
+				<featureDescription>
+					<name>annotator</name>
+					<description>A URI identifying the annotator (humans: e-mail,
+						automated: URL).</description>
+					<rangeTypeName>uima.cas.String</rangeTypeName>
+				</featureDescription>
+				<featureDescription>
+					<name>confidence</name>
+					<description>The annotator's confidence in this annotation (range:
+						(0,1]).</description>
+					<rangeTypeName>uima.cas.Double</rangeTypeName>
+				</featureDescription>
+				<featureDescription>
+					<name>namespace</name>
+					<description>The namespace URL defining the annotation type system
+						(e.g., the URL of the used ontology).</description>
+					<rangeTypeName>uima.cas.String</rangeTypeName>
+				</featureDescription>
+				<featureDescription>
+					<name>identifier</name>
+					<description>The annotation type ID that should usually form a
+						fully valid URL by joining the namespace and this value with a
+						slash ("/").</description>
+					<rangeTypeName>uima.cas.String</rangeTypeName>
+				</featureDescription>
+				<featureDescription>
+					<name>properties</name>
+					<description>Additional, free-form properties for this annotation.</description>
+					<rangeTypeName>uima.cas.FSArray</rangeTypeName>
+					<elementType>txtfnnl.uima.cas.Property</elementType>
+					<multipleReferencesAllowed>false</multipleReferencesAllowed>
+				</featureDescription>
+			</features>
+		</typeDescription>
+		<typeDescription>
+			<name>txtfnnl.uima.tcas.SofaAnnotation</name>
+			<description>A base type for SOFA-wide annotations.</description>
+			<supertypeName>uima.cas.AnnotationBase</supertypeName>
+			<features>
+				<featureDescription>
+					<name>annotator</name>
+					<description>A URI identifying the annotator (humans: e-mail,
+						automated: URL).</description>
+					<rangeTypeName>uima.cas.String</rangeTypeName>
+				</featureDescription>
+				<featureDescription>
+					<name>confidence</name>
+					<description>The annotator's confidence in this annotation (range:
+						(0,1]).</description>
+					<rangeTypeName>uima.cas.Double</rangeTypeName>
+				</featureDescription>
+				<featureDescription>
+					<name>namespace</name>
+					<description>The namespace URL defining the annotation type system
+						(e.g., the URL of the used ontology).</description>
+					<rangeTypeName>uima.cas.String</rangeTypeName>
+				</featureDescription>
+				<featureDescription>
+					<name>identifier</name>
+					<description>The annotation type ID that should usually form a
+						fully valid URL by joining the namespace and this value with a
+						slash ("/").</description>
+					<rangeTypeName>uima.cas.String</rangeTypeName>
+				</featureDescription>
+				<featureDescription>
+					<name>properties</name>
+					<description>Additional, free-form properties for this annotation.</description>
+					<rangeTypeName>uima.cas.FSArray</rangeTypeName>
+					<elementType>txtfnnl.uima.cas.Property</elementType>
+					<multipleReferencesAllowed>false</multipleReferencesAllowed>
+				</featureDescription>
+			</features>
+		</typeDescription>
+		<typeDescription>
+			<name>txtfnnl.uima.tcas.RelationshipAnnotation</name>
+			<description>Annotations of relationships between text annotations.
+				All listed source participants interact with all listed target
+				participants (i.e., add particpants to both slots to create
+				undirected relationships).</description>
+			<supertypeName>txtfnnl.uima.tcas.SofaAnnotation</supertypeName>
+			<features>
+				<featureDescription>
+					<name>sources</name>
+					<description>Source participants in this relationship.</description>
+					<rangeTypeName>uima.cas.FSArray</rangeTypeName>
+					<elementType>txtfnnl.uima.tcas.TextAnnotation</elementType>
+					<multipleReferencesAllowed>true</multipleReferencesAllowed>
+				</featureDescription>
+				<featureDescription>
+					<name>targets</name>
+					<description>Target participants in this relationship.</description>
+					<rangeTypeName>uima.cas.FSArray</rangeTypeName>
+					<elementType>txtfnnl.uima.tcas.TextAnnotation</elementType>
+					<multipleReferencesAllowed>true</multipleReferencesAllowed>
+				</featureDescription>
+				<featureDescription>
+					<name>isAuto</name>
+					<description>Allow interactions between annotations that are both
+						in source and target (i.e., "self-interactions").</description>
+					<rangeTypeName>uima.cas.Boolean</rangeTypeName>
+				</featureDescription>
+			</features>
+		</typeDescription>
+		<typeDescription>
+			<name>txtfnnl.uima.cas.Property</name>
+			<description>A free-form property structure for annotations.</description>
+			<supertypeName>uima.cas.TOP</supertypeName>
+			<features>
+				<featureDescription>
+					<name>name</name>
+					<description>The name of this property.</description>
+					<rangeTypeName>uima.cas.String</rangeTypeName>
+				</featureDescription>
+				<featureDescription>
+					<name>value</name>
+					<description>The value of this property.</description>
+					<rangeTypeName>uima.cas.String</rangeTypeName>
+				</featureDescription>
+			</features>
+		</typeDescription>
+		<typeDescription>
+			<name>txtfnnl.uima.tcas.DocumentAnnotation</name>
+			<description>Annotations on an entire SOFA.</description>
+			<supertypeName>txtfnnl.uima.tcas.SofaAnnotation</supertypeName>
+		</typeDescription>
+		<typeDescription>
+			<name>txtfnnl.uima.tcas.SyntaxAnnotation</name>
+			<description>TextAnnotations of syntactic elements (text segements
+				such as sentences, tokens, etc.).</description>
+			<supertypeName>txtfnnl.uima.tcas.TextAnnotation</supertypeName>
+		</typeDescription>
+		<typeDescription>
+			<name>txtfnnl.uima.tcas.SemanticAnnotation</name>
+			<description>TextAnnotations of semantic elements (PoS, named
+				entities, etc.).</description>
+			<supertypeName>txtfnnl.uima.tcas.TextAnnotation</supertypeName>
+		</typeDescription>
+		<typeDescription>
+			<name>txtfnnl.uima.tcas.StructureAnnotation</name>
+			<description>TextAnnotations of text structure (sections, paragraphs,
+				headings, typeface, sub- and superscript, etc.)</description>
+			<supertypeName>txtfnnl.uima.tcas.TextAnnotation</supertypeName>
+		</typeDescription>
+		<typeDescription>
+			<name>txtfnnl.uima.tcas.TokenAnnotation</name>
+			<description>A subtype for tokens with additional features for the
+				PoS and chunk tag and the token's stem.</description>
+			<supertypeName>txtfnnl.uima.tcas.SyntaxAnnotation</supertypeName>
+			<features>
+				<featureDescription>
+					<name>pos</name>
+					<description>The part-of-speech tag for this token.</description>
+					<rangeTypeName>uima.cas.String</rangeTypeName>
+				</featureDescription>
+				<featureDescription>
+					<name>stem</name>
+					<description>The stem or lemma of this token.</description>
+					<rangeTypeName>uima.cas.String</rangeTypeName>
+				</featureDescription>
+				<featureDescription>
+					<name>chunk</name>
+					<description>The chunk tag of this token.</description>
+					<rangeTypeName>uima.cas.String</rangeTypeName>
+				</featureDescription>
+				<featureDescription>
+					<name>inChunk</name>
+					<description>TRUE if this token is part of a chunk that started
+						with an earlier token.</description>
+					<rangeTypeName>uima.cas.Boolean</rangeTypeName>
+				</featureDescription>
+			</features>
+		</typeDescription>
+		<typeDescription>
+			<name>txtfnnl.uima.tcas.SentenceAnnotation</name>
+			<description>An explicit text annoation type for sentences to
+				simplify their index retrieval.</description>
+			<supertypeName>txtfnnl.uima.tcas.SyntaxAnnotation</supertypeName>
+		</typeDescription>
+	</types>
 </typeSystemDescription>

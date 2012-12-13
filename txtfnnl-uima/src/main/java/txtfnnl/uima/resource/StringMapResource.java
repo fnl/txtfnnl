@@ -5,33 +5,44 @@ import java.util.Iterator;
 import org.apache.uima.resource.SharedResourceObject;
 
 /**
- * A resource specification that uses String keys to return (arbitrary) values.
- *
+ * A resource specification that uses String keys to return (generic) values.
+ * 
  * @author Florian Leitner
  */
 public interface StringMapResource<V> extends SharedResourceObject {
+    /**
+     * Return the mapped value V for a given key.
+     * 
+     * @param key to fetch the value V for
+     * @return the value V mapped to the key
+     */
+    public V get(String key);
 
-	/**
-	 * Return the mapped value V for a given key.
-	 * 
-	 * @param key to fetch the value V for
-	 * @return the value V mapped to the key
-	 */
-	public V get(String key);
-	
-	/**
-	 * Return the number of keys.
-	 * 
-	 * @return the number of keys known by this resource.
-	 */
-	public int size();
+    /**
+     * Return the number of keys.
+     * 
+     * @return the number of keys known by this resource.
+     */
+    public int size();
 
-	
-	/**
-	 * Fetch an iterator for the keys.
-	 * 
-	 * @return a key iterator
-	 */
-	public Iterator<String> iterator();
-	
+    /**
+     * Fetch an iterator for the keys.
+     * 
+     * @return a key iterator
+     */
+    public Iterator<String> iterator();
+
+    /**
+     * Get the name of this resource.
+     * 
+     * @return resource name
+     */
+    public String getResourceName();
+
+    /**
+     * Get the URL or URI of this resource.
+     * 
+     * @return the resource URL string or <code>null</code>
+     */
+    public String getResourceUrl();
 }

@@ -22,223 +22,139 @@ import txtfnnl.uima.tcas.TokenAnnotation;
 import txtfnnl.uima.utils.UIMAUtils;
 
 /**
- * A CAS consumer that writes special markup, adding line separators after
- * {@link SentenceAnnotation}s.
+ * A CAS consumer that writes all {@link TokenAnnotation tokens} in a special "markup" format,
+ * adding line separators between {@link SentenceAnnotation sentences}.
+ * <p>
+ * The tokens found in each sentence are followed by their PoS tag and stem, separated by
+ * underscores from the token itself. Chunks are grouped using curly braces followed by the phrase
+ * tag. For example, the sentence "The dog barks repeatedly." would be represented as the following
+ * single line:
  * 
- * The tokens ({@link TokenAnnotation}) in each sentence are followed by their
- * PoS tag and stem, separated by underscores from the token itself. Chunks
- * are grouped using curly braces followed by the tag.
+ * <pre>
+ * { NP The_DT_the dog_NN_dog } { VP barks_VB_bark } { ADJP repeatedly_ADJ_repeat } ._._.
+ * </pre>
  * 
- * For example, the sentence "The dog barks repeatedly." would be represented
- * as:
+ * Due to this format, sentences are always written to a single line. As the tokens' text, PoS tag,
+ * and stem are separated by underscores, any underscores in the text, tag, or stem themselves are
+ * replaced with U+2423 ("␣", OPEN BOX), a symbol similar to the underscore.
  * 
- * <code>{ NP The_DT_the dog_NN_dog } { VP barks_VB_bark } { ADJP repeatedly_ADJ_repeat } ._._.</code>
- * 
- * Due to this nature, sentences are always joined across newlines and the
- * corresponding parameter in the {@link SentenceLineWriter} is not relevant
- * to this AE.
- * 
- * <b>Note</b> that on <b>Apple OSX</b> the default encoding would be
- * MacRoman; however, this consumer uses either the encoding defined by the
- * <b>LANG</b> environment variable or otherwise defaults to <b>UTF-8</b> as a
- * far more sensible encoding on OSX instead.
- * 
+ * @see TextWriter
  * @author Florian Leitner
  */
-public final class TaggedSentenceLineWriter extends SentenceLineWriter {
+public final class TaggedSentenceLineWriter extends TextWriter {
+    /**
+     * Configure a TaggedSentenceLineWriter descriptor.
+     * 
+     * @param outputDirectory path to the output directory (or null)
+     * @param encoding encoding to use for writing (or null)
+     * @param printToStdout whether to print to STDOUT or not
+     * @param overwriteFiles whether to overwrite existing files or not
+     * @throws IOException
+     * @throws UIMAException
+     */
+    @SuppressWarnings("serial")
+    public static AnalysisEngineDescription configure(final File outputDirectory,
+            final String encoding, final boolean printToStdout, final boolean overwriteFiles)
+            throws UIMAException, IOException {
+        return AnalysisEngineFactory.createPrimitiveDescription(TaggedSentenceLineWriter.class,
+            UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
+                {
+                    put(PARAM_OUTPUT_DIRECTORY, outputDirectory);
+                    put(PARAM_ENCODING, encoding);
+                    put(PARAM_PRINT_TO_STDOUT, printToStdout);
+                    put(PARAM_OVERWRITE_FILES, overwriteFiles);
+                }
+            }));
+    }
 
-	/**
-	 * Configure an AE descriptor for a pipeline.
-	 * 
-	 * @param outputDirectory path to the output directory (or null)
-	 * @param encoding encoding to use for writing (or null)
-	 * @param printToStdout whether to print to STDOUT or not
-	 * @param overwriteFiles whether to overwrite existing files or not
-	 * @throws IOException
-	 * @throws UIMAException
-	 */
-	@SuppressWarnings("serial")
-	public static AnalysisEngineDescription configure(final File outputDirectory,
-	                                                  final String encoding,
-	                                                  final boolean printToStdout,
-	                                                  final boolean overwriteFiles)
-	        throws UIMAException, IOException {
-		return AnalysisEngineFactory.createPrimitiveDescription(TaggedSentenceLineWriter.class,
-		    UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
+    /**
+     * Configure a default TaggedSentenceLineWriter descriptor. This consumer writes to STDOUT
+     * (only), using the system default encoding.
+     * 
+     * @throws IOException
+     * @throws UIMAException
+     */
+    public static AnalysisEngineDescription configure() throws UIMAException, IOException {
+        return TaggedSentenceLineWriter.configure(null, null, true, false);
+    }
 
-			    {
-				    put(PARAM_OUTPUT_DIRECTORY, outputDirectory);
-				    put(PARAM_ENCODING, encoding);
-				    put(PARAM_PRINT_TO_STDOUT, printToStdout);
-				    put(PARAM_OVERWRITE_FILES, overwriteFiles);
-			    }
-		    }));
-	}
+    /**
+     * Detect sentences in the {@link Views.CONTENT_TEXT} view of a CAS.
+     */
+    @Override
+    public void process(CAS cas) throws AnalysisEngineProcessException {
+        JCas textJCas;
+        try {
+            textJCas = cas.getView(Views.CONTENT_TEXT.toString()).getJCas();
+            setStream(cas.getView(Views.CONTENT_RAW.toString()));
+        } catch (final CASException e) {
+            throw new AnalysisEngineProcessException(e);
+        } catch (final IOException e) {
+            throw new AnalysisEngineProcessException(e);
+        }
+        final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textJCas);
+        final AnnotationIndex<Annotation> tokenIdx =
+            textJCas.getAnnotationIndex(TokenAnnotation.type);
+        while (sentenceIt.hasNext()) {
+            final Annotation sentence = sentenceIt.next();
+            final FSIterator<Annotation> tokenIt = tokenIdx.subiterator(sentence, true, true);
+            boolean chunkOpen = false; // remember if a chunk span is
+                                       // currently "open"
+            while (tokenIt.hasNext()) {
+                final TokenAnnotation token = (TokenAnnotation) tokenIt.next();
+                final String text = token.getCoveredText();
+                final String posTag = token.getPos();
+                final String chunkTag = token.getChunk();
+                String stem = token.getStem();
+                // fallback: use the text itself if no stem is given
+                if (stem == null) {
+                    stem = text;
+                }
+                try {
+                    if (chunkTag != null && !token.getInChunk()) {
+                        if (chunkOpen) {
+                            write("} ");
+                        }
+                        write("{ ");
+                        write(chunkTag);
+                        write(' ');
+                        chunkOpen = true;
+                    } else if (chunkTag == null) {
+                        if (chunkOpen) {
+                            write("} ");
+                        }
+                        chunkOpen = false;
+                    }
+                    write(escape(text));
+                    write('_');
+                    write(escape(posTag));
+                    write('_');
+                    write(escape(stem));
+                    if (token.getEnd() != sentence.getEnd()) {
+                        write(' ');
+                    }
+                } catch (final IOException e) {
+                    throw new AnalysisEngineProcessException(e);
+                }
+            }
+            try {
+                if (chunkOpen) {
+                    write(" }");
+                }
+                write(System.getProperty("line.separator"));
+            } catch (final IOException e) {
+                throw new AnalysisEngineProcessException(e);
+            }
+        }
+        try {
+            unsetStream();
+        } catch (final IOException e) {
+            throw new AnalysisEngineProcessException(e);
+        }
+    }
 
-	/**
-	 * Configure an AE descriptor for a pipeline that does not overwrite
-	 * files.
-	 * 
-	 * @throws IOException
-	 * @throws UIMAException
-	 */
-	public static AnalysisEngineDescription configure(File outputDirectory, String encoding,
-	                                                  boolean printToStdout) throws UIMAException,
-	        IOException {
-		return configure(outputDirectory, encoding, printToStdout, false);
-	}
-
-	/**
-	 * Configure an AE descriptor for a pipeline that does not print to
-	 * STDOUT.
-	 * 
-	 * @throws IOException
-	 * @throws UIMAException
-	 */
-	public static AnalysisEngineDescription configure(File outputDirectory, String encoding)
-	        throws UIMAException, IOException {
-		return configure(outputDirectory, encoding, false);
-	}
-
-	/**
-	 * Configure an AE descriptor for a pipeline that uses the default
-	 * encoding.
-	 * 
-	 * @throws IOException
-	 * @throws UIMAException
-	 */
-	public static AnalysisEngineDescription configure(File outputDirectory, boolean printToStdout,
-	                                                  boolean overwriteFiles)
-	        throws UIMAException, IOException {
-		return configure(outputDirectory, null, printToStdout, overwriteFiles);
-	}
-
-	/**
-	 * Configure an AE descriptor for a pipeline that uses the default
-	 * encoding and does not overwrite files.
-	 * 
-	 * @throws IOException
-	 * @throws UIMAException
-	 */
-	public static AnalysisEngineDescription configure(File outputDirectory, boolean printToStdout)
-	        throws UIMAException, IOException {
-		return configure(outputDirectory, null, printToStdout, false);
-	}
-
-	/**
-	 * Configure an AE descriptor for a pipeline that uses the default
-	 * encoding, does not print to STDOUT, and does not overwrite files.
-	 * 
-	 * @throws IOException
-	 * @throws UIMAException
-	 */
-	public static AnalysisEngineDescription configure(File outputDirectory) throws UIMAException,
-	        IOException {
-		return configure(outputDirectory, null, false, false);
-	}
-
-	/**
-	 * Configure an AE descriptor for a pipeline that (only) prints to STDOUT.
-	 * 
-	 * @throws IOException
-	 * @throws UIMAException
-	 */
-	public static AnalysisEngineDescription configure(String encoding) throws UIMAException,
-	        IOException {
-		return configure(null, encoding, true, false);
-	}
-
-	/**
-	 * Configure the default AE descriptor for a pipeline that uses the
-	 * default encoding and (only) prints to STDOUT.
-	 * 
-	 * @throws IOException
-	 * @throws UIMAException
-	 */
-	public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-		return configure(null, null, true, false);
-	}
-
-	/**
-	 * Detect sentences in the {@link Views.CONTENT_TEXT} view of a CAS.
-	 */
-	@Override
-	public void process(CAS cas) throws AnalysisEngineProcessException {
-		JCas textJCas;
-
-		try {
-			textJCas = cas.getView(Views.CONTENT_TEXT.toString()).getJCas();
-			setStream(cas.getView(Views.CONTENT_RAW.toString()));
-		} catch (CASException e) {
-			throw new AnalysisEngineProcessException(e);
-		} catch (IOException e) {
-			throw new AnalysisEngineProcessException(e);
-		}
-
-		FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textJCas);
-		AnnotationIndex<Annotation> tokenIdx = textJCas.getAnnotationIndex(TokenAnnotation.type);
-
-		while (sentenceIt.hasNext()) {
-			Annotation sentence = sentenceIt.next();
-			FSIterator<Annotation> tokenIt = tokenIdx.subiterator(sentence, true, true);
-			boolean chunkOpen = false;
-
-			while (tokenIt.hasNext()) {
-				TokenAnnotation token = (TokenAnnotation) tokenIt.next();
-				String value = escape(token.getCoveredText());
-				String pos = escape(token.getPos());
-				String chunk = token.getChunk();
-				String stem = token.getStem();
-
-				if (stem == null)
-					stem = token.getCoveredText();
-
-				stem = escape(stem);
-
-				try {
-					if (chunk != null && !token.getInChunk()) {
-						if (chunkOpen)
-							write("} ");
-						write("{ ");
-						write(chunk);
-						write(' ');
-						chunkOpen = true;
-					} else if (chunk == null) {
-						if (chunkOpen)
-							write("} ");
-						chunkOpen = false;
-					}
-
-					write(value);
-					write('_');
-					write(pos);
-					write('_');
-					write(stem);
-
-					if (token.getEnd() != sentence.getEnd())
-						write(' ');
-				} catch (IOException e) {
-					throw new AnalysisEngineProcessException(e);
-				}
-			}
-
-			try {
-				if (chunkOpen)
-					write(" }");
-				write(LINEBREAK);
-			} catch (IOException e) {
-				throw new AnalysisEngineProcessException(e);
-			}
-		}
-
-		try {
-			unsetStream();
-		} catch (IOException e) {
-			throw new AnalysisEngineProcessException(e);
-		}
-	}
-
-	private String escape(String text) {
-		return text.replace('_', '\u2423');
-	}
+    /** Replace the token-PoS-stem separator character inside text. */
+    private String escape(String text) {
+        return text.replace('_', '\u2423');
+    }
 }

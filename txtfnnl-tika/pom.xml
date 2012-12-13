@@ -3,7 +3,7 @@
   <parent>
     <artifactId>txtfnnl</artifactId>
     <groupId>txtfnnl</groupId>
-    <version>0.2</version>
+    <version>0.3</version>
     <relativePath>..</relativePath>
   </parent>
   <artifactId>txtfnnl-tika</artifactId>
@@ -18,7 +18,7 @@
   	<dependency>
   		<groupId>txtfnnl</groupId>
   		<artifactId>txtfnnl-uima</artifactId>
-  		<version>0.2</version>
+  		<version>0.3</version>
   	</dependency>
   </dependencies>
   <properties>

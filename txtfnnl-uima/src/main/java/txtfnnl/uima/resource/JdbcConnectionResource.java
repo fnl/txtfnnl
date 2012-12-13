@@ -6,20 +6,22 @@ import java.sql.SQLException;
 import org.apache.uima.resource.SharedResourceObject;
 
 /**
- * A resource specification for SQL database connection objects.
+ * A resource specification providing database connections.
  * 
  * @author Florian Leitner
  */
 public interface JdbcConnectionResource extends SharedResourceObject {
+    /**
+     * Provides a connection instance.
+     * 
+     * @see java.sql.DriverManager#getConnection(String)
+     */
+    public Connection getConnection() throws SQLException;
 
-	/**
-	 * Fetch a new connection instance.
-	 * 
-	 * @see java.sql.DriverManager#getConnection(String)
-	 * 
-	 * @return a JDBC connection
-	 */
-	public Connection getConnection() throws SQLException;
-
-	public String getUrl();
+    /**
+     * Fetch the JDBC URL for the {@link Connection}.
+     * 
+     * @return the JDBC URL
+     */
+    public String getUrl();
 }

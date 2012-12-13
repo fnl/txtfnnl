@@ -24,56 +24,41 @@ import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
 
 /**
- * 
+ * TODO: documentation...
  * 
  * @author Florian Leitner
  */
 public class RelationshipPatternAnnotator extends JCasAnnotator_ImplBase {
+    // config?
+    private String tokenNamespace;
+    public static final Set<String> TRIGGER_WORDS = new HashSet<String>(
+        Arrays.asList(new String[] { "gene", "promoter", "enhancer", "silencer", "element",
+            "motif", "sequence", "site" })); // TODO: set trigger words dynamically
+    protected Logger logger;
 
-	// config?
-	private String tokenNamespace;
-	
-	public static final Set<String> TRIGGER_WORDS = new HashSet<String>(
-	    Arrays.asList(new String[] {
-	        "gene",
-	        "promoter",
-	        "enhancer",
-	        "silencer",
-	        "element",
-	        "motif",
-	        "sequence",
-	        "site" })); // TODO
+    public void initialize(UimaContext ctx) throws ResourceInitializationException {
+        super.initialize(ctx);
+        logger = ctx.getLogger();
+    }
 
-	protected Logger logger;
-
-	public void initialize(UimaContext ctx)
-	        throws ResourceInitializationException {
-		super.initialize(ctx);
-
-		logger = ctx.getLogger();
-	}
-
-	@Override
-	public void process(JCas jcas) throws AnalysisEngineProcessException {
-		try {
-			jcas = jcas.getView(Views.CONTENT_TEXT.toString());
-		} catch (CASException e) {
-			throw new AnalysisEngineProcessException(e);
-		}
-
-		FSMatchConstraint tokenConstraint = TokenAnnotation
-		    .makeConstraint(jcas, tokenNamespace);
-		FSIterator<Annotation> sentenceIt = SentenceAnnotation
-		    .getIterator(jcas);
-		AnnotationIndex<Annotation> tokenIdx = jcas
-		    .getAnnotationIndex(TokenAnnotation.type);
-
-		while (sentenceIt.hasNext()) {
-			Annotation sentence = sentenceIt.next();
-			@SuppressWarnings("unused")
-            FSIterator<Annotation> tokenIt = jcas.createFilteredIterator(
-			    tokenIdx.subiterator(sentence, true, true), tokenConstraint);
-		}
-	}
-
+    @Override
+    public void process(JCas jcas) throws AnalysisEngineProcessException {
+        // TODO: use default view
+        try {
+            jcas = jcas.getView(Views.CONTENT_TEXT.toString());
+        } catch (final CASException e) {
+            throw new AnalysisEngineProcessException(e);
+        }
+        final FSMatchConstraint tokenConstraint =
+            TokenAnnotation.makeConstraint(jcas, tokenNamespace);
+        final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(jcas);
+        final AnnotationIndex<Annotation> tokenIdx = jcas.getAnnotationIndex(TokenAnnotation.type);
+        while (sentenceIt.hasNext()) {
+            final Annotation sentence = sentenceIt.next();
+            @SuppressWarnings("unused")
+            final FSIterator<Annotation> tokenIt =
+                jcas.createFilteredIterator(tokenIdx.subiterator(sentence, true, true),
+                    tokenConstraint);
+        }
+    }
 }

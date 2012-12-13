@@ -2,7 +2,8 @@
 # (c) Florian Leitner 2012.
 # All rights reserved.
 
-VERSION=0.2;
+# txtfnnl version
+VERSION=0.3;
 
 ###################
 ## configuration ##
@@ -73,10 +74,9 @@ $MAVEN_REPO/org/uimafit/uimafit/1.3.1/uimafit-1.3.1.jar:\
 $MAVEN_REPO/postgresql/postgresql/9.1-901-1.jdbc4/postgresql-9.1-901-1.jdbc4.jar:\
 $MAVEN_REPO/rome/rome/0.9/rome-0.9.jar:\
 $MAVEN_REPO/txtfnnl/txtfnnl-bin/$VERSION/txtfnnl-bin-$VERSION.jar:\
-$MAVEN_REPO/txtfnnl/txtfnnl-opennlp/$VERSION/txtfnnl-opennlp-$VERSION.jar:\
-$MAVEN_REPO/txtfnnl/txtfnnl-parsers/$VERSION/txtfnnl-parsers-$VERSION.jar:\
 $MAVEN_REPO/txtfnnl/txtfnnl-tika/$VERSION/txtfnnl-tika-$VERSION.jar:\
 $MAVEN_REPO/txtfnnl/txtfnnl-uima/$VERSION/txtfnnl-uima-$VERSION.jar:\
+$MAVEN_REPO/txtfnnl/txtfnnl-wrappers/$VERSION/txtfnnl-wrappers-$VERSION.jar:\
 $MAVEN_REPO/txtfnnl/txtfnnl-utils/$VERSION/txtfnnl-utils-$VERSION.jar;
 
 #################
@@ -87,11 +87,11 @@ help () {
     echo "usage: txtfnnl <pipeline> [options] <arguments>";
     echo;
     echo "pipelines:";
-    echo "  ss    - split sentences";
-    echo "  pp    - pre-process files to XMI (split, tag, stem and chunk)";
-    echo "  tag   - extract tagged plaintext (split, tag, stem and chunk)";
-    echo "  ema   - annotate known entity mentions";
-    echo "  rpe   - extract patterns with (potential) entity relationships";
+    echo "  split    - plaintext with line-separated sentences";
+    echo "  pre      - pre-process files to XMI (split, tag, stem and chunk)";
+    echo "  tag      - extract tagged plaintext (split, tag, stem and chunk)";
+    echo "  entities - annotate known entity mentions to XMI";
+    echo "  patterns - extract patterns with (potential) entity relationships";
     echo;
     echo "Use 'txtfnnl <pipeline> --help' to learn more about each pipeline.";
     echo "(c) Florian Leitner 2012. All rights reserved. Version" $VERSION;
@@ -101,13 +101,13 @@ if [ $# -gt 0 ]; then
     cmd=$1;
     shift;
     case $cmd in
-        ss) java txtfnnl.pipelines.SentenceSplitter "$@";;
-        pp) java -Xmx2G txtfnnl.pipelines.Preprocessor "$@";;
+        split) java txtfnnl.pipelines.SentenceSplitter "$@";;
+        pre) java -Xmx2G txtfnnl.pipelines.Preprocessor "$@";;
         tag) java -Xmx2G txtfnnl.pipelines.SentenceTagger "$@";;
-        ema) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
-        rpe) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;
-        -v) echo txtfnnl-$VERSION.1;;
-        --version) echo txtfnnl-$VERSION.1;;
+        entities) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
+        patterns) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;
+        -v) echo txtfnnl-$VERSION;;
+        --version) echo txtfnnl-$VERSION;;
         -h) help; exit 0;;
         --help) help; exit 0;;
         *) echo "unknown command:" $cmd; exit 1;;
