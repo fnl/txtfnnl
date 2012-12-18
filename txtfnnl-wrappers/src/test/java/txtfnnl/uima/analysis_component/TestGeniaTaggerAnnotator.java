@@ -24,9 +24,9 @@ import txtfnnl.uima.tcas.TokenAnnotation;
  * @author Florian Leitner
  */
 public class TestGeniaTaggerAnnotator {
-    private AnalysisEngineDescription annotatorDesc;
-    private AnalysisEngine sentenceAnnotator;
-    private AnalysisEngine geniaTaggerAnnotator;
+    private static AnalysisEngine geniaTaggerAnnotator;
+    private static AnalysisEngine sentenceAnnotator;
+    private static AnalysisEngineDescription annotatorDesc;
     private JCas baseJCas;
     private JCas textJCas;
 
@@ -35,12 +35,14 @@ public class TestGeniaTaggerAnnotator {
      */
     @Before
     public void setUp() throws Exception {
-        sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure());
-        annotatorDesc =
-            AnalysisEngineFactory.createPrimitiveDescription(GeniaTaggerAnnotator.class);
-        geniaTaggerAnnotator =
-            AnalysisEngineFactory.createAnalysisEngine(annotatorDesc,
-                Views.CONTENT_TEXT.toString());
+        if (annotatorDesc == null) annotatorDesc = GeniaTaggerAnnotator.configure();
+        if (sentenceAnnotator == null)
+            sentenceAnnotator =
+                AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure());
+        if (geniaTaggerAnnotator == null)
+            geniaTaggerAnnotator =
+                AnalysisEngineFactory.createAnalysisEngine(annotatorDesc,
+                    Views.CONTENT_TEXT.toString());
         baseJCas = sentenceAnnotator.newJCas();
         textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
     }

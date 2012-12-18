@@ -26,22 +26,24 @@ import txtfnnl.uima.tcas.SyntaxAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
 
 public class TestLinkGrammarAnnotator {
-    private AnalysisEngineDescription annotatorDesc;
-    private AnalysisEngine sentenceAnnotator;
-    private AnalysisEngine linkGrammarAnnotator;
+    private static AnalysisEngineDescription annotatorDesc;
+    private static AnalysisEngine sentenceAnnotator;
+    private static AnalysisEngine linkGrammarAnnotator;
     private JCas baseJCas;
     private JCas textJCas;
 
     @Before
     public void setUp() throws Exception {
         // set up AE descriptor under test
-        sentenceAnnotator =
-            AnalysisEngineFactory.createAnalysisEngine(SentenceAnnotator.configure(),
-                Views.CONTENT_TEXT.toString());
-        annotatorDesc = LinkGrammarAnnotator.configure();
-        linkGrammarAnnotator =
-            AnalysisEngineFactory.createAnalysisEngine(annotatorDesc,
-                Views.CONTENT_TEXT.toString());
+        if (sentenceAnnotator == null)
+            sentenceAnnotator =
+                AnalysisEngineFactory.createAnalysisEngine(SentenceAnnotator.configure(),
+                    Views.CONTENT_TEXT.toString());
+        if (annotatorDesc == null) annotatorDesc = LinkGrammarAnnotator.configure();
+        if (linkGrammarAnnotator == null)
+            linkGrammarAnnotator =
+                AnalysisEngineFactory.createAnalysisEngine(annotatorDesc,
+                    Views.CONTENT_TEXT.toString());
         baseJCas = sentenceAnnotator.newJCas();
         textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
     }
@@ -168,16 +170,14 @@ public class TestLinkGrammarAnnotator {
 
     @Test
     public void doesNotHangForever() throws UIMAException, IOException {
-        annotatorDesc = LinkGrammarAnnotator.configure(1);
-        linkGrammarAnnotator =
-            AnalysisEngineFactory.createAnalysisEngine(annotatorDesc,
-                Views.CONTENT_TEXT.toString());
+        AnalysisEngine lga =
+            AnalysisEngineFactory.createPrimitive(LinkGrammarAnnotator.configure(1));
         baseJCas = sentenceAnnotator.newJCas();
         textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
         textJCas
             .setDocumentText("Original article Telomerase reverse transcriptase gene is a direct target of c-Myc but is not functionally equivalent in cellular transformation Roger A Greenberg 1,b , Rónán C O'Hagan 2,b , Hongyu Deng 1 , Qiurong Xiao 5 , Steven R Hann 5 , Robert R Adams 6 , Serge Lichtsteiner 6 , Lynda Chin 2,4 , Gregg B Morin 6 and Ronald A DePinho 2,3,a 1 Department of Microbiology & Immunology, Albert Einstein College of Medicine, 1300 Morris Park Avenue, Bronx, New York 10461, USA.");
         sentenceAnnotator.process(baseJCas.getCas());
-        linkGrammarAnnotator.process(baseJCas.getCas());
+        lga.process(baseJCas.getCas());
         final AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
         final FSIterator<Annotation> it = SentenceAnnotation.getIterator(textJCas);
         int count = 0;
