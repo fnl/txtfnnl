@@ -41,7 +41,7 @@ import txtfnnl.uima.analysis_component.LinkGrammarAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 
 public class TestRelationshipPatternExtraction {
-    AnalysisEngine sentenceAE, entityAE, relationshipAE, parserAE, patternAE;
+    static AnalysisEngine sentenceAE, entityAE, relationshipAE, parserAE, patternAE;
     AnalysisEngineDescription entityAEDesc, relationshipAEDesc;
     File entityMap, relationshipMap;
     BufferedWriter entityTSVWriter, relationshipTSVWriter;
@@ -54,11 +54,11 @@ public class TestRelationshipPatternExtraction {
         DisableLogging.enableLogging(Level.SEVERE); // silence LinkGrammar
                                                     // output
         docId = UUID.randomUUID().toString();
-        setUpSentenceAE();
+        if (sentenceAE == null) setUpSentenceAE();
         setUpEntityAE();
         setUpRelationshipAE();
-        setUpParserAE();
-        setUpPatternWriterAE();
+        if (parserAE == null) setUpParserAE();
+        if (patternAE == null) setUpPatternWriterAE();
     }
 
     /**
@@ -264,14 +264,9 @@ public class TestRelationshipPatternExtraction {
     @Test
     public void testParsingLongPhrase() throws UIMAException, IOException, SQLException {
         final String sentence =
-            "The inability of TERT overexpression to substitute "
-                + "for Myc in the REF cooperation assay, in "
-                + "conjunction with the previous observation that "
-                + "c-Myc can bypass replicative senesence despite "
-                + "substantial telomere loss ( Wang et al ., 1998 "
-                + "), suggests that the oncogenic actions of c-Myc "
-                + "extend beyond the activation of TERT gene "
-                + "expression and telomerase activity.";
+            "The inability of TERT overexpression to substitute for Myc in the REF cooperation "
+                + "assay suggests that the oncogenic actions of c-Myc extend beyond the "
+                + "activation of TERT gene expression and telomerase activity.";
         addRelationship("TERT", "c-Myc");
         finalizeSetUp();
         final JCas jcas = setUpJCas(sentence);

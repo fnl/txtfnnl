@@ -147,14 +147,9 @@ public class TestLinkGrammarAnnotator {
     @Test
     public void onAnotherLongSentence() throws AnalysisEngineProcessException {
         final String testString =
-            "The inability of TERT overexpression to substitute "
-                + "for Myc in the REF cooperation assay, in "
-                + "conjunction with the previous observation that "
-                + "c-Myc can bypass replicative senesence despite "
-                + "substantial telomere loss ( Wang et al ., 1998 "
-                + "), suggests that the oncogenic actions of c-Myc "
-                + "extend beyond the activation of TERT gene "
-                + "expression and telomerase activity.";
+            "The inability of TERT overexpression to substitute for Myc in the REF cooperation "
+                + "assay suggests that the oncogenic actions of c-Myc extend beyond the "
+                + "activation of TERT gene expression and telomerase activity.";
         textJCas.setDocumentText(testString);
         sentenceAnnotator.process(baseJCas.getCas());
         linkGrammarAnnotator.process(baseJCas.getCas());
