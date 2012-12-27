@@ -90,7 +90,7 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
      * 
      * @param token that was lemmatized
      * @param posTag of the token
-     * @return the best possible lemma
+     * @return the best possible (all lower-cased) lemma
      */
     private String lemmatize(String token, String posTag) {
         final LemmataEntry lemmata = lemmatizer.lemmatizeByLexiconAndRules(token, posTag);
@@ -122,7 +122,7 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
                     // use the lower-case form of the token as lemma
                     logger.log(Level.FINE, "no unique lemma for ''{0}'' [{1}]: {2}", new Object[] {
                         token, posTag, lemmata.toString() });
-                    lemma = token.toLowerCase();
+                    lemma = token;
                 }
             } else {
                 // use the found alternative for the PoS
@@ -131,7 +131,7 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
                 lemma = alt;
             }
         }
-        return lemma;
+        return lemma.toLowerCase();
     }
 
     @Override
