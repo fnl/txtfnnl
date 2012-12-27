@@ -70,6 +70,7 @@ Currently supported tools are:
   <plugin>
     <groupId>org.apache.maven.plugins</groupId>
     <artifactId>maven-surefire-plugin</artifactId>
+    <version>2.12.4</version>
     <configuration>
         <argLine>-Xmx1G</argLine>
     </configuration>

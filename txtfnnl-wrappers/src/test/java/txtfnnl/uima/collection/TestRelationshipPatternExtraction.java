@@ -188,8 +188,10 @@ public class TestRelationshipPatternExtraction {
     private String prettyPrint(String result) {
         final StringBuilder sb = new StringBuilder("'");
         for (final String pattern : result.split("\n")) {
-            sb.append(pattern);
-            sb.append("'\n'");
+            if (pattern.length() > 0) {
+                sb.append(pattern);
+                sb.append("'\n'");
+            }
         }
         sb.delete(sb.length() - 2, sb.length());
         return sb.toString();
@@ -275,7 +277,7 @@ public class TestRelationshipPatternExtraction {
         // included, at other times, not; so:
         final String pattern =
             "the oncogenic actions of [[entity:type-2]] extend beyond the "
-                + "activation of [[entity:type-1]] gene expression and " + "telomerase activity";
+                + "activation of [[entity:type-1]] gene expression and telomerase activity";
         Assert.assertTrue(
             "Pattern\n'" + pattern + "'\nnot found in:\n" + prettyPrint(result),
             ("\n" + result).contains("\n" + pattern) ||
