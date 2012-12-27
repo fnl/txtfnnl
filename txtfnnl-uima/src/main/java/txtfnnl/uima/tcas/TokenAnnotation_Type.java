@@ -113,24 +113,45 @@ public class TokenAnnotation_Type extends SyntaxAnnotation_Type {
     }
 
     /** @generated */
-    final Feature casFeat_inChunk;
+    final Feature casFeat_chunkBegin;
     /** @generated */
-    final int casFeatCode_inChunk;
-
+    final int casFeatCode_chunkBegin;
+    
     /** @generated */
-    public boolean getInChunk(int addr) {
-        if (featOkTst && casFeat_inChunk == null) {
-            jcas.throwFeatMissing("inChunk", "txtfnnl.uima.tcas.TokenAnnotation");
+    public boolean getChunkBegin(int addr) {
+        if (featOkTst && casFeat_chunkBegin == null) {
+            jcas.throwFeatMissing("chunkBegin", "txtfnnl.uima.tcas.TokenAnnotation");
         }
-        return ll_cas.ll_getBooleanValue(addr, casFeatCode_inChunk);
+        return ll_cas.ll_getBooleanValue(addr, casFeatCode_chunkBegin);
     }
 
     /** @generated */
-    public void setInChunk(int addr, boolean v) {
-        if (featOkTst && casFeat_inChunk == null) {
-            jcas.throwFeatMissing("inChunk", "txtfnnl.uima.tcas.TokenAnnotation");
+    public void setChunkBegin(int addr, boolean v) {
+        if (featOkTst && casFeat_chunkBegin == null) {
+            jcas.throwFeatMissing("chunkBegin", "txtfnnl.uima.tcas.TokenAnnotation");
         }
-        ll_cas.ll_setBooleanValue(addr, casFeatCode_inChunk, v);
+        ll_cas.ll_setBooleanValue(addr, casFeatCode_chunkBegin, v);
+    }
+
+    /** @generated */
+    final Feature casFeat_chunkEnd;
+    /** @generated */
+    final int casFeatCode_chunkEnd;
+
+    /** @generated */
+    public boolean getChunkEnd(int addr) {
+        if (featOkTst && casFeat_chunkEnd == null) {
+            jcas.throwFeatMissing("chunkEnd", "txtfnnl.uima.tcas.TokenAnnotation");
+        }
+        return ll_cas.ll_getBooleanValue(addr, casFeatCode_chunkEnd);
+    }
+
+    /** @generated */
+    public void setChunkEnd(int addr, boolean v) {
+        if (featOkTst && casFeat_chunkEnd == null) {
+            jcas.throwFeatMissing("chunkEnd", "txtfnnl.uima.tcas.TokenAnnotation");
+        }
+        ll_cas.ll_setBooleanValue(addr, casFeatCode_chunkEnd, v);
     }
 
     /**
@@ -154,10 +175,15 @@ public class TokenAnnotation_Type extends SyntaxAnnotation_Type {
         casFeatCode_chunk =
             (null == casFeat_chunk) ? JCas.INVALID_FEATURE_CODE : ((FeatureImpl) casFeat_chunk)
                 .getCode();
-        casFeat_inChunk =
-            jcas.getRequiredFeatureDE(casType, "inChunk", "uima.cas.Boolean", featOkTst);
-        casFeatCode_inChunk =
-            (null == casFeat_inChunk) ? JCas.INVALID_FEATURE_CODE
-                : ((FeatureImpl) casFeat_inChunk).getCode();
+        casFeat_chunkBegin =
+            jcas.getRequiredFeatureDE(casType, "chunkBegin", "uima.cas.Boolean", featOkTst);
+        casFeatCode_chunkBegin =
+            (null == casFeat_chunkBegin) ? JCas.INVALID_FEATURE_CODE
+                : ((FeatureImpl) casFeat_chunkBegin).getCode();
+        casFeat_chunkEnd =
+            jcas.getRequiredFeatureDE(casType, "chunkEnd", "uima.cas.Boolean", featOkTst);
+        casFeatCode_chunkEnd =
+            (null == casFeat_chunkEnd) ? JCas.INVALID_FEATURE_CODE
+                : ((FeatureImpl) casFeat_chunkEnd).getCode();
     }
 }

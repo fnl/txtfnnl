@@ -28,49 +28,49 @@ import txtfnnl.uima.tcas.TokenAnnotation;
 
 /** A simple data type for the tokens (lines) produced by the GENIA tagger. */
 class Token {
-    private final String[] content;
-    private static final int WORD = 0;
-    private static final int STEM = 1;
-    private static final int POS = 2;
-    private static final int CHUNK = 3;
-    private static final int NER = 4;
-    @SuppressWarnings("unused")
-    private static final int PROTEIN = 5; // TODO: enable protein tagging
+  private final String[] content;
+  private static final int WORD = 0;
+  private static final int STEM = 1;
+  private static final int POS = 2;
+  private static final int CHUNK = 3;
+  private static final int NER = 4;
+  @SuppressWarnings("unused")
+  private static final int PROTEIN = 5; // TODO: enable protein tagging
 
-    Token(String raw) {
-        content = raw.split("\\t");
-        assert content.length == 5;
-    }
+  Token(String raw) {
+    content = raw.split("\\t");
+    assert content.length == 5;
+  }
 
-    String word() {
-        return content[WORD];
-    }
+  String word() {
+    return content[WORD];
+  }
 
-    String stem() {
-        return content[STEM];
-    }
+  String stem() {
+    return content[STEM];
+  }
 
-    String partOfSpeech() {
-        return content[POS];
-    }
+  String partOfSpeech() {
+    return content[POS];
+  }
 
-    String chunk() {
-        return content[CHUNK];
-    }
+  String chunk() {
+    return content[CHUNK];
+  }
 
-    String entityTag() {
-        return content[NER];
-    }
+  String entityTag() {
+    return content[NER];
+  }
 
-    public String toString() {
-        final StringBuilder sb = new StringBuilder();
-        for (final String s : content) {
-            sb.append(s);
-            sb.append('\t');
-        }
-        sb.deleteCharAt(sb.length() - 1);
-        return sb.toString();
+  public String toString() {
+    final StringBuilder sb = new StringBuilder();
+    for (final String s : content) {
+      sb.append(s);
+      sb.append('\t');
     }
+    sb.deleteCharAt(sb.length() - 1);
+    return sb.toString();
+  }
 }
 
 /**
@@ -80,33 +80,33 @@ class Token {
  * @author Florian Leitner
  */
 class GeniaTagger extends ReadlineRuntime<List<Token>> {
-    /**
-     * Create a new link-parser process fork.
-     * 
-     * @param dictPath the path to the parser dictionaries and models
-     * @param logger to handle all error messages
-     * @throws IOException on failure
-     */
-    public GeniaTagger(String dictPath, Logger logger) throws IOException {
-        super("geniatagger", new File(dictPath), logger);
-    }
+  /**
+   * Create a new link-parser process fork.
+   * 
+   * @param dictPath the path to the parser dictionaries and models
+   * @param logger to handle all error messages
+   * @throws IOException on failure
+   */
+  public GeniaTagger(String dictPath, Logger logger) throws IOException {
+    super("geniatagger", new File(dictPath), logger);
+  }
 
-    /**
-     * Tag a single sentence.
-     * 
-     * @return the tagged tokens
-     * @throws IOException on IO failures
-     */
-    @Override
-    protected List<Token> parseResponse() throws IOException {
-        final List<Token> tokens = new LinkedList<Token>();
-        String line = readLine();
-        while (line.length() > 0) {
-            tokens.add(new Token(line));
-            line = readLine();
-        }
-        return tokens;
+  /**
+   * Tag a single sentence.
+   * 
+   * @return the tagged tokens
+   * @throws IOException on IO failures
+   */
+  @Override
+  protected List<Token> parseResponse() throws IOException {
+    final List<Token> tokens = new LinkedList<Token>();
+    String line = readLine();
+    while (line.length() > 0) {
+      tokens.add(new Token(line));
+      line = readLine();
     }
+    return tokens;
+  }
 }
 
 /**
@@ -119,128 +119,129 @@ class GeniaTagger extends ReadlineRuntime<List<Token>> {
  * @author Florian Leitner
  */
 public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
-    /** The annotator's URI (for the annotations) set by this AE. */
-    public static final String URI = "http://www.nactem.ac.uk/tsujii/GENIA/tagger/";
-    /** The namespace used for all annotations. */
-    public static final String NAMESPACE = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
-    /** The identifier used for all annotations. */
-    public static final String IDENTIFIER = "Word";
-    /**
-     * The path to the dictionaries used by the GENIA Tagger. If in their default location (
-     * <code>/usr/local/share/geniatagger/</code> ), it is not necessary to set this parameter.
-     */
-    public static final String PARAM_DICTIONARIES_PATH = "DictionariesPath";
-    @ConfigurationParameter(name = PARAM_DICTIONARIES_PATH,
-            defaultValue = "/usr/local/share/geniatagger/",
-            description = "Path to the directory with the model files.")
-    private String dictionariesPath;
-    protected Logger logger;
-    private GeniaTagger tagger;
+  /** The annotator's URI (for the annotations) set by this AE. */
+  public static final String URI = "http://www.nactem.ac.uk/tsujii/GENIA/tagger/";
+  /** The namespace used for all annotations. */
+  public static final String NAMESPACE = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
+  /** The identifier used for all annotations. */
+  public static final String IDENTIFIER = "Word";
+  /**
+   * The path to the dictionaries used by the GENIA Tagger. If in their default location (
+   * <code>/usr/local/share/geniatagger/</code> ), it is not necessary to set this parameter.
+   */
+  public static final String PARAM_DICTIONARIES_PATH = "DictionariesPath";
+  @ConfigurationParameter(name = PARAM_DICTIONARIES_PATH,
+      defaultValue = "/usr/local/share/geniatagger/",
+      description = "Path to the directory with the model files.")
+  private String dictionariesPath;
+  protected Logger logger;
+  private GeniaTagger tagger;
 
-    /**
-     * Configure a Genia Tagger AE for a pipeline using a specific directory where the GENIA
-     * dictionaries are located.
-     */
-    public static AnalysisEngineDescription configure(File dictPath) throws UIMAException,
-            IOException {
-        return AnalysisEngineFactory.createPrimitiveDescription(GeniaTaggerAnnotator.class,
-            PARAM_DICTIONARIES_PATH, dictPath.getCanonicalPath());
-    }
+  /**
+   * Configure a Genia Tagger AE for a pipeline using a specific directory where the GENIA
+   * dictionaries are located.
+   */
+  public static AnalysisEngineDescription configure(File dictPath) throws UIMAException,
+      IOException {
+    return AnalysisEngineFactory.createPrimitiveDescription(GeniaTaggerAnnotator.class,
+        PARAM_DICTIONARIES_PATH, dictPath.getCanonicalPath());
+  }
 
-    /**
-     * Configure a Genia Tagger AE for a pipeline using the default location of the GENIA
-     * dictionaries.
-     */
-    public static AnalysisEngineDescription configure() throws UIMAException {
-        return AnalysisEngineFactory.createPrimitiveDescription(GeniaTaggerAnnotator.class);
-    }
+  /**
+   * Configure a Genia Tagger AE for a pipeline using the default location of the GENIA
+   * dictionaries.
+   */
+  public static AnalysisEngineDescription configure() throws UIMAException {
+    return AnalysisEngineFactory.createPrimitiveDescription(GeniaTaggerAnnotator.class);
+  }
 
-    @Override
-    public void initialize(UimaContext ctx) throws ResourceInitializationException {
-        super.initialize(ctx);
-        logger = ctx.getLogger();
-        try {
-            tagger = new GeniaTagger(dictionariesPath, logger);
-        } catch (final IOException e) {
-            logger.log(Level.SEVERE, "geniatagger setup failed (dict path: ''{0}'')",
-                dictionariesPath);
-            throw new ResourceInitializationException(e);
-        }
+  @Override
+  public void initialize(UimaContext ctx) throws ResourceInitializationException {
+    super.initialize(ctx);
+    logger = ctx.getLogger();
+    try {
+      tagger = new GeniaTagger(dictionariesPath, logger);
+    } catch (final IOException e) {
+      logger.log(Level.SEVERE, "geniatagger setup failed (dict path: ''{0}'')", dictionariesPath);
+      throw new ResourceInitializationException(e);
     }
+  }
 
-    @Override
-    public void process(JCas jcas) throws AnalysisEngineProcessException {
-        // TODO: use default view
-        JCas textCas;
-        try {
-            textCas = jcas.getView(Views.CONTENT_TEXT.toString());
-        } catch (final CASException e) {
-            throw new AnalysisEngineProcessException(e);
-        }
-        final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textCas);
-        final List<TokenAnnotation> buffer = new LinkedList<TokenAnnotation>();
-        List<Token> tokens;
-        while (sentenceIt.hasNext()) {
-            final Annotation sentenceAnn = sentenceIt.next();
-            final String sentence = sentenceAnn.getCoveredText().replace('\n', ' ');
-            final int sentenceOffset = sentenceAnn.getBegin();
-            int wordOffset = 0;
-            int wordLength = 0;
-            try {
-                tokens = tagger.process(sentence);
-            } catch (final IOException e) {
-                logger.log(Level.SEVERE, "geniatagger failed on: ''{0}''", sentence);
-                throw new AnalysisEngineProcessException(e);
-            }
-            for (final Token t : tokens) {
-                wordLength = t.word().length();
-                wordOffset = sentence.indexOf(t.word(), wordOffset);
-                if (wordOffset == -1) {
-                    logger.log(Level.SEVERE, "unmatched word ''{0}'' in ''{1}''",
-                        new Object[] { t.word(), sentence });
-                    throw new AnalysisEngineProcessException(new RuntimeException(
-                        "unmatched token"));
-                }
-                /* annotate the token */
-                final TokenAnnotation tokenAnn =
-                    new TokenAnnotation(textCas, sentenceOffset + wordOffset, sentenceOffset +
-                        wordOffset + wordLength);
-                tokenAnn.setAnnotator(URI);
-                tokenAnn.setNamespace(NAMESPACE);
-                tokenAnn.setIdentifier(IDENTIFIER);
-                tokenAnn.setConfidence(1.0);
-                tokenAnn.setPos(t.partOfSpeech());
-                tokenAnn.setStem(t.stem());
-                switch (t.chunk().charAt(0)) {
-                case 'B':
-                    tokenAnn.setChunk(t.chunk().substring(2));
-                    break;
-                case 'I':
-                    tokenAnn.setChunk(t.chunk().substring(2));
-                    tokenAnn.setInChunk(true);
-                    break;
-                case 'O':
-                    break;
-                default:
-                    logger.log(Level.SEVERE, "unexpected chunk tag ''{0}''", t.chunk());
-                    throw new AnalysisEngineProcessException(new RuntimeException(
-                        "illeagal chunk tag"));
-                }
-                buffer.add(tokenAnn);
-                wordOffset += wordLength;
-            }
-        }
-        for (final TokenAnnotation ann : buffer) {
-            textCas.addFsToIndexes(ann);
-        }
+  @Override
+  public void process(JCas jcas) throws AnalysisEngineProcessException {
+    // TODO: use default view
+    JCas textCas;
+    try {
+      textCas = jcas.getView(Views.CONTENT_TEXT.toString());
+    } catch (final CASException e) {
+      throw new AnalysisEngineProcessException(e);
     }
+    final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textCas);
+    final List<TokenAnnotation> buffer = new LinkedList<TokenAnnotation>();
+    List<Token> tokens;
+    while (sentenceIt.hasNext()) {
+      final Annotation sentenceAnn = sentenceIt.next();
+      final String sentence = sentenceAnn.getCoveredText().replace('\n', ' ');
+      final int sentenceOffset = sentenceAnn.getBegin();
+      int wordOffset = 0;
+      int wordLength = 0;
+      try {
+        tokens = tagger.process(sentence);
+      } catch (final IOException e) {
+        logger.log(Level.SEVERE, "geniatagger failed on: ''{0}''", sentence);
+        throw new AnalysisEngineProcessException(e);
+      }
+      TokenAnnotation last = null;
+      for (final Token t : tokens) {
+        wordLength = t.word().length();
+        wordOffset = sentence.indexOf(t.word(), wordOffset);
+        if (wordOffset == -1) {
+          logger.log(Level.SEVERE, "unmatched word ''{0}'' in ''{1}''", new Object[] { t.word(),
+              sentence });
+          throw new AnalysisEngineProcessException(new RuntimeException("unmatched token"));
+        }
+        /* annotate the token */
+        final TokenAnnotation tokenAnn = new TokenAnnotation(textCas, sentenceOffset + wordOffset,
+            sentenceOffset + wordOffset + wordLength);
+        tokenAnn.setAnnotator(URI);
+        tokenAnn.setNamespace(NAMESPACE);
+        tokenAnn.setIdentifier(IDENTIFIER);
+        tokenAnn.setConfidence(1.0);
+        tokenAnn.setPos(t.partOfSpeech());
+        tokenAnn.setStem(t.stem().toLowerCase());
+        switch (t.chunk().charAt(0)) {
+        case 'B':
+          if (last != null) last.setChunkEnd(true);
+          tokenAnn.setChunk(t.chunk().substring(2));
+          tokenAnn.setChunkBegin(true);
+          last = tokenAnn;
+          break;
+        case 'I':
+          tokenAnn.setChunk(t.chunk().substring(2));
+          break;
+        case 'O':
+          if (last != null) last.setChunkEnd(true);
+          last = null;
+          break;
+        default:
+          logger.log(Level.SEVERE, "unexpected chunk tag ''{0}''", t.chunk());
+          throw new AnalysisEngineProcessException(new RuntimeException("illeagal chunk tag"));
+        }
+        buffer.add(tokenAnn);
+        wordOffset += wordLength;
+      }
+    }
+    for (final TokenAnnotation ann : buffer) {
+      textCas.addFsToIndexes(ann);
+    }
+  }
 
-    public void destroy() {
-        super.destroy();
-        try {
-            tagger.stop();
-        } catch (final IOException e) {
-            logger.log(Level.INFO, "IOException while destorying the tagger: {0}", e.getMessage());
-        }
+  public void destroy() {
+    super.destroy();
+    try {
+      tagger.stop();
+    } catch (final IOException e) {
+      logger.log(Level.INFO, "IOException while destorying the tagger: {0}", e.getMessage());
     }
+  }
 }

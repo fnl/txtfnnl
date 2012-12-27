@@ -221,34 +221,62 @@ public class TokenAnnotation extends SyntaxAnnotation {
     }
 
     // *--------------*
-    // * Feature: inChunk
+    // * Feature: chunkBegin
     /**
-     * getter for inChunk - gets TRUE if this token is part of a chunk that started with an earlier
-     * token.
+     * getter for chunkBegin - gets TRUE if this token is the first token in the chunk.
      * 
      * @generated
      */
-    public boolean getInChunk() {
+    public boolean getChunkBegin() {
         if (TokenAnnotation_Type.featOkTst &&
-            ((TokenAnnotation_Type) jcasType).casFeat_inChunk == null) {
-            jcasType.jcas.throwFeatMissing("inChunk", "txtfnnl.uima.tcas.TokenAnnotation");
+            ((TokenAnnotation_Type) jcasType).casFeat_chunkBegin == null) {
+            jcasType.jcas.throwFeatMissing("chunkBegin", "txtfnnl.uima.tcas.TokenAnnotation");
         }
         return jcasType.ll_cas.ll_getBooleanValue(addr,
-            ((TokenAnnotation_Type) jcasType).casFeatCode_inChunk);
+            ((TokenAnnotation_Type) jcasType).casFeatCode_chunkBegin);
     }
 
     /**
-     * setter for inChunk - sets TRUE if this token is part of a chunk that started with an earlier
-     * token.
+     * setter for chunkBegin - sets TRUE if this token is the first token in the chunk.
      * 
      * @generated
      */
-    public void setInChunk(boolean v) {
+    public void setChunkBegin(boolean v) {
         if (TokenAnnotation_Type.featOkTst &&
-            ((TokenAnnotation_Type) jcasType).casFeat_inChunk == null) {
-            jcasType.jcas.throwFeatMissing("inChunk", "txtfnnl.uima.tcas.TokenAnnotation");
+            ((TokenAnnotation_Type) jcasType).casFeat_chunkBegin == null) {
+            jcasType.jcas.throwFeatMissing("chunkBegin", "txtfnnl.uima.tcas.TokenAnnotation");
         }
         jcasType.ll_cas.ll_setBooleanValue(addr,
-            ((TokenAnnotation_Type) jcasType).casFeatCode_inChunk, v);
+            ((TokenAnnotation_Type) jcasType).casFeatCode_chunkBegin, v);
+    }
+    
+    // *--------------*
+    // * Feature: chunkEnd
+   /**
+     * getter for chunkEnd - gets TRUE if this token is the last token in the chunk.
+     * 
+     * @generated
+     */
+    public boolean getChunkEnd() {
+        if (TokenAnnotation_Type.featOkTst &&
+            ((TokenAnnotation_Type) jcasType).casFeat_chunkEnd == null) {
+            jcasType.jcas.throwFeatMissing("chunkEnd", "txtfnnl.uima.tcas.TokenAnnotation");
+        }
+        return jcasType.ll_cas.ll_getBooleanValue(addr,
+            ((TokenAnnotation_Type) jcasType).casFeatCode_chunkEnd);
+    }
+
+    /**
+     * setter for chunkEnd - sets TRUE if this token is the last token in the chunk.
+     * 
+     * @generated
+     */
+    public void setChunkEnd(boolean v) {
+        if (TokenAnnotation_Type.featOkTst &&
+            ((TokenAnnotation_Type) jcasType).casFeat_chunkEnd == null) {
+            jcasType.jcas.throwFeatMissing("chunkEnd", "txtfnnl.uima.tcas.TokenAnnotation");
+        }
+        jcasType.ll_cas.ll_setBooleanValue(addr,
+            ((TokenAnnotation_Type) jcasType).casFeatCode_chunkEnd, v);
     }
 }

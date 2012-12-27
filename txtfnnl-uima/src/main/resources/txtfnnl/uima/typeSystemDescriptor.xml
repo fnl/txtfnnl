@@ -2,7 +2,7 @@
 <typeSystemDescription xmlns="http://uima.apache.org/resourceSpecifier">
   <name>txtfnnlTypeSystem</name>
   <description>A universal type system for the entire txtfnnl pipeline.</description>
-  <version>1.1</version>
+  <version>1.0</version>
   <vendor>txtfnnl</vendor>
   <types>
     <typeDescription>
@@ -173,9 +173,13 @@ All listed source participants interact with all listed target participants (i.e
           <rangeTypeName>uima.cas.String</rangeTypeName>
         </featureDescription>
         <featureDescription>
-          <name>inChunk</name>
-          <description>TRUE if this token is part of a chunk that started
-						with an earlier token.</description>
+          <name>chunkBegin</name>
+          <description>TRUE if this token is the first in a chunk.</description>
+          <rangeTypeName>uima.cas.Boolean</rangeTypeName>
+        </featureDescription>
+        <featureDescription>
+          <name>chunkEnd</name>
+          <description>TRUE if this token is the last in a chunk</description>
           <rangeTypeName>uima.cas.Boolean</rangeTypeName>
         </featureDescription>
       </features>
@@ -188,7 +192,7 @@ All listed source participants interact with all listed target participants (i.e
     </typeDescription>
     <typeDescription>
       <name>txtfnnl.uima.tcas.PhraseAnnotation</name>
-      <description>A phrasal annotation, including a pointer to its parent (or null for the root phrase) </description>
+      <description>A phrasal annotation, including a pointer to its parent (or null for the root phrase)</description>
       <supertypeName>txtfnnl.uima.tcas.SyntaxAnnotation</supertypeName>
       <features>
         <featureDescription>

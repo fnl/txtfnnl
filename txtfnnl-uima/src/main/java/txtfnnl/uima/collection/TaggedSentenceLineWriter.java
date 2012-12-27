@@ -42,119 +42,101 @@ import txtfnnl.uima.utils.UIMAUtils;
  * @author Florian Leitner
  */
 public final class TaggedSentenceLineWriter extends TextWriter {
-    /**
-     * Configure a TaggedSentenceLineWriter descriptor.
-     * 
-     * @param outputDirectory path to the output directory (or null)
-     * @param encoding encoding to use for writing (or null)
-     * @param printToStdout whether to print to STDOUT or not
-     * @param overwriteFiles whether to overwrite existing files or not
-     * @throws IOException
-     * @throws UIMAException
-     */
-    @SuppressWarnings("serial")
-    public static AnalysisEngineDescription configure(final File outputDirectory,
-            final String encoding, final boolean printToStdout, final boolean overwriteFiles)
-            throws UIMAException, IOException {
-        return AnalysisEngineFactory.createPrimitiveDescription(TaggedSentenceLineWriter.class,
-            UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-                {
-                    put(PARAM_OUTPUT_DIRECTORY, outputDirectory);
-                    put(PARAM_ENCODING, encoding);
-                    put(PARAM_PRINT_TO_STDOUT, printToStdout);
-                    put(PARAM_OVERWRITE_FILES, overwriteFiles);
-                }
-            }));
-    }
+  /**
+   * Configure a TaggedSentenceLineWriter descriptor.
+   * 
+   * @param outputDirectory path to the output directory (or null)
+   * @param encoding encoding to use for writing (or null)
+   * @param printToStdout whether to print to STDOUT or not
+   * @param overwriteFiles whether to overwrite existing files or not
+   * @throws IOException
+   * @throws UIMAException
+   */
+  @SuppressWarnings("serial")
+  public static AnalysisEngineDescription configure(final File outputDirectory,
+      final String encoding, final boolean printToStdout, final boolean overwriteFiles)
+      throws UIMAException, IOException {
+    return AnalysisEngineFactory.createPrimitiveDescription(TaggedSentenceLineWriter.class,
+        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
+          {
+            put(PARAM_OUTPUT_DIRECTORY, outputDirectory);
+            put(PARAM_ENCODING, encoding);
+            put(PARAM_PRINT_TO_STDOUT, printToStdout);
+            put(PARAM_OVERWRITE_FILES, overwriteFiles);
+          }
+        }));
+  }
 
-    /**
-     * Configure a default TaggedSentenceLineWriter descriptor. This consumer writes to STDOUT
-     * (only), using the system default encoding.
-     * 
-     * @throws IOException
-     * @throws UIMAException
-     */
-    public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-        return TaggedSentenceLineWriter.configure(null, null, true, false);
-    }
+  /**
+   * Configure a default TaggedSentenceLineWriter descriptor. This consumer writes to STDOUT
+   * (only), using the system default encoding.
+   * 
+   * @throws IOException
+   * @throws UIMAException
+   */
+  public static AnalysisEngineDescription configure() throws UIMAException, IOException {
+    return TaggedSentenceLineWriter.configure(null, null, true, false);
+  }
 
-    /**
-     * Detect sentences in the {@link Views.CONTENT_TEXT} view of a CAS.
-     */
-    @Override
-    public void process(CAS cas) throws AnalysisEngineProcessException {
-        JCas textJCas;
+  /**
+   * Detect sentences in the {@link Views.CONTENT_TEXT} view of a CAS.
+   */
+  @Override
+  public void process(CAS cas) throws AnalysisEngineProcessException {
+    JCas textJCas;
+    try {
+      textJCas = cas.getView(Views.CONTENT_TEXT.toString()).getJCas();
+      setStream(cas.getView(Views.CONTENT_RAW.toString()));
+    } catch (final CASException e) {
+      throw new AnalysisEngineProcessException(e);
+    } catch (final IOException e) {
+      throw new AnalysisEngineProcessException(e);
+    }
+    final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textJCas);
+    final AnnotationIndex<Annotation> tokenIdx = textJCas.getAnnotationIndex(TokenAnnotation.type);
+    while (sentenceIt.hasNext()) {
+      final Annotation sentence = sentenceIt.next();
+      final FSIterator<Annotation> tokenIt = tokenIdx.subiterator(sentence, true, true);
+      while (tokenIt.hasNext()) {
+        final TokenAnnotation token = (TokenAnnotation) tokenIt.next();
+        final String text = token.getCoveredText();
+        final String posTag = token.getPos();
+        final String chunkTag = token.getChunk();
+        String stem = token.getStem();
+        // fallback: use the text itself if no stem is given
+        if (stem == null) stem = text.toLowerCase();
         try {
-            textJCas = cas.getView(Views.CONTENT_TEXT.toString()).getJCas();
-            setStream(cas.getView(Views.CONTENT_RAW.toString()));
-        } catch (final CASException e) {
-            throw new AnalysisEngineProcessException(e);
+          if (chunkTag != null && token.getChunkBegin()) {
+            write("{ ");
+            write(escape(chunkTag));
+            write(' ');
+          }
+          write(escape(text));
+          write('_');
+          write(escape(posTag));
+          write('_');
+          write(escape(stem));
+          if (chunkTag != null && token.getChunkEnd()) write(" } ");
+          else write(' ');
         } catch (final IOException e) {
-            throw new AnalysisEngineProcessException(e);
+          throw new AnalysisEngineProcessException(e);
         }
-        final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textJCas);
-        final AnnotationIndex<Annotation> tokenIdx =
-            textJCas.getAnnotationIndex(TokenAnnotation.type);
-        while (sentenceIt.hasNext()) {
-            final Annotation sentence = sentenceIt.next();
-            final FSIterator<Annotation> tokenIt = tokenIdx.subiterator(sentence, true, true);
-            boolean chunkOpen = false; // remember if a chunk span is
-                                       // currently "open"
-            while (tokenIt.hasNext()) {
-                final TokenAnnotation token = (TokenAnnotation) tokenIt.next();
-                final String text = token.getCoveredText();
-                final String posTag = token.getPos();
-                final String chunkTag = token.getChunk();
-                String stem = token.getStem();
-                // fallback: use the text itself if no stem is given
-                if (stem == null) {
-                    stem = text;
-                }
-                try {
-                    if (chunkTag != null && !token.getInChunk()) {
-                        if (chunkOpen) {
-                            write("} ");
-                        }
-                        write("{ ");
-                        write(chunkTag);
-                        write(' ');
-                        chunkOpen = true;
-                    } else if (chunkTag == null) {
-                        if (chunkOpen) {
-                            write("} ");
-                        }
-                        chunkOpen = false;
-                    }
-                    write(escape(text));
-                    write('_');
-                    write(escape(posTag));
-                    write('_');
-                    write(escape(stem));
-                    if (token.getEnd() != sentence.getEnd()) {
-                        write(' ');
-                    }
-                } catch (final IOException e) {
-                    throw new AnalysisEngineProcessException(e);
-                }
-            }
-            try {
-                if (chunkOpen) {
-                    write(" }");
-                }
-                write(System.getProperty("line.separator"));
-            } catch (final IOException e) {
-                throw new AnalysisEngineProcessException(e);
-            }
-        }
-        try {
-            unsetStream();
-        } catch (final IOException e) {
-            throw new AnalysisEngineProcessException(e);
-        }
+      }
+      try {
+        write(System.getProperty("line.separator"));
+      } catch (final IOException e) {
+        throw new AnalysisEngineProcessException(e);
+      }
     }
+    try {
+      unsetStream();
+    } catch (final IOException e) {
+      throw new AnalysisEngineProcessException(e);
+    }
+  }
 
-    /** Replace the token-PoS-stem separator character inside text. */
-    private String escape(String text) {
-        return text.replace('_', '\u2423');
-    }
+  /** Replace the token-PoS-stem separator character inside text. */
+  private String escape(String text) {
+    return text.replace('_', '\u2423');
+  }
 }
