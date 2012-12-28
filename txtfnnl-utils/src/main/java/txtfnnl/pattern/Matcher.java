@@ -42,33 +42,13 @@ import java.util.Set;
  * @author Florian Leitner
  */
 public final class Matcher<E> {
-  class Offset {
-    int start = -1;
-    int end = -1;
-
-    Offset() {}
-
-    Offset(int s) {
-      start = s;
-    }
-
-    Offset(int s, int e) {
-      start = s;
-      end = e;
-    }
-
-    public String toString() {
-      return String.format("%d:%d", start, end);
-    }
-  }
-
   final State<E> entry;
   final State<E> exit;
   final List<E> seq;
   private int len; // length of the previous match (-1 if the previous match attempt failed)
   private int idx; // offset of the previous match (-1 if no previous match attempt was made)
-  private List<Offset> captureGroups;
-  private Map<Set<State<E>>, List<Offset>> openOffsets;
+  private List<int[]> captureGroups;
+  private Map<Set<State<E>>, List<int[]>> openOffsets;
 
   /** Check if there was a previously made match. */
   private boolean noMatch() {
@@ -195,8 +175,8 @@ public final class Matcher<E> {
   public List<E> group(int group) {
     if (group == 0) return group();
     if (noMatch()) throw new IllegalStateException("no previous match");
-    Offset o = captureGroups.get(group - 1);
-    return seq.subList(o.start, o.end);
+    int[] o = captureGroups.get(group - 1);
+    return seq.subList(o[0], o[1]);
   }
 
   /** Returns the number of <b>capturing</b> groups in this matcher's pattern. */
@@ -242,7 +222,7 @@ public final class Matcher<E> {
   public int start(int group) {
     if (group == 0) return start();
     if (noMatch()) throw new IllegalStateException("no previous match");
-    return captureGroups.get(group - 1).start;
+    return captureGroups.get(group - 1)[0];
   }
 
   /**
@@ -261,7 +241,7 @@ public final class Matcher<E> {
   public int end(int group) {
     if (group == 0) return end();
     if (noMatch()) throw new IllegalStateException("no previous match");
-    return captureGroups.get(group - 1).end;
+    return captureGroups.get(group - 1)[1];
   }
 
   /** Resets this matcher, returning itself. */
@@ -324,8 +304,9 @@ public final class Matcher<E> {
    */
   private int match() {
     if (idx > seq.size()) throw new IndexOutOfBoundsException("offset exceeds sequence length");
-    captureGroups = new LinkedList<Offset>(); // reset capture groups
+    captureGroups = new LinkedList<int[]>(); // reset capture groups
     if (entry.isFinal()) return 0; // a "match anything" pattern...
+    // == SETUP ==
     E element; // the currently consumed item
     State<E> state = entry; // the currently processed state
     int pos = idx; // the current position of the state machine in the sequence
@@ -334,7 +315,7 @@ public final class Matcher<E> {
     QueueItem<State<E>> qi = new QueueItem<State<E>>(pos, queueOrder++, state); // first queue item
     // capture groups are built via openOffsets:
     // the keys are the sets of states that may be visited to build a capture group
-    openOffsets = new HashMap<Set<State<E>>, List<Offset>>();
+    openOffsets = new HashMap<Set<State<E>>, List<int[]>>();
     // a list of the openOffsets keys matching at the current state
     LinkedList<Set<State<E>>> captureKeys;
     // record visited states at a given position in the sequence to avoid infinite loops that could
@@ -346,6 +327,7 @@ public final class Matcher<E> {
     q.add(new QueueItem<State<E>>(pos, queueOrder++, state));
     // search for an accept state on the queue while there are items in it
     while (!q.isEmpty()) {
+      // == NEXT STATE ==
       qi = q.poll();
       if (pos != qi.getIndex()) {
         // the state machine is moving on to next position
@@ -356,10 +338,11 @@ public final class Matcher<E> {
       state = qi.getItem();
       captureKeys = captureGroupsCheck(state, pos);
       if (state.isFinal()) {
-        return pos - idx; // SUCCESS - report the length of the shortest matching sequence
+        // == SUCCESS ==
+        return pos - idx; // report the length of the shortest matching sequence
       } else if (pos < seq.size()) {
         element = seq.get(pos); // get the item in the sequence at the relevant index
-        // == TRANSITIONS ==
+        // == STATE TRANSITIONS ==
         for (Transition<E> t : state.transitions.keySet()) {
           if (t.matches(element)) {
             // add the result states of matching transitions (if they have not been added yet)
@@ -368,16 +351,16 @@ public final class Matcher<E> {
             Iterator<Set<State<E>>> iter = captureKeys.iterator();
             while (iter.hasNext()) {
               Set<State<E>> k = iter.next();
-              List<Offset> l = openOffsets.remove(k);
-              for (Offset o : l)
-                if (o.start == -1) o.start = pos; // set the capture start position
+              List<int[]> l = openOffsets.remove(k);
+              for (int[] o : l)
+                if (o[0] == -1) o[0] = pos; // set the capture start position
               k.clear(); // drop the current capture key targets and ...
               // ... use the next states as new capture key targets
               updateCaptureMappings(k, state.transitions.get(t), l, iter);
             }
           }
         }
-      } // end transitions
+      }
       // == EPSILON TRANSITIONS ==
       if (state.epsilonTransitions.size() > 0) {
         queueOrder = updateQueue(state.epsilonTransitions, pos, q, queueOrder, visited);
@@ -392,13 +375,14 @@ public final class Matcher<E> {
             }
           }
           if (missed) {
-            List<Offset> l = openOffsets.remove(k);
+            List<int[]> l = openOffsets.remove(k);
             if (l == null) throw new NullPointerException("unknown key " + k + " at " + state);
             updateCaptureMappings(k, state.epsilonTransitions, l, iter);
           }
         }
-      } // end epsilon transitions
+      }
     }
+    // == FAILURE ==
     return -1;
   }
 
@@ -439,23 +423,23 @@ public final class Matcher<E> {
         // NB that the current state should not form part of the key
         HashSet<State<E>> key = new HashSet<State<E>>(state.epsilonTransitions);
         if (openOffsets.containsKey(key)) {
-          openOffsets.get(key).add(new Offset());
+          openOffsets.get(key).add(new int[] {-1, -1});
         } else {
-          List<Offset> l = new LinkedList<Offset>();
-          l.add(new Offset());
+          List<int[]> l = new LinkedList<int[]>();
+          l.add(new int[] {-1, -1});
           openOffsets.put(key, l);
         }
         captureKeys.add(key);
       }
       if (state.captureEnd) {
         // remove the shortest open capture group with the current state in its key
-        Offset shortest = new Offset();
+        int[] shortest = new int[] {-1, -1};
         Set<State<E>> key = null;
         for (Set<State<E>> candidate : openOffsets.keySet()) {
           if (candidate.contains(state)) {
-            List<Offset> offsets = openOffsets.get(candidate);
-            for (Offset o : offsets) {
-              if (o.start > shortest.start) {
+            List<int[]> offsets = openOffsets.get(candidate);
+            for (int[] o : offsets) {
+              if (o[0] > shortest[0]) {
                 shortest = o;
                 key = candidate;
               }
@@ -464,7 +448,7 @@ public final class Matcher<E> {
         }
         openOffsets.get(key).remove(shortest);
         if (openOffsets.get(key).isEmpty()) openOffsets.remove(key);
-        shortest.end = pos; // set the capture end position
+        shortest[1] = pos; // set the capture end position
         captureGroups.add(shortest);
       }
     }
@@ -484,7 +468,7 @@ public final class Matcher<E> {
    * @param iter at the position of key in the captureKeys
    */
   private void updateCaptureMappings(Set<State<E>> key, Set<State<E>> keyUpdate,
-      List<Offset> offsets, Iterator<Set<State<E>>> iter) {
+      List<int[]> offsets, Iterator<Set<State<E>>> iter) {
     key.addAll(keyUpdate);
     if (openOffsets.containsKey(key)) {
       iter.remove();
