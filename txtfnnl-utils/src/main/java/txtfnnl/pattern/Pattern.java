@@ -101,7 +101,31 @@ public class Pattern<E> {
     return new Pattern<E>(entry, exit);
   }
 
-  // TODO: constructing capture groups
+  /**
+   * Make this pattern capturing, i.e., ensure the sequences matched will be recored as a capture
+   * group.
+   * 
+   * @param pattern to capture
+   * @return a NFA
+   */
+  protected static final <E> Pattern<E> capture(Pattern<E> pattern) {
+    if (!pattern.entry.equals(pattern.exit) && !pattern.entry.captureStart &&
+        !pattern.exit.captureEnd) {
+      pattern.entry.captureStart = true;
+      pattern.exit.captureEnd = true;
+      return pattern;
+    } else {
+      State<E> entry = new State<E>();
+      State<E> exit = new State<E>();
+      entry.captureStart = true;
+      exit.captureEnd = true;
+      entry.addEpsilonTransition(pattern.entry);
+      pattern.exit.addEpsilonTransition(exit);
+      pattern.exit.makeNonFinal();
+      return new Pattern<E>(entry, exit);
+    }
+  }
+
   /**
    * Construct an NFA from the given entry and exit states.
    * <p>
@@ -116,7 +140,7 @@ public class Pattern<E> {
     exit.makeFinal(); // ensure exit is a final state
     // NB: there is no safeguard to ensure the states are actually connected!
   }
-
+  
   /**
    * Construct the simplest possible pattern: a two-state NFA joined by an epsilon transition.
    * <p>
@@ -172,10 +196,11 @@ public class Pattern<E> {
     Set<State<E>> validStates = new HashSet<State<E>>(); // states that should not be pruned
     queue.add(entry);
     // detect invalid states: states that are non-final with no regular transitions
-    // (unless it is the entry state)
+    // unless it is the entry state or a capture group-related state
     while (!queue.isEmpty()) {
       state = queue.remove();
-      if (state.transitions.size() == 0 && !state.isFinal() && !state.equals(entry)) {
+      if (!state.isFinal() && !state.isCapturing() && state.transitions.size() == 0 &&
+          !state.equals(entry)) {
         // for those invalid states, record their (epsilon transition) targets
         invalidStates.put(state, state.epsilonTransitions);
       } else {

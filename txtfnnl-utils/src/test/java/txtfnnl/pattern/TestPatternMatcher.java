@@ -149,6 +149,20 @@ public class TestPatternMatcher {
     matchOnce(toCharacterArray("zyz"), p, 1, 2);
     matchAll(toCharacterArray("zyzxz"), p, 1, 2, 3, 4);
   }
+  
+  @Test
+  public final void testPatternCapturing() {
+    Pattern<Character> p = Pattern.capture(Pattern.match(new CharTransition('x')));
+    Matcher<Character> m = p.matcher(toCharacterArray("axa"));
+    assertTrue(m.find());
+    assertEquals(toCharacterArray("x"), m.group(0));
+    assertEquals(toCharacterArray("x"), m.group(1));
+    assertNotSame(toCharacterArray("a"), m.group(1));
+    assertEquals(1, m.start(0));
+    assertEquals(2, m.end(0));
+    assertEquals(1, m.start(1));
+    assertEquals(2, m.end(1));
+  }
 
   @Test
   public final void testPatternChainWithOptional() {
@@ -311,5 +325,104 @@ public class TestPatternMatcher {
     assertFalse(m.find());
   }
   
+  @Test
+  public final void testPatternCapturingComplex() {
+    Pattern<Character> x = Pattern.match(new CharTransition('x'));
+    Pattern<Character> y = Pattern.match(new CharTransition('y'));
+    @SuppressWarnings("unchecked")
+    Pattern<Character> xory = Pattern.capture(Pattern.branch(x, y));
+    Pattern<Character> a = Pattern.match(new CharTransition('a'));
+    Pattern<Character> a2 = Pattern.match(new CharTransition('a'));
+    @SuppressWarnings("unchecked")
+    Pattern<Character> p = Pattern.chain(a, xory, a2); // "a(x|y)a"
+    Matcher<Character> m = p.matcher(toCharacterArray("axa"));
+    assertTrue(m.find());
+    assertEquals(toCharacterArray("axa"), m.group(0));
+    assertEquals(1, m.groupCount());
+    assertEquals(toCharacterArray("x"), m.group(1));
+    assertEquals(0, m.start(0));
+    assertEquals(3, m.end(0));
+    assertEquals(1, m.start(1));
+    assertEquals(2, m.end(1));
+  }
+
+  @Test
+  public final void testPatternCapturingAlt() {
+    Pattern<Character> x = Pattern.match(new CharTransition('x'));
+    Pattern<Character> y = Pattern.match(new CharTransition('y'));
+    @SuppressWarnings("unchecked")
+    Pattern<Character> xoryCap = Pattern.capture(Pattern.branch(x, y));
+    Pattern<Character> z = Pattern.match(new CharTransition('z'));
+    @SuppressWarnings("unchecked")
+    Pattern<Character> p = Pattern.branch(xoryCap, z); // "(x|y)|z"
+    // aza:
+    Matcher<Character> m = p.matcher(toCharacterArray("aza"));
+    assertTrue(m.find());
+    assertEquals(toCharacterArray("z"), m.group(0));
+    assertFalse(m.find());
+    // aya:
+    m = p.matcher(toCharacterArray("aya"));
+    assertTrue(m.find());
+    assertEquals(toCharacterArray("y"), m.group(1));
+    assertEquals(m.group(), m.group(1));
+    // axa:
+    m = p.matcher(toCharacterArray("axa"));
+    assertTrue(m.find());
+    assertEquals(toCharacterArray("x"), m.group(1));
+    assertEquals(m.group(), m.group(1));
+    assertFalse(m.find());
+    // ava:
+    m = p.matcher(toCharacterArray("ava"));
+    assertFalse(m.find());
+  }
+
+  @Test
+  public final void testPatternConsecutiveCaptures() {
+    Pattern<Character> x = Pattern.capture(Pattern.match(new CharTransition('x')));
+    Pattern<Character> y = Pattern.capture(Pattern.match(new CharTransition('y')));
+    Pattern<Character> z = Pattern.capture(Pattern.match(new CharTransition('z')));
+    @SuppressWarnings("unchecked")
+    Pattern<Character> p = Pattern.chain(x, y, z); // "(x)(y)(z)"
+    Matcher<Character> m = p.matcher(toCharacterArray("xyz"));
+    assertTrue(m.find());
+    assertEquals(3, m.groupCount());
+    assertEquals(toCharacterArray("xyz"), m.group());
+    assertEquals(toCharacterArray("x"), m.group(1));
+    assertEquals(toCharacterArray("y"), m.group(2));
+    assertEquals(toCharacterArray("z"), m.group(3));
+    assertFalse(m.find());
+  }
+
+  @Test
+  public final void testPatternNestedCaptures() {
+    Pattern<Character> p = Pattern.capture(Pattern.capture(Pattern.match(new CharTransition('x'))));
+    Matcher<Character> m = p.matcher(toCharacterArray("axb"));
+    assertTrue(m.find());
+    assertEquals(2, m.groupCount());
+    assertEquals(toCharacterArray("x"), m.group());
+    assertEquals(toCharacterArray("x"), m.group(1));
+    assertEquals(toCharacterArray("x"), m.group(2));
+    assertFalse(m.find());
+  }
+
+  @Test
+  public final void testPatternNestedConsecutiveCaptures() {
+    Pattern<Character> a = Pattern.match(new CharTransition('a'));
+    Pattern<Character> a2 = Pattern.match(new CharTransition('a'));
+    Pattern<Character> x = Pattern.capture(Pattern.match(new CharTransition('x')));
+    Pattern<Character> y = Pattern.capture(Pattern.match(new CharTransition('y')));
+    @SuppressWarnings("unchecked")
+    Pattern<Character> xy = Pattern.capture(Pattern.chain(x, y));
+    @SuppressWarnings("unchecked")
+    Pattern<Character> p = Pattern.chain(a, xy, a2); // "a((x)(y))a"
+    Matcher<Character> m = p.matcher(toCharacterArray("axya"));
+    assertTrue(m.find());
+    assertEquals(3, m.groupCount());
+    assertEquals(toCharacterArray("axya"), m.group());
+    assertEquals(toCharacterArray("x"), m.group(1));
+    assertEquals(toCharacterArray("y"), m.group(2));
+    assertEquals(toCharacterArray("xy"), m.group(3));
+    assertFalse(m.find());
+  }
 
 }
