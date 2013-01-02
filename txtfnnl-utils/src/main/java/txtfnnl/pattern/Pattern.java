@@ -109,6 +109,11 @@ public class Pattern<E> {
    * @return a NFA
    */
   protected static final <E> Pattern<E> capture(Pattern<E> pattern) {
+    // note that a state with both the capture start and end flag set will be treated as
+    // first ending a group, then starting a new one; therefore, if the pattern's entry and
+    // exit states are equal, additional states need to be introduced, otherwise the
+    // the matcher would try to first end a (not yet started) group and then start a group
+    // (that never would be ended)
     if (!pattern.entry.equals(pattern.exit) && !pattern.entry.captureStart &&
         !pattern.exit.captureEnd) {
       pattern.entry.captureStart = true;
@@ -140,7 +145,7 @@ public class Pattern<E> {
     exit.makeFinal(); // ensure exit is a final state
     // NB: there is no safeguard to ensure the states are actually connected!
   }
-  
+
   /**
    * Construct the simplest possible pattern: a two-state NFA joined by an epsilon transition.
    * <p>

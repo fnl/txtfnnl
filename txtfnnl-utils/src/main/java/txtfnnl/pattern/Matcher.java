@@ -2,15 +2,12 @@
 * Copyright 2012. All rights reserved. */
 package txtfnnl.pattern;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.Queue;
-import java.util.Set;
+import java.util.Stack;
 
 /**
  * An engine that performs match operation on a sequence of generic elements <code>E</code> by
@@ -47,8 +44,8 @@ public final class Matcher<E> {
   final List<E> seq;
   private int len; // length of the previous match (-1 if the previous match attempt failed)
   private int idx; // offset of the previous match (-1 if no previous match attempt was made)
-  private List<int[]> captureGroups;
-  private Map<Set<State<E>>, List<int[]>> openOffsets;
+  private int[][] captureGroups; // capture group offsets (int[][2] arrays)
+  private BFSQueue<E> queue;
 
   /** Check if there was a previously made match. */
   private boolean noMatch() {
@@ -175,13 +172,13 @@ public final class Matcher<E> {
   public List<E> group(int group) {
     if (group == 0) return group();
     if (noMatch()) throw new IllegalStateException("no previous match");
-    int[] o = captureGroups.get(group - 1);
+    int[] o = captureGroups[group - 1];
     return seq.subList(o[0], o[1]);
   }
 
   /** Returns the number of <b>capturing</b> groups in this matcher's pattern. */
   public int groupCount() {
-    return captureGroups.size();
+    return captureGroups.length;
   }
 
   /**
@@ -222,7 +219,7 @@ public final class Matcher<E> {
   public int start(int group) {
     if (group == 0) return start();
     if (noMatch()) throw new IllegalStateException("no previous match");
-    return captureGroups.get(group - 1)[0];
+    return captureGroups[group - 1][0];
   }
 
   /**
@@ -241,7 +238,7 @@ public final class Matcher<E> {
   public int end(int group) {
     if (group == 0) return end();
     if (noMatch()) throw new IllegalStateException("no previous match");
-    return captureGroups.get(group - 1)[1];
+    return captureGroups[group - 1][1];
   }
 
   /** Resets this matcher, returning itself. */
@@ -252,229 +249,98 @@ public final class Matcher<E> {
   }
 
   /**
-   * Item wrapper for the priority queue for the breadth-first-search (BFS).
-   * 
-   * @author Florian Leitner
-   */
-  class QueueItem<T> implements Comparable<QueueItem<T>> {
-    final int pos;
-    final int weight;
-    final T item;
-
-    /**
-     * Create a new queue item that will be ordered by <code>index</code>, then <code>order</code>,
-     * both sorted in decreasing order.
-     * 
-     * @param index of the queue item (e.g., index position in the scanned sequence)
-     * @param order of queue items with equal index (i.e., an optional weighting scheme)
-     * @param item the queue item itself
-     */
-    public QueueItem(int index, int order, T item) {
-      this.pos = index;
-      this.weight = order;
-      this.item = item;
-    }
-
-    /** Implements the Comparable interface by sorting on index, then order, descending. */
-    public int compareTo(QueueItem<T> o) {
-      if (pos == o.pos) return weight - o.weight;
-      else return pos - o.pos;
-    }
-
-    /** Get the index of this item. */
-    public int getIndex() {
-      return pos;
-    }
-
-    /** Get the queue item itself. */
-    public T getItem() {
-      return item;
-    }
-
-    public String toString() {
-      return String.format("%s[idx=%s, weight=%d, item=%s]", QueueItem.class.getName(), pos,
-          weight, item.toString());
-    }
-  }
-
-  /**
    * Breadth-first search of a match for the pattern in the input sequence.
    * 
    * @return the match length or <code>-1</code> if no match was made
    */
   private int match() {
     if (idx > seq.size()) throw new IndexOutOfBoundsException("offset exceeds sequence length");
-    captureGroups = new LinkedList<int[]>(); // reset capture groups
+    captureGroups = new int[][] {}; // reset capture groups
+    // (capture groups will be built from the backtrace of the tracer queue)
     if (entry.isFinal()) return 0; // a "match anything" pattern...
-    // == SETUP ==
     E element; // the currently consumed item
     State<E> state = entry; // the currently processed state
-    int pos = idx; // the current position of the state machine in the sequence
-    Queue<QueueItem<State<E>>> q = new PriorityQueue<QueueItem<State<E>>>(); // the BFS queue
-    int queueOrder = 0; // a simplistic QueueItem weight model: by order of insertion
-    QueueItem<State<E>> qi = new QueueItem<State<E>>(pos, queueOrder++, state); // first queue item
-    // capture groups are built via openOffsets:
-    // the keys are the sets of states that may be visited to build a capture group
-    openOffsets = new HashMap<Set<State<E>>, List<int[]>>();
-    // a list of the openOffsets keys matching at the current state
-    LinkedList<Set<State<E>>> captureKeys;
-    // record visited states at a given position in the sequence to avoid infinite loops that could
-    // arise from circular epsilon transitions
-    Set<State<E>> visited = new HashSet<State<E>>(); // at the current offset
-    Set<State<E>> visitedNext = new HashSet<State<E>>(); // at the current offset + 1
-    // add the entry state and to the queue
-    visited.add(state);
-    q.add(new QueueItem<State<E>>(pos, queueOrder++, state));
+    int offset = idx; // the current position of the state machine in the sequence
+    queue = new BFSQueue<E>(offset, state); // start a new tracer queue
     // search for an accept state on the queue while there are items in it
-    while (!q.isEmpty()) {
-      // == NEXT STATE ==
-      qi = q.poll();
-      if (pos != qi.getIndex()) {
-        // the state machine is moving on to next position
-        pos = qi.getIndex();
-        visited = visitedNext;
-        visitedNext = new HashSet<State<E>>();
-      }
-      state = qi.getItem();
-      captureKeys = captureGroupsCheck(state, pos);
+    while (!queue.isEmpty()) {
+      QueueItem<State<E>> item = queue.remove();
+      offset = item.index();
+      state = item.get();
       if (state.isFinal()) {
-        // == SUCCESS ==
-        return pos - idx; // report the length of the shortest matching sequence
-      } else if (pos < seq.size()) {
-        element = seq.get(pos); // get the item in the sequence at the relevant index
-        // == STATE TRANSITIONS ==
+        // backtrack captured groups and report the length of the shortest matching sequence
+        setCaptureGroups(item);
+        // ==== SUCCESS ====
+        return offset - idx;
+        // =================
+      } else if (offset < seq.size()) {
+        element = seq.get(offset); // get the item in the sequence at the relevant index
         for (Transition<E> t : state.transitions.keySet()) {
           if (t.matches(element)) {
             // add the result states of matching transitions (if they have not been added yet)
-            queueOrder = updateQueue(state.transitions.get(t), pos + 1, q, queueOrder, visitedNext);
-            // update all current capture group keys
-            Iterator<Set<State<E>>> iter = captureKeys.iterator();
-            while (iter.hasNext()) {
-              Set<State<E>> k = iter.next();
-              List<int[]> l = openOffsets.remove(k);
-              for (int[] o : l)
-                if (o[0] == -1) o[0] = pos; // set the capture start position
-              k.clear(); // drop the current capture key targets and ...
-              // ... use the next states as new capture key targets
-              updateCaptureMappings(k, state.transitions.get(t), l, iter);
-            }
+            queue.addTransistions(offset + 1, item, state.transitions.get(t));
           }
         }
       }
-      // == EPSILON TRANSITIONS ==
-      if (state.epsilonTransitions.size() > 0) {
-        queueOrder = updateQueue(state.epsilonTransitions, pos, q, queueOrder, visited);
-        Iterator<Set<State<E>>> iter = captureKeys.iterator();
-        while (iter.hasNext()) {
-          Set<State<E>> k = iter.next();
-          boolean missed = false;
-          for (State<E> alt : state.epsilonTransitions) {
-            if (!k.contains(alt)) {
-              missed = true;
-              break;
-            }
-          }
-          if (missed) {
-            List<int[]> l = openOffsets.remove(k);
-            if (l == null) throw new NullPointerException("unknown key " + k + " at " + state);
-            updateCaptureMappings(k, state.epsilonTransitions, l, iter);
-          }
-        }
-      }
+      if (state.epsilonTransitions.size() > 0)
+        queue.addTransistions(offset, item, state.epsilonTransitions);
     }
-    // == FAILURE ==
+    // FAILURE
     return -1;
+    // =======
   }
 
   /**
-   * Add all unvisited states to the queue, returning the updated queueOrder counter.
+   * Use a backtracking approach to identify any captured groups.
    * 
-   * @param states to add
-   * @param pos of these states relative to the sequence
-   * @param q BFS queue
-   * @param queueOrder queue weight
-   * @param visited already queued states
-   * @return
+   * @param item final queue item from where to begin backtracking
    */
-  private int updateQueue(Set<State<E>> states, int pos, Queue<QueueItem<State<E>>> q,
-      int queueOrder, Set<State<E>> visited) {
-    for (State<E> next : states) {
-      if (!visited.contains(next)) {
-        visited.add(next);
-        q.add(new QueueItem<State<E>>(pos, queueOrder++, next));
-      }
+  private void setCaptureGroups(QueueItem<State<E>> item) {
+    List<QueueItem<State<E>>> path = queue.backtrack(item);
+    // collect one offset per state starting or ending a capture group
+    Map<State<E>, int[]> starts = new HashMap<State<E>, int[]>();
+    Map<State<E>, int[]> ends = new HashMap<State<E>, int[]>();
+    int i = 0;
+    for (QueueItem<State<E>> qi : path) {
+      State<E> s = qi.get();
+      // collect the minimum (i.e., first) recorded offset for a captureStart state
+      if (s.captureStart && !starts.containsKey(s))
+        starts.put(s, new int[] { qi.index(), i, 1 });
+      // collect the maximum (i.e., last) recorded offset for a captureEnd state
+      if (s.captureEnd) ends.put(s, new int[] { qi.index(), i, 0 });
+      i++;
     }
-    return queueOrder;
-  }
-
-  /**
-   * Process pending starting or ending capture groups at the <code>state</code> and return the
-   * list of open capture group offset keys that for that <code>state</code>.
-   * 
-   * @param state current state of the FSM
-   * @param pos offset of the FSM in the sequence
-   * @return list of open capture group offset keys ({@link #openOffsets} keys)
-   */
-  private LinkedList<Set<State<E>>> captureGroupsCheck(State<E> state, int pos) {
-    LinkedList<Set<State<E>>> captureKeys = new LinkedList<Set<State<E>>>();
-    if (state.isCapturing()) {
-      // start a new capture group, with an "empty" offset of [-1, -1]
-      if (state.captureStart) {
-        // NB that the current state should not form part of the key
-        HashSet<State<E>> key = new HashSet<State<E>>(state.epsilonTransitions);
-        if (openOffsets.containsKey(key)) {
-          openOffsets.get(key).add(new int[] {-1, -1});
-        } else {
-          List<int[]> l = new LinkedList<int[]>();
-          l.add(new int[] {-1, -1});
-          openOffsets.put(key, l);
-        }
-        captureKeys.add(key);
-      }
-      if (state.captureEnd) {
-        // remove the shortest open capture group with the current state in its key
-        int[] shortest = new int[] {-1, -1};
-        Set<State<E>> key = null;
-        for (Set<State<E>> candidate : openOffsets.keySet()) {
-          if (candidate.contains(state)) {
-            List<int[]> offsets = openOffsets.get(candidate);
-            for (int[] o : offsets) {
-              if (o[0] > shortest[0]) {
-                shortest = o;
-                key = candidate;
-              }
-            }
+    int numGroups = starts.size();
+    if (numGroups > 0) {
+      // sort all start and end offsets by their positions, then by the order they were matched,
+      // and last order start AFTER end positions, leaving no space for any ambiguity
+      int[][] positions = new int[numGroups * 2][];
+      i = 0;
+      for (int[] s : starts.values())
+        positions[i++] = s;
+      for (int[] e : ends.values())
+        positions[i++] = e;
+      Arrays.sort(positions, new Comparator<int[]>() {
+        public int compare(int[] a, int[] b) {
+          if (a[0] == b[0]) {
+            if (a[1] == b[1]) return a[2] - b[2];
+            else return a[1] - b[1];
           }
+          return a[0] - b[0];
         }
-        openOffsets.get(key).remove(shortest);
-        if (openOffsets.get(key).isEmpty()) openOffsets.remove(key);
-        shortest[1] = pos; // set the capture end position
-        captureGroups.add(shortest);
+      });
+      // populate the captureGroups offset array using the ordered positions
+      i = 0;
+      Stack<Integer> endIdx = new Stack<Integer>();
+      captureGroups = new int[numGroups][];
+      for (int[] p : positions) {
+        if (p[2] == 1) {
+          endIdx.push(i);
+          captureGroups[i++] = new int[] { p[0], -1 };
+        } else {
+          captureGroups[endIdx.pop()][1] = p[0];
+        }
       }
-    }
-    // detect open capture groups that can be processed at the current state
-    for (Set<State<E>> key : openOffsets.keySet())
-      if (key.contains(state) && !captureKeys.contains(key)) captureKeys.add(key);
-    return captureKeys;
-  }
-
-  /**
-   * Append or add (put) the offsets to the map after updating the key with the keyUpdate set,
-   * removing the key form the iterator if it got merged into an existing map entry.
-   * 
-   * @param key set to update
-   * @param keyUpdate set to add to key
-   * @param offsets for the key
-   * @param iter at the position of key in the captureKeys
-   */
-  private void updateCaptureMappings(Set<State<E>> key, Set<State<E>> keyUpdate,
-      List<int[]> offsets, Iterator<Set<State<E>>> iter) {
-    key.addAll(keyUpdate);
-    if (openOffsets.containsKey(key)) {
-      iter.remove();
-      openOffsets.get(key).addAll(offsets);
-    } else {
-      openOffsets.put(key, offsets);
     }
   }
 }

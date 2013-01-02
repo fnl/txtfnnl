@@ -165,6 +165,20 @@ public class TestPatternMatcher {
   }
 
   @Test
+  public final void testPatternCapturingRepeats() {
+    Pattern<Character> x = Pattern.capture(Pattern.match(new CharTransition('x')).repeat());
+    @SuppressWarnings("unchecked")
+    Pattern<Character> p = Pattern.chain(x, Pattern.match(new CharTransition('z')));
+    Matcher<Character> m = p.matcher(toCharacterArray("axxza"));
+    assertTrue(m.find());
+    assertEquals(toCharacterArray("xxz"), m.group());
+    assertEquals(1, m.groupCount());
+    assertEquals(toCharacterArray("xx"), m.group(1));
+    assertEquals(1, m.start(1));
+    assertEquals(3, m.end(1));
+  }
+
+  @Test
   public final void testPatternChainWithOptional() {
     Pattern<Character> p1 = Pattern.match(new CharTransition('a')).optional();
     Pattern<Character> p2 = Pattern.match(new CharTransition('b'));
@@ -205,14 +219,13 @@ public class TestPatternMatcher {
 
   @Test
   public final void testPatternBranchWithOptionalRepeat() {
-    // (x*a|b)
-    Pattern<Character> p1 = Pattern.match(new CharTransition('x')).optional().repeat();
-    Pattern<Character> p2 = Pattern.match(new CharTransition('b'));
-    Pattern<Character> p3 = Pattern.match(new CharTransition('a'));
+    Pattern<Character> x = Pattern.match(new CharTransition('x')).optional().repeat();
+    Pattern<Character> b = Pattern.match(new CharTransition('b'));
+    Pattern<Character> a = Pattern.match(new CharTransition('a'));
     @SuppressWarnings("unchecked")
-    Pattern<Character> p13 = Pattern.chain(p1, p3);
+    Pattern<Character> xa = Pattern.chain(x, a);
     @SuppressWarnings("unchecked")
-    Pattern<Character> p = Pattern.branch(p13, p2).minimize();
+    Pattern<Character> p = Pattern.branch(xa, b).minimize(); // x*a|b
     matchNever(toCharacterArray(""), p);
     matchNever(toCharacterArray("x"), p);
     matchOnce(toCharacterArray("a"), p, 0, 1);
@@ -409,19 +422,27 @@ public class TestPatternMatcher {
   public final void testPatternNestedConsecutiveCaptures() {
     Pattern<Character> a = Pattern.match(new CharTransition('a'));
     Pattern<Character> a2 = Pattern.match(new CharTransition('a'));
-    Pattern<Character> x = Pattern.capture(Pattern.match(new CharTransition('x')));
+    Pattern<Character> x = Pattern.capture(Pattern.match(new CharTransition('x')).optional().repeat());
     Pattern<Character> y = Pattern.capture(Pattern.match(new CharTransition('y')));
     @SuppressWarnings("unchecked")
     Pattern<Character> xy = Pattern.capture(Pattern.chain(x, y));
     @SuppressWarnings("unchecked")
-    Pattern<Character> p = Pattern.chain(a, xy, a2); // "a((x)(y))a"
-    Matcher<Character> m = p.matcher(toCharacterArray("axya"));
+    Pattern<Character> p = Pattern.chain(a, xy, a2).minimize(); // "a((x*)(y))a"
+    Matcher<Character> m = p.matcher(toCharacterArray("aya"));
     assertTrue(m.find());
     assertEquals(3, m.groupCount());
-    assertEquals(toCharacterArray("axya"), m.group());
-    assertEquals(toCharacterArray("x"), m.group(1));
-    assertEquals(toCharacterArray("y"), m.group(2));
-    assertEquals(toCharacterArray("xy"), m.group(3));
+    assertEquals(toCharacterArray("aya"), m.group());
+    assertEquals(toCharacterArray("y"), m.group(1));
+    assertEquals(toCharacterArray(""), m.group(2));
+    assertEquals(toCharacterArray("y"), m.group(3));
+    assertFalse(m.find());
+    m = p.matcher(toCharacterArray("axxxya"));
+    assertTrue(m.find());
+    assertEquals(3, m.groupCount());
+    assertEquals(toCharacterArray("axxxya"), m.group());
+    assertEquals(toCharacterArray("xxxy"), m.group(1));
+    assertEquals(toCharacterArray("xxx"), m.group(2));
+    assertEquals(toCharacterArray("y"), m.group(3));
     assertFalse(m.find());
   }
 
