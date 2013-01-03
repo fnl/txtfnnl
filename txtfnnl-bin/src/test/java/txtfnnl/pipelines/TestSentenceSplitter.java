@@ -14,16 +14,16 @@ import org.apache.uima.UIMAException;
 import org.uimafit.testing.util.DisableLogging;
 
 public class TestSentenceSplitter {
-    @Test
-    public void testRunningThePipeline() throws UIMAException, IOException {
-        final File inputFile = new File("src/test/resources/pubmed.xml");
-        assert inputFile.exists() : "test file does not exist";
-        final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-        System.setOut(new PrintStream(outContent));
-        DisableLogging.enableLogging(Level.WARNING);
-        SentenceSplitter.main(new String[] { "-E", "UTF-8", inputFile.getPath() });
-        final String content = outContent.toString();
-        Assert.assertTrue(content.indexOf("studied.\nAs(4)O(6)") > 0);
-        System.setOut(null);
-    }
+  @Test
+  public void testRunningThePipeline() throws UIMAException, IOException {
+    final File inputFile = new File("src/test/resources/pubmed.xml");
+    assert inputFile.exists() : "test file does not exist";
+    final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(outContent));
+    DisableLogging.enableLogging(Level.WARNING);
+    SentenceSplitter.main(new String[] { "-E", "UTF-8", inputFile.getPath() });
+    final String content = outContent.toString();
+    Assert.assertTrue(content.indexOf("studied.\nAs(4)O(6)") > 0);
+    System.setOut(null);
+  }
 }

@@ -36,106 +36,107 @@ import txtfnnl.uima.tcas.TokenAnnotation;
  * @author Florian Leitner
  */
 public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
-    /**
-     * The annotator's URI special case: lemmas are set directly on the tokens, so there is no
-     * actual URI, NAMESPACE, or IDENTIFIER used on the annotations.
-     */
-    public static final String URI = "http://biolemmatizer.sourceforge.net/";
-    protected Logger logger;
-    private BioLemmatizer lemmatizer;
+  /**
+   * The annotator's URI special case: lemmas are set directly on the tokens, so there is no actual
+   * URI, NAMESPACE, or IDENTIFIER used on the annotations.
+   */
+  public static final String URI = "http://biolemmatizer.sourceforge.net/";
+  protected Logger logger;
+  private BioLemmatizer lemmatizer;
 
-    /** Configure a BioLemmatizer AE description. */
-    public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-        return AnalysisEngineFactory.createPrimitiveDescription(BioLemmatizerAnnotator.class);
+  /** Configure a BioLemmatizer AE description. */
+  public static AnalysisEngineDescription configure() throws UIMAException, IOException {
+    return AnalysisEngineFactory.createPrimitiveDescription(BioLemmatizerAnnotator.class);
+  }
+
+  /**
+   * Initializes the current instance with the given context. Note: Do all initialization in this
+   * method, do not use the constructor.
+   */
+  @Override
+  public void initialize(UimaContext ctx) throws ResourceInitializationException {
+    super.initialize(ctx);
+    logger = ctx.getLogger();
+    lemmatizer = new BioLemmatizer();
+    logger.log(Level.INFO, "BioLemmatizer initialized");
+  }
+
+  @Override
+  public void process(JCas jcas) throws AnalysisEngineProcessException {
+    // TODO: use default view
+    final JCas base = jcas;
+    try {
+      jcas = jcas.getView(Views.CONTENT_TEXT.toString());
+    } catch (final CASException e) {
+      throw new AnalysisEngineProcessException(e);
     }
-
-    /**
-     * Initializes the current instance with the given context. Note: Do all initialization in this
-     * method, do not use the constructor.
-     */
-    public void initialize(UimaContext ctx) throws ResourceInitializationException {
-        super.initialize(ctx);
-        logger = ctx.getLogger();
-        lemmatizer = new BioLemmatizer();
-        logger.log(Level.INFO, "BioLemmatizer initialized");
+    final FSIterator<Annotation> tokenIt = TokenAnnotation.getIterator(jcas);
+    while (tokenIt.hasNext()) {
+      final TokenAnnotation tokenAnn = (TokenAnnotation) tokenIt.next();
+      final String token = tokenAnn.getCoveredText();
+      String posTag;
+      try {
+        posTag = tokenAnn.getPos().toLowerCase();
+      } catch (final NullPointerException ex) {
+        String msg = String
+            .format("token '%s' in %s has no PoS tag", token, base.getSofaDataURI());
+        throw new AnalysisEngineProcessException(new AssertionError(msg));
+      }
+      tokenAnn.setStem(lemmatize(token, posTag));
     }
+  }
 
-    @Override
-    public void process(JCas jcas) throws AnalysisEngineProcessException {
-        // TODO: use default view
-        final JCas base = jcas;
-        try {
-            jcas = jcas.getView(Views.CONTENT_TEXT.toString());
-        } catch (final CASException e) {
-            throw new AnalysisEngineProcessException(e);
+  /**
+   * Find the best possible lemma for the given result.
+   * 
+   * @param token that was lemmatized
+   * @param posTag of the token
+   * @return the best possible (all lower-cased) lemma
+   */
+  private String lemmatize(String token, String posTag) {
+    final LemmataEntry lemmata = lemmatizer.lemmatizeByLexiconAndRules(token, posTag);
+    // to find the most likely correct lemma, we need to poke around
+    // in the LemmataEntry...
+    String lemma = null, alt = null;
+    final Collection<Lemma> lemmaColl = lemmata.getLemmas();
+    final String pos = posTag.toLowerCase();
+    // if we have a a lemma for a matching Penn PoS tag, set it;
+    // if just the PoS tag matches (but it is not a Penn tag), assign
+    // the lemma as a possible alternative
+    for (final Lemma l : lemmaColl) {
+      if (pos.equals(l.getPos().toLowerCase())) {
+        if ("PennPOS".equals(l.getTagSetName())) {
+          lemma = l.getLemma();
+          break;
+        } else {
+          alt = l.getLemma();
         }
-        final FSIterator<Annotation> tokenIt = TokenAnnotation.getIterator(jcas);
-        while (tokenIt.hasNext()) {
-            final TokenAnnotation tokenAnn = (TokenAnnotation) tokenIt.next();
-            final String token = tokenAnn.getCoveredText();
-            String posTag;
-            try {
-                posTag = tokenAnn.getPos().toLowerCase();
-            } catch (final NullPointerException ex) {
-                String msg =
-                    String.format("token '%s' in %s has no PoS tag", token, base.getSofaDataURI());
-                throw new AnalysisEngineProcessException(new AssertionError(msg));
-            }
-            tokenAnn.setStem(lemmatize(token, posTag));
-        }
+      }
     }
+    if (lemma == null) {
+      // if no lemma was found, check if we found an alt
+      if (alt == null) {
+        // if not, try using the lemmata's representation
+        lemma = lemmata.lemmasToString();
+        if (lemma.contains(LemmataEntry.lemmaSeparator)) {
+          // if there is no unique lemma representation either,
+          // use the lower-case form of the token as lemma
+          logger.log(Level.FINE, "no unique lemma for ''{0}'' [{1}]: {2}", new Object[] { token,
+              posTag, lemmata.toString() });
+          lemma = token;
+        }
+      } else {
+        // use the found alternative for the PoS
+        logger.log(Level.FINE, "using alt lemma for ''{0}'' [{1}]: {2}", new Object[] { token,
+            posTag, alt });
+        lemma = alt;
+      }
+    }
+    return lemma.toLowerCase();
+  }
 
-    /**
-     * Find the best possible lemma for the given result.
-     * 
-     * @param token that was lemmatized
-     * @param posTag of the token
-     * @return the best possible (all lower-cased) lemma
-     */
-    private String lemmatize(String token, String posTag) {
-        final LemmataEntry lemmata = lemmatizer.lemmatizeByLexiconAndRules(token, posTag);
-        // to find the most likely correct lemma, we need to poke around
-        // in the LemmataEntry...
-        String lemma = null, alt = null;
-        final Collection<Lemma> lemmaColl = lemmata.getLemmas();
-        final String pos = posTag.toLowerCase();
-        // if we have a a lemma for a matching Penn PoS tag, set it;
-        // if just the PoS tag matches (but it is not a Penn tag), assign
-        // the lemma as a possible alternative
-        for (final Lemma l : lemmaColl) {
-            if (pos.equals(l.getPos().toLowerCase())) {
-                if ("PennPOS".equals(l.getTagSetName())) {
-                    lemma = l.getLemma();
-                    break;
-                } else {
-                    alt = l.getLemma();
-                }
-            }
-        }
-        if (lemma == null) {
-            // if no lemma was found, check if we found an alt
-            if (alt == null) {
-                // if not, try using the lemmata's representation
-                lemma = lemmata.lemmasToString();
-                if (lemma.contains(LemmataEntry.lemmaSeparator)) {
-                    // if there is no unique lemma representation either,
-                    // use the lower-case form of the token as lemma
-                    logger.log(Level.FINE, "no unique lemma for ''{0}'' [{1}]: {2}", new Object[] {
-                        token, posTag, lemmata.toString() });
-                    lemma = token;
-                }
-            } else {
-                // use the found alternative for the PoS
-                logger.log(Level.FINE, "using alt lemma for ''{0}'' [{1}]: {2}", new Object[] {
-                    token, posTag, alt });
-                lemma = alt;
-            }
-        }
-        return lemma.toLowerCase();
-    }
-
-    @Override
-    public void destroy() {
-        lemmatizer = null;
-    }
+  @Override
+  public void destroy() {
+    lemmatizer = null;
+  }
 }

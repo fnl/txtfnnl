@@ -304,8 +304,7 @@ public final class Matcher<E> {
     for (QueueItem<State<E>> qi : path) {
       State<E> s = qi.get();
       // collect the minimum (i.e., first) recorded offset for a captureStart state
-      if (s.captureStart && !starts.containsKey(s))
-        starts.put(s, new int[] { qi.index(), i, 1 });
+      if (s.captureStart && !starts.containsKey(s)) starts.put(s, new int[] { qi.index(), i, 1 });
       // collect the maximum (i.e., last) recorded offset for a captureEnd state
       if (s.captureEnd) ends.put(s, new int[] { qi.index(), i, 0 });
       i++;

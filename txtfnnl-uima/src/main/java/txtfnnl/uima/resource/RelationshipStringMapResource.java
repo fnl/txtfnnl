@@ -29,32 +29,32 @@ import org.uimafit.factory.ExternalResourceFactory;
  * @author Florian Leitner
  */
 public class RelationshipStringMapResource extends LineBasedStringMapResource<List<Set<Entity>>> {
-    public static ExternalResourceDescription
-            configure(String resourceUrl, final String separator) throws IOException {
-        if (separator == null || "".equals(separator)) return ExternalResourceFactory
-            .createExternalResourceDescription(RelationshipStringMapResource.class, resourceUrl);
-        else return ExternalResourceFactory.createExternalResourceDescription(
-            RelationshipStringMapResource.class, resourceUrl, PARAM_SEPARATOR, separator);
-    }
+  public static ExternalResourceDescription configure(String resourceUrl, final String separator)
+      throws IOException {
+    if (separator == null || "".equals(separator)) return ExternalResourceFactory
+        .createExternalResourceDescription(RelationshipStringMapResource.class, resourceUrl);
+    else return ExternalResourceFactory.createExternalResourceDescription(
+        RelationshipStringMapResource.class, resourceUrl, PARAM_SEPARATOR, separator);
+  }
 
-    public static ExternalResourceDescription configure(String resourceUrl) throws IOException {
-        return RelationshipStringMapResource.configure(resourceUrl, null);
-    }
+  public static ExternalResourceDescription configure(String resourceUrl) throws IOException {
+    return RelationshipStringMapResource.configure(resourceUrl, null);
+  }
 
-    @Override
-    void parse(String[] items) throws ResourceInitializationException {
-        if ((items.length - 1) % 3 != 0) {
-            new ResourceInitializationException(new RuntimeException("illegal line: '" + line +
-                "' with " + items.length + " fields"));
-        }
-        final int numEntities = (items.length - 1) / 3;
-        final Set<Entity> entities = new HashSet<Entity>();
-        for (int idx = 0; idx < numEntities; ++idx) {
-            entities.add(new Entity(items[3 * idx + 1], items[3 * idx + 2], items[3 * idx + 3]));
-        }
-        if (!resourceMap.containsKey(items[0])) {
-            resourceMap.put(items[0], new LinkedList<Set<Entity>>());
-        }
-        resourceMap.get(items[0]).add(entities);
+  @Override
+  void parse(String[] items) throws ResourceInitializationException {
+    if ((items.length - 1) % 3 != 0) {
+      new ResourceInitializationException(new RuntimeException("illegal line: '" + line +
+          "' with " + items.length + " fields"));
     }
+    final int numEntities = (items.length - 1) / 3;
+    final Set<Entity> entities = new HashSet<Entity>();
+    for (int idx = 0; idx < numEntities; ++idx) {
+      entities.add(new Entity(items[3 * idx + 1], items[3 * idx + 2], items[3 * idx + 3]));
+    }
+    if (!resourceMap.containsKey(items[0])) {
+      resourceMap.put(items[0], new LinkedList<Set<Entity>>());
+    }
+    resourceMap.get(items[0]).add(entities);
+  }
 }

@@ -7,5 +7,5 @@ package txtfnnl.uima;
  * @author Florian Leitner
  */
 public enum Views {
-    CONTENT_RAW, CONTENT_TEXT;
+  CONTENT_RAW, CONTENT_TEXT;
 }

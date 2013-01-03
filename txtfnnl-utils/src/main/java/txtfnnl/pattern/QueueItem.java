@@ -26,6 +26,7 @@ final class QueueItem<T> implements Comparable<QueueItem<T>> {
   }
 
   /** Only compare the index and item. */
+  @Override
   public boolean equals(Object o) {
     if (o == this) return true;
     else if (!(o instanceof QueueItem)) return false;
@@ -34,6 +35,7 @@ final class QueueItem<T> implements Comparable<QueueItem<T>> {
   }
 
   /** Only use the index and item. */
+  @Override
   public int hashCode() {
     int code = 17;
     code = 31 * code + idx;
@@ -51,6 +53,7 @@ final class QueueItem<T> implements Comparable<QueueItem<T>> {
     return item;
   }
 
+  @Override
   public String toString() {
     return String.format("%s[%d]=%s", QueueItem.class.getName(), idx, item.toString());
   }

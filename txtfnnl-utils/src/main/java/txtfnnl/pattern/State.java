@@ -25,11 +25,11 @@ final class State<E> {
   Set<State<E>> epsilonTransitions = new HashSet<State<E>>();
 
   /** A representation of a State for debugging purposes. */
+  @Override
   public String toString() {
-    return String.format("%s[%s%s%s#e-trans=%d, #trans=%d]#%d", State.class
-        .getName(), accept ? "final, " : "", captureStart ? "capStart, " : "",
-        captureEnd ? "capEnd, " : "", epsilonTransitions.size(), transitions.size(),
-        hashCode());
+    return String.format("%s[%s%s%s#e-trans=%d, #trans=%d]#%d", State.class.getName(), accept
+        ? "final, " : "", captureStart ? "capStart, " : "", captureEnd ? "capEnd, " : "",
+        epsilonTransitions.size(), transitions.size(), hashCode());
   }
 
   /** Make this state a final state (sets the "accept" flag). */

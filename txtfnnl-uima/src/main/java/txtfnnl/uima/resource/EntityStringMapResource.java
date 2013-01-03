@@ -23,44 +23,44 @@ import org.uimafit.factory.ExternalResourceFactory;
  * @author Florian Leitner
  */
 public class EntityStringMapResource extends LineBasedStringMapResource<Set<Entity>> {
-    /**
-     * Configure a new Entity String Map resource. In the case of a file, make sure that the (data)
-     * resource URL is prefixed with the "file:" schema prefix.
-     * 
-     * @param resourceUrl the URL where this resource is located
-     * @param separator the string used to separate the fields/elements (if <code>null</code>, use
-     *        default - see {@link #PARAM_SEPARATOR} )
-     */
-    public static ExternalResourceDescription configure(String resourceUrl, String separator) {
-        if (separator == null || "".equals(separator)) return ExternalResourceFactory
-            .createExternalResourceDescription(EntityStringMapResource.class, resourceUrl);
-        else return ExternalResourceFactory.createExternalResourceDescription(
-            EntityStringMapResource.class, resourceUrl, PARAM_SEPARATOR, separator);
-    }
+  /**
+   * Configure a new Entity String Map resource. In the case of a file, make sure that the (data)
+   * resource URL is prefixed with the "file:" schema prefix.
+   * 
+   * @param resourceUrl the URL where this resource is located
+   * @param separator the string used to separate the fields/elements (if <code>null</code>, use
+   *        default - see {@link #PARAM_SEPARATOR} )
+   */
+  public static ExternalResourceDescription configure(String resourceUrl, String separator) {
+    if (separator == null || "".equals(separator)) return ExternalResourceFactory
+        .createExternalResourceDescription(EntityStringMapResource.class, resourceUrl);
+    else return ExternalResourceFactory.createExternalResourceDescription(
+        EntityStringMapResource.class, resourceUrl, PARAM_SEPARATOR, separator);
+  }
 
-    /**
-     * Configure a new Entity String Map resource using the default separator.
-     * 
-     * @param resourceUrl the URL where this resource is located
-     * @return a configured resource description
-     */
-    public static ExternalResourceDescription configure(String resourceUrl) {
-        return EntityStringMapResource.configure(resourceUrl, null);
-    }
+  /**
+   * Configure a new Entity String Map resource using the default separator.
+   * 
+   * @param resourceUrl the URL where this resource is located
+   * @return a configured resource description
+   */
+  public static ExternalResourceDescription configure(String resourceUrl) {
+    return EntityStringMapResource.configure(resourceUrl, null);
+  }
 
-    /** Place the separated String items on the input stream into a Map. */
-    @Override
-    void parse(String[] items) throws ResourceInitializationException {
-        Entity entity;
-        try {
-            entity = new Entity(items[1], items[2], items[3]);
-            if (!resourceMap.containsKey(items[0])) {
-                resourceMap.put(items[0], new HashSet<Entity>());
-            }
-        } catch (final IndexOutOfBoundsException e) {
-            throw new ResourceInitializationException(new RuntimeException("illegal line: '" +
-                line + "' with " + items.length + " fields"));
-        }
-        resourceMap.get(items[0]).add(entity);
+  /** Place the separated String items on the input stream into a Map. */
+  @Override
+  void parse(String[] items) throws ResourceInitializationException {
+    Entity entity;
+    try {
+      entity = new Entity(items[1], items[2], items[3]);
+      if (!resourceMap.containsKey(items[0])) {
+        resourceMap.put(items[0], new HashSet<Entity>());
+      }
+    } catch (final IndexOutOfBoundsException e) {
+      throw new ResourceInitializationException(new RuntimeException("illegal line: '" + line +
+          "' with " + items.length + " fields"));
     }
+    resourceMap.get(items[0]).add(entity);
+  }
 }

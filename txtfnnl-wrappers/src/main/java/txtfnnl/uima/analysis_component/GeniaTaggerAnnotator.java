@@ -62,6 +62,7 @@ class Token {
     return content[NER];
   }
 
+  @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder();
     for (final String s : content) {
@@ -236,6 +237,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
     }
   }
 
+  @Override
   public void destroy() {
     super.destroy();
     try {

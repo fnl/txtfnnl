@@ -17,10 +17,10 @@ import org.uimafit.factory.AnalysisEngineFactory;
  * @author Florian Leitner
  */
 public class NOOPAnnotator extends CasAnnotator_ImplBase {
-    public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-        return AnalysisEngineFactory.createPrimitiveDescription(NOOPAnnotator.class);
-    }
+  public static AnalysisEngineDescription configure() throws UIMAException, IOException {
+    return AnalysisEngineFactory.createPrimitiveDescription(NOOPAnnotator.class);
+  }
 
-    @Override
-    public void process(CAS aCAS) throws AnalysisEngineProcessException {}
+  @Override
+  public void process(CAS aCAS) throws AnalysisEngineProcessException {}
 }

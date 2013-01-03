@@ -16,46 +16,45 @@ import org.apache.uima.jcas.JCasRegistry;
  * @generated
  */
 public class SyntaxAnnotation_Type extends TextAnnotation_Type {
-    /** @generated */
-    @Override
-    protected FSGenerator getFSGenerator() {
-        return fsGenerator;
-    }
+  /** @generated */
+  @Override
+  protected FSGenerator getFSGenerator() {
+    return fsGenerator;
+  }
 
-    /** @generated */
-    private final FSGenerator fsGenerator = new FSGenerator() {
-        public FeatureStructure createFS(int addr, CASImpl cas) {
-            if (SyntaxAnnotation_Type.this.useExistingInstance) {
-                // Return eq fs instance if already created
-                FeatureStructure fs = SyntaxAnnotation_Type.this.jcas.getJfsFromCaddr(addr);
-                if (null == fs) {
-                    fs = new SyntaxAnnotation(addr, SyntaxAnnotation_Type.this);
-                    SyntaxAnnotation_Type.this.jcas.putJfsFromCaddr(addr, fs);
-                    return fs;
-                }
-                return fs;
-            } else return new SyntaxAnnotation(addr, SyntaxAnnotation_Type.this);
+  /** @generated */
+  private final FSGenerator fsGenerator = new FSGenerator() {
+    public FeatureStructure createFS(int addr, CASImpl cas) {
+      if (SyntaxAnnotation_Type.this.useExistingInstance) {
+        // Return eq fs instance if already created
+        FeatureStructure fs = SyntaxAnnotation_Type.this.jcas.getJfsFromCaddr(addr);
+        if (null == fs) {
+          fs = new SyntaxAnnotation(addr, SyntaxAnnotation_Type.this);
+          SyntaxAnnotation_Type.this.jcas.putJfsFromCaddr(addr, fs);
+          return fs;
         }
-    };
-    /** @generated */
-    @SuppressWarnings("hiding")
-    public final static int typeIndexID = SyntaxAnnotation.typeIndexID;
-    /**
-     * @generated
-     * @modifiable
-     */
-    @SuppressWarnings("hiding")
-    public final static boolean featOkTst = JCasRegistry
-        .getFeatOkTst("txtfnnl.uima.tcas.SyntaxAnnotation");
-
-    /**
-     * initialize variables to correspond with Cas Type and Features
-     * 
-     * @generated
-     */
-    public SyntaxAnnotation_Type(JCas jcas, Type casType) {
-        super(jcas, casType);
-        casImpl.getFSClassRegistry()
-            .addGeneratorForType((TypeImpl) this.casType, getFSGenerator());
+        return fs;
+      } else return new SyntaxAnnotation(addr, SyntaxAnnotation_Type.this);
     }
+  };
+  /** @generated */
+  @SuppressWarnings("hiding")
+  public final static int typeIndexID = SyntaxAnnotation.typeIndexID;
+  /**
+   * @generated
+   * @modifiable
+   */
+  @SuppressWarnings("hiding")
+  public final static boolean featOkTst = JCasRegistry
+      .getFeatOkTst("txtfnnl.uima.tcas.SyntaxAnnotation");
+
+  /**
+   * initialize variables to correspond with Cas Type and Features
+   * 
+   * @generated
+   */
+  public SyntaxAnnotation_Type(JCas jcas, Type casType) {
+    super(jcas, casType);
+    casImpl.getFSClassRegistry().addGeneratorForType((TypeImpl) this.casType, getFSGenerator());
+  }
 }

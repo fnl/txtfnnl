@@ -24,60 +24,60 @@ import txtfnnl.uima.collection.SentenceLineWriter;
  * @author Florian Leitner
  */
 public class SentenceSplitter {
-    private SentenceSplitter() {
-        throw new AssertionError("n/a");
-    }
+  private SentenceSplitter() {
+    throw new AssertionError("n/a");
+  }
 
-    public static void main(String[] arguments) {
-        final CommandLineParser parser = new PosixParser();
-        CommandLine cmd = null;
-        final Options opts = new Options();
-        Pipeline.addLogHelpAndInputOptions(opts);
-        Pipeline.addTikaOptions(opts);
-        Pipeline.addOutputOptions(opts);
-        // sentence splitter options
-        opts.addOption("S", "successive-newlines", false, "split sentences on successive newlines");
-        opts.addOption("s", "single-newlines", false, "split sentences on every newline");
-        // output format options setup
-        opts.addOption("n", "allow-newlines", false,
-            "do not replace newline chars within sentences with white-spaces");
-        try {
-            cmd = parser.parse(opts, arguments);
-        } catch (final ParseException e) {
-            System.err.println(e.getLocalizedMessage());
-            System.exit(1); // == EXIT ==
-        }
-        final Logger l =
-            Pipeline.loggingSetup(cmd, opts, "txtfnnl split [options] <directory|files...>\n");
-        // sentence splitter
-        String splitSentences = null; // S, s
-        if (cmd.hasOption('s')) {
-            splitSentences = "single";
-        } else if (cmd.hasOption('d')) {
-            splitSentences = "successive";
-        }
-        // output (format)
-        final String encoding = Pipeline.outputEncoding(cmd);
-        final File outputDirectory = Pipeline.outputDirectory(cmd);
-        final boolean overwriteFiles = Pipeline.outputOverwriteFiles(cmd);
-        final boolean replaceNewlines = (!cmd.hasOption('n'));
-        try {
-            final Pipeline splitter = new Pipeline(2); // tika and the splitter
-            splitter.setReader(cmd);
-            splitter.configureTika(cmd);
-            splitter.set(1, SentenceAnnotator.configure(splitSentences));
-            splitter.setConsumer(SentenceLineWriter.configure(outputDirectory, encoding,
-                outputDirectory == null, overwriteFiles, replaceNewlines));
-            splitter.run();
-        } catch (final UIMAException e) {
-            l.severe(e.toString());
-            System.err.println(e.getLocalizedMessage());
-            System.exit(1); // == EXIT ==
-        } catch (final IOException e) {
-            l.severe(e.toString());
-            System.err.println(e.getLocalizedMessage());
-            System.exit(1); // == EXIT ==
-        }
-        System.exit(0);
+  public static void main(String[] arguments) {
+    final CommandLineParser parser = new PosixParser();
+    CommandLine cmd = null;
+    final Options opts = new Options();
+    Pipeline.addLogHelpAndInputOptions(opts);
+    Pipeline.addTikaOptions(opts);
+    Pipeline.addOutputOptions(opts);
+    // sentence splitter options
+    opts.addOption("S", "successive-newlines", false, "split sentences on successive newlines");
+    opts.addOption("s", "single-newlines", false, "split sentences on every newline");
+    // output format options setup
+    opts.addOption("n", "allow-newlines", false,
+        "do not replace newline chars within sentences with white-spaces");
+    try {
+      cmd = parser.parse(opts, arguments);
+    } catch (final ParseException e) {
+      System.err.println(e.getLocalizedMessage());
+      System.exit(1); // == EXIT ==
     }
+    final Logger l = Pipeline.loggingSetup(cmd, opts,
+        "txtfnnl split [options] <directory|files...>\n");
+    // sentence splitter
+    String splitSentences = null; // S, s
+    if (cmd.hasOption('s')) {
+      splitSentences = "single";
+    } else if (cmd.hasOption('d')) {
+      splitSentences = "successive";
+    }
+    // output (format)
+    final String encoding = Pipeline.outputEncoding(cmd);
+    final File outputDirectory = Pipeline.outputDirectory(cmd);
+    final boolean overwriteFiles = Pipeline.outputOverwriteFiles(cmd);
+    final boolean replaceNewlines = (!cmd.hasOption('n'));
+    try {
+      final Pipeline splitter = new Pipeline(2); // tika and the splitter
+      splitter.setReader(cmd);
+      splitter.configureTika(cmd);
+      splitter.set(1, SentenceAnnotator.configure(splitSentences));
+      splitter.setConsumer(SentenceLineWriter.configure(outputDirectory, encoding,
+          outputDirectory == null, overwriteFiles, replaceNewlines));
+      splitter.run();
+    } catch (final UIMAException e) {
+      l.severe(e.toString());
+      System.err.println(e.getLocalizedMessage());
+      System.exit(1); // == EXIT ==
+    } catch (final IOException e) {
+      l.severe(e.toString());
+      System.err.println(e.getLocalizedMessage());
+      System.exit(1); // == EXIT ==
+    }
+    System.exit(0);
+  }
 }

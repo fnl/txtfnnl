@@ -21,6 +21,7 @@ public class TestPatternMatcher {
       return character.equals(target);
     }
 
+    @Override
     public String toString() {
       return character.toString();
     }
@@ -149,7 +150,7 @@ public class TestPatternMatcher {
     matchOnce(toCharacterArray("zyz"), p, 1, 2);
     matchAll(toCharacterArray("zyzxz"), p, 1, 2, 3, 4);
   }
-  
+
   @Test
   public final void testPatternCapturing() {
     Pattern<Character> p = Pattern.capture(Pattern.match(new CharTransition('x')));
@@ -310,7 +311,7 @@ public class TestPatternMatcher {
     assertEquals(0, m.start());
     assertEquals(1, m.end());
   }
-  
+
   @Test(expected = IllegalStateException.class)
   public final void testMatcherStartStateException() {
     Pattern<Character> p = Pattern.match(new CharTransition('x'));
@@ -337,7 +338,7 @@ public class TestPatternMatcher {
     assertTrue(m.find());
     assertFalse(m.find());
   }
-  
+
   @Test
   public final void testPatternCapturingComplex() {
     Pattern<Character> x = Pattern.match(new CharTransition('x'));
@@ -408,7 +409,8 @@ public class TestPatternMatcher {
 
   @Test
   public final void testPatternNestedCaptures() {
-    Pattern<Character> p = Pattern.capture(Pattern.capture(Pattern.match(new CharTransition('x'))));
+    Pattern<Character> p = Pattern
+        .capture(Pattern.capture(Pattern.match(new CharTransition('x'))));
     Matcher<Character> m = p.matcher(toCharacterArray("axb"));
     assertTrue(m.find());
     assertEquals(2, m.groupCount());
@@ -422,7 +424,8 @@ public class TestPatternMatcher {
   public final void testPatternNestedConsecutiveCaptures() {
     Pattern<Character> a = Pattern.match(new CharTransition('a'));
     Pattern<Character> a2 = Pattern.match(new CharTransition('a'));
-    Pattern<Character> x = Pattern.capture(Pattern.match(new CharTransition('x')).optional().repeat());
+    Pattern<Character> x = Pattern.capture(Pattern.match(new CharTransition('x')).optional()
+        .repeat());
     Pattern<Character> y = Pattern.capture(Pattern.match(new CharTransition('y')));
     @SuppressWarnings("unchecked")
     Pattern<Character> xy = Pattern.capture(Pattern.chain(x, y));
@@ -445,5 +448,4 @@ public class TestPatternMatcher {
     assertEquals(toCharacterArray("y"), m.group(3));
     assertFalse(m.find());
   }
-
 }

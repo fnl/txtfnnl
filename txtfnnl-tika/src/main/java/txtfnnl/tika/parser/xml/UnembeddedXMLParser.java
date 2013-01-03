@@ -32,58 +32,58 @@ import org.apache.tika.sax.TaggedContentHandler;
  * @author Florian Leitner
  */
 public class UnembeddedXMLParser extends AbstractParser {
-    /** Serial version UID */
-    private static final long serialVersionUID = -6028860725229212437L;
-    /** Only support XML */
-    private static final Set<MediaType> SUPPORTED_TYPES = Collections
-        .unmodifiableSet(new HashSet<MediaType>(Arrays.asList(MediaType.application("xml"))));
+  /** Serial version UID */
+  private static final long serialVersionUID = -6028860725229212437L;
+  /** Only support XML */
+  private static final Set<MediaType> SUPPORTED_TYPES = Collections
+      .unmodifiableSet(new HashSet<MediaType>(Arrays.asList(MediaType.application("xml"))));
 
-    /** {@inheritDoc} */
-    public Set<MediaType> getSupportedTypes(ParseContext context) {
-        return SUPPORTED_TYPES;
-    }
+  /** {@inheritDoc} */
+  public Set<MediaType> getSupportedTypes(ParseContext context) {
+    return SUPPORTED_TYPES;
+  }
 
-    /**
-     * Parse the input stream with a SAX parser. Wraps the content handler with an
-     * {@link org.apache.tika.sax.OfflineContentHandler} to avoid that any namespace lookups are
-     * made. In addition, by overriding
-     * {@link #getContentHandler(ContentHandler, Metadata, ParseContext)}, it is possible to add
-     * additional wrappers.
-     * 
-     * @param stream that should be parsed
-     * @param handler that will receive the SAX events
-     * @param metadata of current document stream
-     * @param context of current parse
-     * @throws IOException if the stream cannot be read
-     * @throws SAXException if the SAX parsing fails.
-     * @throws TikaException if the XML parsing fails.
-     */
-    public void parse(InputStream stream, ContentHandler handler, Metadata metadata,
-            ParseContext context) throws IOException, SAXException, TikaException {
-        final TaggedContentHandler tagged = new TaggedContentHandler(handler);
-        if (metadata.get(HttpHeaders.CONTENT_TYPE) == null) {
-            metadata.set(HttpHeaders.CONTENT_TYPE, "application/xml");
-        }
-        try {
-            context.getSAXParser().parse(new CloseShieldInputStream(stream),
-                new OfflineContentHandler(getContentHandler(tagged, metadata, context)));
-        } catch (final SAXException e) {
-            tagged.throwIfCauseOf(e);
-            throw new TikaException("XML parse error", e);
-        }
+  /**
+   * Parse the input stream with a SAX parser. Wraps the content handler with an
+   * {@link org.apache.tika.sax.OfflineContentHandler} to avoid that any namespace lookups are
+   * made. In addition, by overriding
+   * {@link #getContentHandler(ContentHandler, Metadata, ParseContext)}, it is possible to add
+   * additional wrappers.
+   * 
+   * @param stream that should be parsed
+   * @param handler that will receive the SAX events
+   * @param metadata of current document stream
+   * @param context of current parse
+   * @throws IOException if the stream cannot be read
+   * @throws SAXException if the SAX parsing fails.
+   * @throws TikaException if the XML parsing fails.
+   */
+  public void parse(InputStream stream, ContentHandler handler, Metadata metadata,
+      ParseContext context) throws IOException, SAXException, TikaException {
+    final TaggedContentHandler tagged = new TaggedContentHandler(handler);
+    if (metadata.get(HttpHeaders.CONTENT_TYPE) == null) {
+      metadata.set(HttpHeaders.CONTENT_TYPE, "application/xml");
     }
+    try {
+      context.getSAXParser().parse(new CloseShieldInputStream(stream),
+          new OfflineContentHandler(getContentHandler(tagged, metadata, context)));
+    } catch (final SAXException e) {
+      tagged.throwIfCauseOf(e);
+      throw new TikaException("XML parse error", e);
+    }
+  }
 
-    /**
-     * Return the handler (ie., does nothing). This method can be overridden to add wrap the
-     * content handler with additional handlers.
-     * 
-     * @param handler to wrap
-     * @param metadata of current document
-     * @param context of current parse
-     * @return
-     */
-    protected ContentHandler getContentHandler(ContentHandler handler, Metadata metadata,
-            ParseContext context) {
-        return handler;
-    }
+  /**
+   * Return the handler (ie., does nothing). This method can be overridden to add wrap the content
+   * handler with additional handlers.
+   * 
+   * @param handler to wrap
+   * @param metadata of current document
+   * @param context of current parse
+   * @return
+   */
+  protected ContentHandler getContentHandler(ContentHandler handler, Metadata metadata,
+      ParseContext context) {
+    return handler;
+  }
 }

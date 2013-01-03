@@ -14,52 +14,52 @@ import org.apache.uima.jcas.cas.TOP_Type;
  * @generated
  */
 public class DocumentAnnotation extends SofaAnnotation {
-    /**
-     * @generated
-     * @ordered
-     */
-    @SuppressWarnings("hiding")
-    public final static int typeIndexID = JCasRegistry.register(DocumentAnnotation.class);
-    /**
-     * @generated
-     * @ordered
-     */
-    @SuppressWarnings("hiding")
-    public final static int type = typeIndexID;
+  /**
+   * @generated
+   * @ordered
+   */
+  @SuppressWarnings("hiding")
+  public final static int typeIndexID = JCasRegistry.register(DocumentAnnotation.class);
+  /**
+   * @generated
+   * @ordered
+   */
+  @SuppressWarnings("hiding")
+  public final static int type = typeIndexID;
 
-    /** @generated */
-    @Override
-    public int getTypeIndexID() {
-        return typeIndexID;
-    }
+  /** @generated */
+  @Override
+  public int getTypeIndexID() {
+    return typeIndexID;
+  }
 
-    /**
-     * Never called. Disable default constructor
-     * 
-     * @generated
-     */
-    protected DocumentAnnotation() {/* intentionally empty block */}
+  /**
+   * Never called. Disable default constructor
+   * 
+   * @generated
+   */
+  protected DocumentAnnotation() {/* intentionally empty block */}
 
-    /**
-     * Internal - constructor used by generator
-     * 
-     * @generated
-     */
-    public DocumentAnnotation(int addr, TOP_Type type) {
-        super(addr, type);
-        readObject();
-    }
+  /**
+   * Internal - constructor used by generator
+   * 
+   * @generated
+   */
+  public DocumentAnnotation(int addr, TOP_Type type) {
+    super(addr, type);
+    readObject();
+  }
 
-    /** @generated */
-    public DocumentAnnotation(JCas jcas) {
-        super(jcas);
-        readObject();
-    }
+  /** @generated */
+  public DocumentAnnotation(JCas jcas) {
+    super(jcas);
+    readObject();
+  }
 
-    /**
-     * <!-- begin-user-doc --> Write your own initialization here <!-- end-user-doc -->
-     * 
-     * @generated modifiable
-     */
-    private void readObject() {/*default - does nothing empty block */}
+  /**
+   * <!-- begin-user-doc --> Write your own initialization here <!-- end-user-doc -->
+   * 
+   * @generated modifiable
+   */
+  private void readObject() {/*default - does nothing empty block */}
 }

@@ -25,60 +25,62 @@ import txtfnnl.uima.utils.UIMAUtils;
  * @author Florian Leitner
  */
 public class TikaAnnotator extends AbstractTikaAnnotator {
-    /** The annotator's URI (for the annotations) set by this AE. */
-    public static final String URI = TikaAnnotator.class.getName();
+  /** The annotator's URI (for the annotations) set by this AE. */
+  public static final String URI = TikaAnnotator.class.getName();
 
-    /**
-     * Configure a TikaAnnotator content extraction engine.
-     * 
-     * @param encoding to use (optional, otherwise auto-detected)
-     * @param normalizeGreek convert Greek letters to their Latin names
-     * @param xmlHandlerClass name of the XML handler to use (optional)
-     * @return a configured AE description
-     * @throws UIMAException
-     * @throws IOException
-     */
-    @SuppressWarnings("serial")
-    public static AnalysisEngineDescription configure(final String encoding,
-            final boolean normalizeGreek, final String xmlHandlerClass) throws UIMAException,
-            IOException {
-        return AnalysisEngineFactory.createPrimitiveDescription(TikaAnnotator.class,
-            UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-                {
-                    put(PARAM_ENCODING, encoding);
-                    put(PARAM_NORMALIZE_GREEK_CHARACTERS, normalizeGreek);
-                    put(PARAM_XML_HANDLER, xmlHandlerClass);
-                }
-            }));
-    }
+  /**
+   * Configure a TikaAnnotator content extraction engine.
+   * 
+   * @param encoding to use (optional, otherwise auto-detected)
+   * @param normalizeGreek convert Greek letters to their Latin names
+   * @param xmlHandlerClass name of the XML handler to use (optional)
+   * @return a configured AE description
+   * @throws UIMAException
+   * @throws IOException
+   */
+  @SuppressWarnings("serial")
+  public static AnalysisEngineDescription configure(final String encoding,
+      final boolean normalizeGreek, final String xmlHandlerClass) throws UIMAException,
+      IOException {
+    return AnalysisEngineFactory.createPrimitiveDescription(TikaAnnotator.class,
+        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
+          {
+            put(PARAM_ENCODING, encoding);
+            put(PARAM_NORMALIZE_GREEK_CHARACTERS, normalizeGreek);
+            put(PARAM_XML_HANDLER, xmlHandlerClass);
+          }
+        }));
+  }
 
-    public static AnalysisEngineDescription configure(String encoding, boolean normalizeGreek)
-            throws UIMAException, IOException {
-        return TikaAnnotator.configure(encoding, normalizeGreek, null);
-    }
+  public static AnalysisEngineDescription configure(String encoding, boolean normalizeGreek)
+      throws UIMAException, IOException {
+    return TikaAnnotator.configure(encoding, normalizeGreek, null);
+  }
 
-    public static AnalysisEngineDescription configure(String encoding) throws UIMAException,
-            IOException {
-        return TikaAnnotator.configure(encoding, false);
-    }
+  public static AnalysisEngineDescription configure(String encoding) throws UIMAException,
+      IOException {
+    return TikaAnnotator.configure(encoding, false);
+  }
 
-    /**
-     * Configure a default TikaAnnotator that auto-detects the encoding, does not normalize Greek
-     * letters and uses the default <code><b>txtfnnl</b></code> XML handling setup.
-     * 
-     * @return a configured AE description
-     * @throws UIMAException
-     * @throws IOException
-     */
-    public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-        return TikaAnnotator.configure(null);
-    }
+  /**
+   * Configure a default TikaAnnotator that auto-detects the encoding, does not normalize Greek
+   * letters and uses the default <code><b>txtfnnl</b></code> XML handling setup.
+   * 
+   * @return a configured AE description
+   * @throws UIMAException
+   * @throws IOException
+   */
+  public static AnalysisEngineDescription configure() throws UIMAException, IOException {
+    return TikaAnnotator.configure(null);
+  }
 
-    ContentHandler getContentHandler(JCas newJCas) {
-        return new UIMAContentHandler(newJCas, URI);
-    }
+  @Override
+  ContentHandler getContentHandler(JCas newJCas) {
+    return new UIMAContentHandler(newJCas, URI);
+  }
 
-    String getAnnotatorURI() {
-        return URI;
-    }
+  @Override
+  String getAnnotatorURI() {
+    return URI;
+  }
 }

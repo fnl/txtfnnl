@@ -113,6 +113,7 @@ public class TokenAnnotator extends JCasAnnotator_ImplBase {
         DEFAULT_CHUNK_MODEL_FILE);
   }
 
+  @Override
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
     logger = ctx.getLogger();

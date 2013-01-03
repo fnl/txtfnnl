@@ -11,17 +11,17 @@ import org.apache.uima.resource.SharedResourceObject;
  * @author Florian Leitner
  */
 public interface JdbcConnectionResource extends SharedResourceObject {
-    /**
-     * Provides a connection instance.
-     * 
-     * @see java.sql.DriverManager#getConnection(String)
-     */
-    public Connection getConnection() throws SQLException;
+  /**
+   * Provides a connection instance.
+   * 
+   * @see java.sql.DriverManager#getConnection(String)
+   */
+  public Connection getConnection() throws SQLException;
 
-    /**
-     * Fetch the JDBC URL for the {@link Connection}.
-     * 
-     * @return the JDBC URL
-     */
-    public String getUrl();
+  /**
+   * Fetch the JDBC URL for the {@link Connection}.
+   * 
+   * @return the JDBC URL
+   */
+  public String getUrl();
 }

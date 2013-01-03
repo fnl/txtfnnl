@@ -12,14 +12,14 @@ import java.util.Queue;
 import java.util.Set;
 
 /**
- * A NFA-based pattern matching implementation.
+ * A NFA-based pattern matching implementation using backtracking for capture groups.
  * <p>
  * This is a "pseudo-abstract" class that should be extended with a parser that implements some
  * expression grammar to describe the state machine a pattern should create. In addition to this
  * class, the {@link Transition} interface should be implemented to define how elements on the
  * sequence should be matched. In other words, combined with the {@link Matcher}, this class,
- * {@link State}, and {@link Transition} collectively are an "abstract" implementation of a finite
- * state machine based on a non-deterministic implementation of the state automaton.
+ * {@link State}, and {@link Transition} collectively form an "abstract" implementation of a
+ * non-deterministic, finite state machine using backtracking to find captured groups.
  * <p>
  * The entire API for this "abstract" NFA is designed as close as possible to Java's own
  * {@link java.util.regex.Pattern} API.
@@ -113,7 +113,7 @@ public class Pattern<E> {
     // first ending a group, then starting a new one; therefore, if the pattern's entry and
     // exit states are equal, additional states need to be introduced, otherwise the
     // the matcher would try to first end a (not yet started) group and then start a group
-    // (that never would be ended)
+    // (that never would be ended) because the start and end flags would be set on the same state
     if (!pattern.entry.equals(pattern.exit) && !pattern.entry.captureStart &&
         !pattern.exit.captureEnd) {
       pattern.entry.captureStart = true;
