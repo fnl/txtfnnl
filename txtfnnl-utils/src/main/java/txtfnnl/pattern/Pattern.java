@@ -14,101 +14,88 @@ import java.util.Set;
 /**
  * A NFA-based pattern matching implementation using backtracking for capture groups.
  * <p>
- * This is a "pseudo-abstract" class that should be extended with a parser that implements some
- * expression grammar to describe the state machine a pattern should create. In addition to this
- * class, the {@link Transition} interface should be implemented to define how elements on the
+ * This is a class that should be combined with a parser that implements some expression grammar to
+ * describe the state machine that should be created from the expression. In addition to this
+ * class, the {@link Transition} interface should be implemented and define how elements on the
  * sequence should be matched. In other words, combined with the {@link Matcher}, this class,
- * {@link State}, and {@link Transition} collectively form an "abstract" implementation of a
+ * {@link State}, and {@link Transition} collectively form a generic implementation of a
  * non-deterministic, finite state machine using backtracking to find captured groups.
  * <p>
- * The entire API for this "abstract" NFA is designed as close as possible to Java's own
- * {@link java.util.regex.Pattern} API.
+ * The entire API for this generic NFA is designed as close as possible to Java's own
+ * {@link java.util.regex.Pattern} API. It is "pseudo-abstract" because while the class is usable,
+ * it provides no static <code>compile</code> method Java's own Pattern class provides.
+ * <p>
+ * Users of this package should therefore implement a method such as
+ * <code>public static Pattern compile(String)</code> that compiles a NFA from a given
+ * (grammatical) expression. The patterns can be constructed from the default constructor, and the
+ * static methods {@link #match(Transition) element} (a single transition),
+ * {@link #chain(Pattern, Pattern) chain} ("and", i.e., a sequence of transitions), and
+ * {@link #branch(Pattern...) branch} ("or", "|"). The core sequence element matching should be
+ * done by implementing the {@link Transition} interface. A pattern's behavior can be augmented by
+ * making it {@link #optional() optional} ("?") and/or by allowing it to be {@link #repeat()
+ * repeated} ("+"; a pattern that is made both optional and repeated effectively acts as a Kleene
+ * closure, "*"). Unless there are good reasons to not do so, the last step of compiling a pattern
+ * should be to call {@link #minimize()} on itself.
  * 
  * @author Florian Leitner
  */
-public class Pattern<E> {
+public final class Pattern<E> {
   private final State<E> entry;
-  private final State<E> exit;
+  private State<E> exit;
 
   /**
-   * This method should be overridden by inheriting classes and compile a NFA from a given
-   * (grammatical) expression. <b>If called, this method only throws a RuntimeException!</b>
-   * <p>
-   * Inheriting classes should compile the given expression into a pattern: Patterns can be
-   * constructed with the default constructor, and the static methods {@link #match(Transition)
-   * element} (a single transition), {@link #chain(Pattern...) chain} ("and", i.e., a sequence of
-   * transitions), and {@link #branch(Pattern...) branch} ("or", "|"). The core sequence element
-   * matching should be done by implementing the {@link Transition} interface. A pattern's behavior
-   * can be augmented by making it {@link #optional() optional} ("?") and/or by allowing it to be
-   * {@link #repeat() repeated} ("+"; a pattern that is made both optional and repeated effectively
-   * acts as a Kleene closure, "*"). Unless there are good reasons to not do so, the last step of
-   * compiling a pattern should be to call {@link #minimize()} on itself.
+   * Create a pattern that matches a single transition.
    * 
-   * @param expression to be compiled
-   * @return the compiled NFA pattern
-   */
-  public static final <E> Pattern<E> compile(String expression) {
-    throw new RuntimeException("pseudo-abstract method called");
-  }
-
-  /**
-   * Create a NFA that matches a single transition.
-   * 
-   * @param t transition that needs to match
+   * @param t the transition that has to match
    * @return a NFA
    */
-  protected static final <E> Pattern<E> match(Transition<E> t) {
-    State<E> entry = new State<E>();
-    State<E> exit = new State<E>();
+  public static final <T> Pattern<T> match(Transition<T> t) {
+    State<T> entry = new State<T>();
+    State<T> exit = new State<T>();
     entry.addTransition(t, exit);
-    return new Pattern<E>(entry, exit);
+    return new Pattern<T>(entry, exit);
   }
 
   /**
-   * Link successive patterns into one NFA ("AND").
+   * Link two successive patterns into one ("AND").
    * 
-   * @param patterns to chain together
+   * @param first pattern to match before second
+   * @param second pattern to match after first
    * @return a NFA
    */
-  protected static final <E> Pattern<E> chain(Pattern<E>... patterns) {
-    final int n = patterns.length;
-    if (n == 0) return null;
-    if (n == 1) return patterns[0];
-    for (int i = 1; i < n; i++) {
-      patterns[i - 1].exit.makeNonFinal();
-      patterns[i - 1].exit.addEpsilonTransition(patterns[i].entry);
-    }
-    return new Pattern<E>(patterns[0].entry, patterns[n - 1].exit);
+  public static final <T> Pattern<T> chain(Pattern<T> first, Pattern<T> second) {
+    first.exit.makeNonFinal();
+    first.exit.addEpsilonTransition(second.entry);
+    return new Pattern<T>(first.entry, second.exit);
   }
 
   /**
-   * Branch out into all listed patterns ("OR").
+   * Fork out into one of two patterns ("OR").
    * 
-   * @param patterns to fan out
+   * @param left optional pattern to match
+   * @param right optional pattern to match
    * @return a NFA
    */
-  protected static final <E> Pattern<E> branch(Pattern<E>... patterns) {
-    final int n = patterns.length;
-    if (n == 0) return null;
-    if (n == 1) return patterns[0];
-    State<E> entry = new State<E>();
-    State<E> exit = new State<E>();
-    for (int i = 0; i < n; i++) {
-      patterns[i].exit.makeNonFinal();
-      entry.addEpsilonTransition(patterns[i].entry);
-      patterns[i].exit.addEpsilonTransition(exit);
-    }
-    return new Pattern<E>(entry, exit);
+  public static final <T> Pattern<T> branch(Pattern<T> left, Pattern<T> right) {
+    State<T> entry = new State<T>();
+    State<T> exit = new State<T>();
+    left.exit.makeNonFinal();
+    right.exit.makeNonFinal();
+    entry.addEpsilonTransition(left.entry);
+    entry.addEpsilonTransition(right.entry);
+    left.exit.addEpsilonTransition(exit);
+    right.exit.addEpsilonTransition(exit);
+    return new Pattern<T>(entry, exit);
   }
 
   /**
-   * Make this pattern capturing, i.e., ensure the sequences matched will be recored as a capture
-   * group.
+   * Make this pattern capturing, i.e., ensure the sequence offsets matched by it will be recored
+   * as a capture group.
    * 
    * @param pattern to capture
    * @return a NFA
    */
-  protected static final <E> Pattern<E> capture(Pattern<E> pattern) {
+  public static final <T> Pattern<T> capture(Pattern<T> pattern) {
     // note that a state with both the capture start and end flag set will be treated as
     // first ending a group, then starting a new one; therefore, if the pattern's entry and
     // exit states are equal, additional states need to be introduced, otherwise the
@@ -120,15 +107,27 @@ public class Pattern<E> {
       pattern.exit.captureEnd = true;
       return pattern;
     } else {
-      State<E> entry = new State<E>();
-      State<E> exit = new State<E>();
+      State<T> entry = new State<T>();
+      State<T> exit = new State<T>();
       entry.captureStart = true;
       exit.captureEnd = true;
       entry.addEpsilonTransition(pattern.entry);
       pattern.exit.addEpsilonTransition(exit);
       pattern.exit.makeNonFinal();
-      return new Pattern<E>(entry, exit);
+      return new Pattern<T>(entry, exit);
     }
+  }
+
+  /**
+   * Construct the simplest possible pattern: a two-state NFA joined by an epsilon transition.
+   * <p>
+   * This pattern will match anything, from the empty sequence ("lambda"), to the infinite one.
+   */
+  public Pattern() {
+    entry = new State<E>();
+    exit = new State<E>();
+    entry.addEpsilonTransition(exit);
+    exit.makeFinal();
   }
 
   /**
@@ -139,23 +138,10 @@ public class Pattern<E> {
    * @param entry state
    * @param exit state
    */
-  protected Pattern(State<E> entry, State<E> exit) {
+  Pattern(State<E> entry, State<E> exit) {
     this.entry = entry;
     this.exit = exit;
-    exit.makeFinal(); // ensure exit is a final state
-    // NB: there is no safeguard to ensure the states are actually connected!
-  }
-
-  /**
-   * Construct the simplest possible pattern: a two-state NFA joined by an epsilon transition.
-   * <p>
-   * This pattern will match anything, from the empty sequence ("lambda"), to the infinite one.
-   */
-  protected Pattern() {
-    entry = new State<E>();
-    exit = new State<E>();
-    entry.addEpsilonTransition(exit);
-    exit.makeFinal();
+    exit.makeFinal(); // ensure at least exit is a final state
   }
 
   /**
@@ -166,7 +152,7 @@ public class Pattern<E> {
    * 
    * @return itself/this pattern
    */
-  protected final Pattern<E> optional() {
+  public final Pattern<E> optional() {
     entry.addEpsilonTransition(exit);
     return this;
   }
@@ -179,7 +165,7 @@ public class Pattern<E> {
    * 
    * @return itself/this pattern
    */
-  protected final Pattern<E> repeat() {
+  public final Pattern<E> repeat() {
     exit.addEpsilonTransition(entry);
     return this;
   }
@@ -193,7 +179,7 @@ public class Pattern<E> {
    * 
    * @return itself/this pattern
    */
-  protected final Pattern<E> minimize() {
+  public final Pattern<E> minimize() {
     State<E> state;
     Queue<State<E>> queue = new LinkedList<State<E>>(); // queue of states to check
     // a map of states with only epsilon transitions and their associated target states
@@ -253,18 +239,18 @@ public class Pattern<E> {
    * @param states a set of states possibly containing invalid states to be expanded
    * @return <code>true</code> if any expansion was made
    */
-  private static <E> boolean replaceAndExpand(Map<State<E>, Set<State<E>>> expansions,
-      Set<State<E>> states) {
-    State<E> s;
-    Set<State<E>> expansion = null; // be lazy - only instantiate this set if necessary
-    Iterator<State<E>> iter = states.iterator();
+  private static final <T> boolean replaceAndExpand(Map<State<T>, Set<State<T>>> expansions,
+      Set<State<T>> states) {
+    State<T> s;
+    Set<State<T>> expansion = null; // be lazy - only instantiate this set if necessary
+    Iterator<State<T>> iter = states.iterator();
     // iterate over the states
     while (iter.hasNext()) {
       s = iter.next();
       if (expansions.containsKey(s)) {
         // the state is invalid: replace and expand with that state's expansions
         iter.remove();
-        if (expansion == null) expansion = new HashSet<State<E>>();
+        if (expansion == null) expansion = new HashSet<State<T>>();
         expansion.addAll(expansions.get(s));
       }
     }

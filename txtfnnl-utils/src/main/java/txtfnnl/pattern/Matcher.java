@@ -2,6 +2,7 @@
 * Copyright 2012. All rights reserved. */
 package txtfnnl.pattern;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -41,7 +42,7 @@ import java.util.Stack;
 public final class Matcher<E> {
   final State<E> entry;
   final State<E> exit;
-  final List<E> seq;
+  private List<E> seq;
   private int len; // length of the previous match (-1 if the previous match attempt failed)
   private int idx; // offset of the previous match (-1 if no previous match attempt was made)
   private int[][] captureGroups; // capture group offsets (int[][2] arrays)
@@ -62,8 +63,7 @@ public final class Matcher<E> {
   Matcher(State<E> entry, State<E> exit, List<E> sequence) {
     this.entry = entry;
     this.exit = exit;
-    this.seq = sequence;
-    reset();
+    reset(sequence);
   }
 
   /** Returns the pattern that is interpreted by this matcher. */
@@ -246,6 +246,21 @@ public final class Matcher<E> {
     idx = -1;
     len = 1;
     return this;
+  }
+
+  /** Resets this matcher with a new sequence, returning itself. */
+  public Matcher<E> reset(List<E> input) {
+    seq = clone(input);
+    idx = -1;
+    len = 1;
+    return this;
+  }
+
+  private List<E> clone(List<E> input) {
+    List<E> duplicate = new ArrayList<E>(input.size());
+    for (E item : input)
+      duplicate.add(item);
+    return duplicate;
   }
 
   /**
