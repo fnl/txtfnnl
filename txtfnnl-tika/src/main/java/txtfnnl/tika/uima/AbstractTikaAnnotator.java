@@ -28,9 +28,11 @@ import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.html.HtmlParser;
 import org.apache.tika.parser.xml.XMLParser;
+import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.jcas.JCas;
+import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
@@ -109,6 +111,12 @@ public abstract class AbstractTikaAnnotator extends JCasAnnotator_ImplBase {
   /** The output view name/SOFA produced by this AE. */
   private static final String outputView = Views.CONTENT_TEXT.toString();
 
+  @Override
+  public void initialize(UimaContext ctx) throws ResourceInitializationException {
+    super.initialize(ctx);
+    logger = ctx.getLogger();
+  }
+
   /**
    * The AE process expects a SOFA with a {@link View.CONTENT_RAW} and uses Tika to produce a new
    * plain-text SOFA with a {@link View.CONTENT_TEXT}. It preserves all metadata annotations on the
@@ -122,7 +130,6 @@ public abstract class AbstractTikaAnnotator extends JCasAnnotator_ImplBase {
     } catch (final CASException e) {
       throw new AnalysisEngineProcessException(e);
     }
-    logger = getLogger();
     final InputStream stream = aJCas.getSofaDataStream();
     if (stream == null) {
       logger.log(Level.SEVERE, "no data stream for view {0}", aJCas.getViewName());
