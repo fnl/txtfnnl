@@ -78,7 +78,8 @@ public class LineBasedStringArrayResource implements StringArrayResource, Extern
       String line;
       while ((line = reader.readLine()) != null) {
         line = line.trim();
-        resource.add(line.split(separator));
+        if (line.length() > 0)
+          resource.add(line.split(separator));
       }
     } catch (final IOException e) {
       throw new ResourceInitializationException(e);
