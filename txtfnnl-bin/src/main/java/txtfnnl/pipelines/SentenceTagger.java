@@ -24,9 +24,7 @@ import txtfnnl.uima.collection.TaggedSentenceLineWriter;
  * <p>
  * Input files can be read from a directory or listed explicitly, while output files are written to
  * some directory or to STDOUT. Sentences are written on a single line. Tokens are annotated with
- * their stems and PoS tags and grouped into phrase chunks. Instead of the usual grouping of chunks
- * using square brackets, curly brackets are used so the output is easier to analyze with regular
- * expressions.
+ * their stems and PoS tags and grouped into phrase chunks.
  * 
  * @author Florian Leitner
  */
@@ -47,7 +45,7 @@ public class SentenceTagger extends Pipeline {
     opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
     // tokenizer options setup
     opts.addOption("g", "genia", true,
-        "use GENIA (giving the dir containing 'morphdic/') instead of OpenNLP");
+        "use GENIA (with the dir containing 'morphdic/') instead of OpenNLP");
     try {
       cmd = parser.parse(opts, arguments);
     } catch (final ParseException e) {
