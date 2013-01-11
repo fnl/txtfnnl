@@ -26,12 +26,12 @@ import txtfnnl.uima.utils.UIMAUtils;
  * adding line separators between {@link SentenceAnnotation sentences}.
  * <p>
  * The tokens found in each sentence are followed by their PoS tag and stem, separated by
- * underscores from the token itself. Chunks are grouped using curly braces followed by the phrase
+ * underscores from the token itself. Chunks are grouped using square braces followed by the phrase
  * tag. For example, the sentence "The dog barks repeatedly." would be represented as the following
  * single line:
  * 
  * <pre>
- * { NP The_DT_the dog_NN_dog } { VP barks_VB_bark } { ADJP repeatedly_ADJ_repeat } ._._.
+ * [ NP The_DT_the dog_NN_dog ] [ VP barks_VB_bark ] [ ADJP repeatedly_ADJ_repeat ] ._._.
  * </pre>
  * 
  * Due to this format, sentences are always written to a single line. As the tokens' text, PoS tag,
@@ -107,7 +107,7 @@ public final class TaggedSentenceLineWriter extends TextWriter {
         if (stem == null) stem = text.toLowerCase();
         try {
           if (chunkTag != null && token.getChunkBegin()) {
-            write("{ ");
+            write("[ ");
             write(escape(chunkTag));
             write(' ');
           }
@@ -116,7 +116,7 @@ public final class TaggedSentenceLineWriter extends TextWriter {
           write(escape(posTag));
           write('_');
           write(escape(stem));
-          if (chunkTag != null && token.getChunkEnd()) write(" } ");
+          if (chunkTag != null && token.getChunkEnd()) write(" ] ");
           else write(' ');
         } catch (final IOException e) {
           throw new AnalysisEngineProcessException(e);

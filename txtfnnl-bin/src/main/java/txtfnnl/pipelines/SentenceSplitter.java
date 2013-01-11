@@ -41,6 +41,8 @@ public class SentenceSplitter {
     // output format options setup
     opts.addOption("n", "allow-newlines", false,
         "do not replace newline chars within sentences with white-spaces");
+    opts.addOption("a", "all-content", false,
+        "include other (non-sentence) content in the output");
     try {
       cmd = parser.parse(opts, arguments);
     } catch (final ParseException e) {
@@ -61,13 +63,14 @@ public class SentenceSplitter {
     final File outputDirectory = Pipeline.outputDirectory(cmd);
     final boolean overwriteFiles = Pipeline.outputOverwriteFiles(cmd);
     final boolean replaceNewlines = (!cmd.hasOption('n'));
+    final boolean includeAllContent = cmd.hasOption('a');
     try {
       final Pipeline splitter = new Pipeline(2); // tika and the splitter
       splitter.setReader(cmd);
       splitter.configureTika(cmd);
       splitter.set(1, SentenceAnnotator.configure(splitSentences));
       splitter.setConsumer(SentenceLineWriter.configure(outputDirectory, encoding,
-          outputDirectory == null, overwriteFiles, replaceNewlines));
+          outputDirectory == null, overwriteFiles, replaceNewlines, includeAllContent));
       splitter.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());
