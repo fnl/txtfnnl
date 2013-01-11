@@ -20,17 +20,18 @@ import java.util.Set;
 final class BFSQueue<E> {
   private QueueItem<State<E>> start;
   private Map<QueueItem<State<E>>, QueueItem<State<E>>> moves;
+  private Map<QueueItem<State<E>>, Double> weights;
   private Queue<QueueItem<State<E>>> queue;
 
   BFSQueue() {
     start = null;
     moves = new HashMap<QueueItem<State<E>>, QueueItem<State<E>>>();
+    weights = new HashMap<QueueItem<State<E>>, Double>();
     queue = new PriorityQueue<QueueItem<State<E>>>();
   }
 
   BFSQueue(int offset, State<E> init) {
-    moves = new HashMap<QueueItem<State<E>>, QueueItem<State<E>>>();
-    queue = new PriorityQueue<QueueItem<State<E>>>();
+    this();
     setStart(offset, init);
   }
 
@@ -51,17 +52,26 @@ final class BFSQueue<E> {
   /**
    * Add the all target states that can be reached to the queue.
    * 
-   * @param offset of the target states in the input sequence
-   * @param source queue item from where the transitions were made from
-   * @param targets states to where the source state transitioned to
+   * @param off of the target states in the input sequence
+   * @param src queue item from where the transitions were made from
+   * @param trgts states to where the source state transitioned to
+   * @param w weighted IC gained from the {@link Transition}; should be zero for epsilon
+   *        transitions
    */
-  void addTransistions(int offset, QueueItem<State<E>> source, Set<State<E>> targets) {
-    assert source.equals(start) || moves.containsKey(source);
-    for (State<E> t : targets) {
-      QueueItem<State<E>> target = new QueueItem<State<E>>(offset, t);
-      if (!moves.containsKey(target) && t != null) {
-        moves.put(target, source);
-        queue.add(target);
+  void addTransistions(int off, QueueItem<State<E>> src, Set<State<E>> trgts, double w) {
+    w += src.equals(start) ? 0.0 : weights.get(src);
+    for (State<E> t : trgts) {
+      if (t != null) {
+        QueueItem<State<E>> target = new QueueItem<State<E>>(off, t);
+        if (!moves.containsKey(target)) {
+          moves.put(target, src);
+          weights.put(target, w);
+          queue.add(target);
+        } else if (weights.get(target) < w) {
+          // found a better move to the target with a higher IC weight
+          moves.put(target, src);
+          weights.put(target, w);
+        }
       }
     }
   }

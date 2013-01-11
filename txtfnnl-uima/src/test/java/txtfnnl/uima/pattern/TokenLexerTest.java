@@ -28,16 +28,13 @@ public class TokenLexerTest {
     assertEquals("a", l.peek());
     assertEquals(0, l.offset());
     assertEquals("a", l.next());
-    assertTrue(l.hasNext());
-    assertEquals("", l.peek());
-    assertEquals(1, l.offset());
-    assertEquals("", l.next());
+    assertEquals(2, l.offset());
     assertTrue(l.hasNext());
     assertEquals("b", l.peek());
     assertEquals(2, l.offset());
     assertEquals("b", l.next());
-    assertFalse(l.hasNext());
     assertEquals(3, l.offset());
+    assertFalse(l.hasNext());
   }
   
   @Test

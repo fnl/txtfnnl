@@ -24,6 +24,10 @@ public class TestPatternMatcher {
     public String toString() {
       return character.toString();
     }
+
+    public double weight() {
+      return 1.0;
+    }
   }
 
   @Before

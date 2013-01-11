@@ -293,12 +293,12 @@ public final class Matcher<E> {
         for (Transition<E> t : state.transitions.keySet()) {
           if (t.matches(element)) {
             // add the result states of matching transitions (if they have not been added yet)
-            queue.addTransistions(offset + 1, item, state.transitions.get(t));
+            queue.addTransistions(offset + 1, item, state.transitions.get(t), t.weight());
           }
         }
       }
       if (state.epsilonTransitions.size() > 0)
-        queue.addTransistions(offset, item, state.epsilonTransitions);
+        queue.addTransistions(offset, item, state.epsilonTransitions, 0.0);
     }
     // FAILURE
     return -1;

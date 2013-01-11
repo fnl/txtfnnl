@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
@@ -32,14 +33,20 @@ public class TestTokenPatternAnnotator {
   AnalysisEngine engine;
   File patternResource;
 
+  // TODO: test more (complex) patterns!!!
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     DisableLogging.enableLogging(Level.WARNING);
+  }
+
+  private void createEngine(String... patterns) throws IOException, UIMAException {
     patternResource = File.createTempFile("patterns_", ".csv");
     patternResource.deleteOnExit();
     final BufferedWriter out = new BufferedWriter(new FileWriter(patternResource));
-    out.write("( [ NP + ] ) [ VP + ] [ PP * ] ( [ NP + ] )\ts\tsentence\tnp\tnp1\tnp\tnp2\n");
-    // TODO: test more (complex) patterns!!!
+    for (String p : patterns) {
+      out.write(p);
+      out.write('\n');
+    }
     out.close();
     annotator = TokenPatternAnnotator.configure(patternResource);
     engine = AnalysisEngineFactory.createPrimitive(annotator);
@@ -89,10 +96,8 @@ public class TestTokenPatternAnnotator {
         offset += token[0].length() + 1;
         if (chunk != null) {
           ann.setChunk(chunk);
-          if (start) {
-            ann.setChunkBegin(true);
-            start = false;
-          }
+          ann.setChunkBegin(start);
+          start = false;
         }
         ann.setNamespace("http://nlp2rdf.lod2.eu/schema/doc/sso/"); // TODO
         ann.setPos(token[1]);
@@ -104,26 +109,89 @@ public class TestTokenPatternAnnotator {
   }
 
   @Test
-  public final void testBasic() throws UIMAException {
-    String[][][] tokens = { { { "NP" }, { "The", "DT", "the" }, { "CD5", "NN", "cd5" },
-        { "factor", "NN", "factor" }, { "" }, { "VP" }, { "has", "VBZ", "have" },
-        { "been", "VBN", "be" }, { "shown", "VBN", "show" }, { "to", "TO", "to" },
-        { "bind", "VB", "bind" }, { "" }, { "PP" }, { "at", "IN", "at" }, { "" }, { "NP" },
-        { "the", "DT", "the" }, { "XYZ", "NN", "xyz" }, { "promoter", "NN", "promoter" }, { "" },
-        { "ADVP" }, { "in", "FW", "in" }, { "vivo", "FW", "vivo" }, { "" }, { ".", ".", "." } } };
+  public final void testBasic() throws UIMAException, IOException {
+    String[][][] tokens = {
+        { { "NP" }, { "The", "DT", "the" }, { "CD5", "NN", "cd5" }, { "factor", "NN", "factor" },
+            { "" }, { "VP" }, { "has", "VBZ", "have" }, { "been", "VBN", "be" },
+            { "shown", "VBN", "show" }, { "to", "TO", "to" }, { "bind", "VB", "bind" }, { "" },
+            { "PP" }, { "at", "IN", "at" }, { "" }, { "NP" }, { "the", "DT", "the" },
+            { "XYZ", "NN", "xyz" }, { "gene", "NN", "gene" }, { "" }, { "ADVP" },
+            { "in", "FW", "in" }, { "vivo", "FW", "vivo" }, { "" }, { ".", ".", "." } },
+        { { "NP" }, { "A", "DT", "a" }, { "INK", "NN", "ink" }, { "protein", "NN", "protein" },
+            { "" }, { "VP" }, { "was", "VBZ", "be" }, { "regulating", "VB", "regulate" }, { "" },
+            { "NP" }, { "a", "DT", "a" }, { "XYZ", "NN", "xyz" },
+            { "promoter", "NN", "promoter" }, { "" }, { "ADVP" }, { "in", "FW", "in" },
+            { "vivo", "FW", "vivo" }, { "" }, { ".", ".", "." } } };
+    createEngine("( [ NP + ] ) [ VP * ( *_* ) ] [ PP ( * ) ] ( [ NP + ] )"
+        + "\trel\tinteraction\tsem\tactor\tsem\taction\tsem\tqualifier\tsem\tactor");
     JCas doc = getJCas(tokens);
     engine.process(doc);
     JCas text = doc.getView(Views.CONTENT_TEXT.toString());
     FSIterator<Annotation> it = SemanticAnnotation.getIterator(text);
-    String[] spans = { "The CD5 factor has been shown to bind at the XYZ promoter",
-        "The CD5 factor", "the XYZ promoter" };
-    String[] semIds = { "sentence", "np1", "np2" };
+    String[] spans = { "The CD5 factor", "bind", "at", "the XYZ gene", "A INK protein",
+        "regulating", "a XYZ promoter" };
+    String[] semIds = { "actor", "action", "qualifier", "actor", "actor", "action", "actor" };
     int i = 0;
     while (it.hasNext()) {
       SemanticAnnotation ann = (SemanticAnnotation) it.next();
       assertEquals(spans[i], ann.getCoveredText());
       assertEquals(semIds[i++], ann.getIdentifier());
     }
-    assertEquals(3, i);
+    assertEquals(spans.length, i);
+  }
+
+  @Test
+  public final void testGeneRegulation() throws UIMAException, IOException {
+    String[][][] tokens = {
+        { { "NP" }, { "The", "DT", "the" }, { "CD5", "NN", "cd5" }, { "factor", "NN", "factor" },
+            { "" }, { "VP" }, { "has", "VBZ", "have" }, { "been", "VBN", "be" },
+            { "shown", "VBN", "show" }, { "to", "TO", "to" }, { "bind", "VB", "bind" }, { "" },
+            { "PP" }, { "at", "IN", "at" }, { "" }, { "NP" }, { "the", "DT", "the" },
+            { "XYZ", "NN", "xyz" }, { "promoter", "NN", "promoter" }, { "" }, { "ADVP" },
+            { "in", "FW", "in" }, { "vivo", "FW", "vivo" }, { "" }, { ".", ".", "." } },
+        { { "NP" }, { "A", "DT", "a" }, { "INK", "NN", "ink" }, { "protein", "NN", "protein" },
+            { "" }, { "VP" }, { "was", "VBZ", "be" }, { "regulating", "VB", "regulate" }, { "" },
+            { "NP" }, { "XYZ", "NN", "xyz" }, { "promoters", "NN", "promoter" }, { "" },
+            { "ADVP" }, { "in", "FW", "in" }, { "vivo", "FW", "vivo" }, { "" }, { ".", ".", "." } } };
+    createEngine("( [ NP + ] ) [ VP * ( *_bind|regulate ) ] [ PP * ] [ NP DT_* ? ( + ) *_target ? *_gene|promoter ]"
+        + "\trel\tinteraction\tsem\tregulator\tsem\taction\tsem\ttarget");
+    JCas doc = getJCas(tokens);
+    engine.process(doc);
+    JCas text = doc.getView(Views.CONTENT_TEXT.toString());
+    FSIterator<Annotation> it = SemanticAnnotation.getIterator(text);
+    String[] spans = { "The CD5 factor", "bind", "XYZ", "A INK protein", "regulating", "XYZ" };
+    String[] semIds = { "regulator", "action", "target", "regulator", "action", "target" };
+    int i = 0;
+    while (it.hasNext()) {
+      SemanticAnnotation ann = (SemanticAnnotation) it.next();
+      assertEquals(spans[i], ann.getCoveredText());
+      assertEquals(semIds[i++], ann.getIdentifier());
+    }
+    assertEquals(spans.length, i);
+  }
+
+  @Test
+  public final void testWeightedRetrieval() throws UIMAException, IOException {
+    String[][][] tokens = { { { "NP" }, { "The", "DT", "the" },
+        { "ATP/ADP-binding", "JJ", "atp/adp-binding" }, { "site", "NN", "site" }, { "" },
+        { "PP" }, { "in", "IN", "in" }, { "" }, { "NP" }, { "the", "DT", "the" },
+        { "Hsp90", "NN", "hsp90" }, { "molecular", "JJ", "molecular" },
+        { "chaperone", "NN", "chaperone" }, { "" }, { ".", ".", "." } } };
+    createEngine("[ NP DT_* ? ( + ) *_site ] [ VP * ] [ PP * *_in ] [ NP DT_* ? ( + ) ]"
+        + "\trel\tinteraction\tsem\tregulator\tsem\ttarget");
+    // TODO: somehow, matching fails after the second DT has been found/matched!
+    JCas doc = getJCas(tokens);
+    engine.process(doc);
+    JCas text = doc.getView(Views.CONTENT_TEXT.toString());
+    FSIterator<Annotation> it = SemanticAnnotation.getIterator(text);
+    String[] spans = { "ATP/ADP-binding", "Hsp90 molecular chaperone" };
+    String[] semIds = { "regulator", "target" };
+    int i = 0;
+    while (it.hasNext()) {
+      SemanticAnnotation ann = (SemanticAnnotation) it.next();
+      assertEquals(spans[i], ann.getCoveredText());
+      assertEquals(semIds[i++], ann.getIdentifier());
+    }
+    assertEquals(spans.length, i);
   }
 }

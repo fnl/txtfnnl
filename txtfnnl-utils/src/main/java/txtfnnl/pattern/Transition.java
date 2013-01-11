@@ -39,4 +39,11 @@ public interface Transition<E> {
    * @return <code>true</code> if the transition is valid, <code>false</code> otherwise.
    */
   public boolean matches(E element);
+  /**
+   * A transition implementation can define a weight that is used in backtracking to evalute the
+   * path with the highest IC.
+   * 
+   * @return a value that represents the information content of this transition
+   */
+  public double weight();
 }

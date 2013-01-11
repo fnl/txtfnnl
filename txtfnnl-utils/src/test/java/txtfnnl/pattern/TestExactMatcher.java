@@ -22,6 +22,10 @@ public class TestExactMatcher {
     public boolean matches(Character target) {
       return character.equals(target);
     }
+    
+    public double weight() {
+      return 1.0;
+    }
   }
 
   Character[] sequence;

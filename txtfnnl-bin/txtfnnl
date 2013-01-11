@@ -90,6 +90,7 @@ help () {
     echo "  split    - plaintext with line-separated sentences";
     echo "  pre      - pre-process files to XMI (split, tag, stem and chunk)";
     echo "  tag      - extract tagged plaintext (split, tag, stem and chunk)";
+    echo "  grep     - extract semantic patterns (or matching sentences)";
     echo "  entities - annotate known entity mentions to XMI";
     echo "  patterns - extract patterns with (potential) entity relationships";
     echo;
@@ -104,6 +105,7 @@ if [ $# -gt 0 ]; then
         split) java txtfnnl.pipelines.SentenceSplitter "$@";;
         pre) java -Xmx2G txtfnnl.pipelines.Preprocessor "$@";;
         tag) java -Xmx2G txtfnnl.pipelines.SentenceTagger "$@";;
+        grep) java -Xmx2G txtfnnl.pipelines.PatternExtractor "$@";;
         entities) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
         patterns) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;
         -v) echo txtfnnl-$VERSION;;

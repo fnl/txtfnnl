@@ -29,7 +29,7 @@ public class TokenPattern {
   public static Pattern<TokenAnnotation> compile(String expression) {
     TokenLexer scanner = new TokenLexer(expression);
     Pattern<TokenAnnotation> pattern;
-    pattern = parse(scanner, new Pattern<TokenAnnotation>(), null);
+    pattern = parse(scanner, new Pattern<TokenAnnotation>(), null, false);
     if (scanner.hasNext()) { throw new PatternSyntaxException("unused pattern tokens at " +
         scanner.peek(), scanner.toString(), scanner.offset()); }
     return pattern.minimize();
@@ -41,12 +41,13 @@ public class TokenPattern {
    * @param scanner with the token expression stream
    * @param pattern to expand
    * @param chunk to be matched or <code>null</code>
+   * @param start if chunk was just started
    * @return the expanded pattern
    */
   private static Pattern<TokenAnnotation> parse(TokenLexer scanner,
-      Pattern<TokenAnnotation> pattern, String chunk) {
+      Pattern<TokenAnnotation> pattern, String chunk, boolean start) {
     if (chunk != null) {
-      return parseWithChunk(scanner, pattern, chunk);
+      return parseWithChunk(scanner, pattern, chunk, start);
     } else {
       return parse(scanner, pattern);
     }
@@ -62,29 +63,33 @@ public class TokenPattern {
   private static Pattern<TokenAnnotation> parse(TokenLexer scanner,
       Pattern<TokenAnnotation> pattern) {
     Pattern<TokenAnnotation> sub;
-    String subexp;
+    String token;
     while (scanner.hasNext()) {
-      subexp = scanner.next();
-      if (subexp.length() == 0) {
-        continue;
-      } else if ("[".equals(subexp)) {
+      token = scanner.next();
+      if ("[".equals(token)) {
         sub = parseChunk(scanner);
-      } else if ("(".equals(subexp)) {
-        sub = parseGroup(scanner, null);
-      } else if ("*".equals(subexp)) {
+      } else if ("(".equals(token)) {
+        sub = parseGroup(scanner, null, false);
+      } else if ("*".equals(token)) {
         sub = Pattern.match(lambda).optional().repeat();
-      } else if ("?".equals(subexp)) {
-        sub = Pattern.match(lambda).optional();
-      } else if ("+".equals(subexp)) {
+      } else if ("+".equals(token)) {
         sub = Pattern.match(lambda).repeat();
-      } else if ("]".equals(subexp) || ")".equals(subexp)) {
+      } else if (")".equals(token)) {
         break;
-      } else if ("*_*".equals(subexp) || "*_*_*".equals(subexp)) {
+      } else if ("*_*".equals(token) || "*_*_*".equals(token)) {
         sub = Pattern.match(lambda);
+        if (nextIsOptional(scanner)) {
+          scanner.next();
+          sub.optional();
+        }
       } else {
-        String[] items = splitTokenExpression(scanner, subexp);
+        String[] items = splitToken(scanner, token);
         TokenTransition t = new TokenTransition(items[0], items[1], items[2], "*");
         sub = Pattern.match(t);
+        if (nextIsOptional(scanner)) {
+          scanner.next();
+          sub.optional();
+        }
       }
       pattern = Pattern.chain(pattern, sub);
     }
@@ -97,12 +102,11 @@ public class TokenPattern {
    * @param scanner with the token expression stream
    * @param pattern to expand
    * @param chunk to be matched
+   * @param start
    * @return the expanded pattern
    */
   private static Pattern<TokenAnnotation> parseWithChunk(TokenLexer scanner,
-      Pattern<TokenAnnotation> pattern, String chunk) {
-    boolean start = true;
-    boolean end = false;
+      Pattern<TokenAnnotation> pattern, String chunk, boolean start) {
     TokenTransition openChunk = new TokenTransition("*", "*", "*", chunk, true, false);
     TokenTransition anyChunk = new TokenTransition("*", "*", "*", chunk, false, false);
     TokenTransition closeChunk = new TokenTransition("*", "*", "*", chunk, false, true);
@@ -111,92 +115,17 @@ public class TokenPattern {
     String subexp;
     while (scanner.hasNext()) {
       subexp = scanner.next();
-      end = false;
-      if (subexp.length() == 0) {
-        continue;
-      } else if ("[".equals(subexp)) {
-        sub = parseChunk(scanner);
-      } else if ("(".equals(subexp)) {
-        sub = parseGroup(scanner, chunk);
-        pattern = Pattern.chain(pattern, sub);
-        continue; // do not loose the start state information
+      if ("(".equals(subexp)) {
+        sub = parseGroup(scanner, chunk, start);
       } else if ("*".equals(subexp)) {
-        end = nextIsChunkEnd(scanner);
-        if (start && end) {
-          sub = Pattern
-              .chain(
-                  Pattern.chain(Pattern.match(openChunk), Pattern.match(anyChunk).optional()
-                      .repeat()), Pattern.match(closeChunk));
-          sub = Pattern.branch(sub, Pattern.match(singleChunk).optional());
-        } else if (start) {
-          sub = Pattern.chain(Pattern.match(openChunk),
-              Pattern.match(anyChunk).optional().repeat()).optional();
-        } else if (end) {
-          sub = Pattern.chain(Pattern.match(anyChunk).optional().repeat(),
-              Pattern.match(closeChunk)).optional();
-        } else {
-          sub = Pattern.match(anyChunk).optional().repeat();
-        }
-      } else if ("?".equals(subexp)) {
-        end = nextIsChunkEnd(scanner);
-        if (start && end) {
-          sub = Pattern.match(singleChunk).optional();
-        } else if (start) {
-          sub = Pattern.match(openChunk).optional();
-        } else if (end) {
-          sub = Pattern.match(closeChunk).optional();
-        } else {
-          sub = Pattern.match(anyChunk).optional();
-        }
+        sub = parseKleeneToken(scanner, start, openChunk, anyChunk, closeChunk, singleChunk, true);
       } else if ("+".equals(subexp)) {
-        end = nextIsChunkEnd(scanner);
-        if (start && end) {
-          sub = Pattern
-              .chain(
-                  Pattern.chain(Pattern.match(openChunk), Pattern.match(anyChunk).optional()
-                      .repeat()), Pattern.match(closeChunk));
-          sub = Pattern.branch(sub, Pattern.match(singleChunk));
-        } else if (start) {
-          sub = Pattern.chain(Pattern.match(openChunk), Pattern.match(anyChunk).optional()
-              .repeat());
-        } else if (end) {
-          sub = Pattern.chain(Pattern.match(anyChunk).optional().repeat(),
-              Pattern.match(closeChunk));
-        } else {
-          sub = Pattern.match(anyChunk).repeat();
-        }
+        sub = parseKleeneToken(scanner, start, openChunk, anyChunk, closeChunk, singleChunk, false);
       } else if ("]".equals(subexp) || ")".equals(subexp)) {
         break;
       } else {
-        String[] items = splitTokenExpression(scanner, subexp);
-        if (scanner.hasNext()) {
-          String next = scanner.peek();
-          if ("*".equals(next) || "?".equals(next)) {
-            scanner.next();
-            TokenTransition tNoEnd = new TokenTransition(items[0], items[1], items[2], chunk,
-                start, false);
-            if (nextIsChunkEnd(scanner)) {
-              sub = Pattern.match(closeChunk);
-              if ("*".equals(next))
-                sub = Pattern.chain(Pattern.match(anyChunk).optional().repeat(), sub);
-              TokenTransition tEnd = new TokenTransition(items[0], items[1], items[2], chunk,
-                  start, true);
-              sub = Pattern.branch(Pattern.match(tEnd), Pattern.chain(Pattern.match(tNoEnd), sub));
-            } else {
-              sub = Pattern.match(anyChunk).optional();
-              if ("*".equals(next)) sub.repeat();
-              sub = Pattern.chain(Pattern.match(tNoEnd), sub);
-            }
-          } else {
-            if ("]".equals(next)) end = true;
-            TokenTransition t = new TokenTransition(items[0], items[1], items[2], chunk, start,
-                end);
-            sub = Pattern.match(t);
-          }
-        } else {
-          TokenTransition t = new TokenTransition(items[0], items[1], items[2], chunk, start, true);
-          sub = Pattern.match(t);
-        }
+        sub = parseChunkToken(splitToken(scanner, subexp), scanner, chunk, start, anyChunk,
+            closeChunk);
       }
       pattern = Pattern.chain(pattern, sub);
       start = false;
@@ -204,27 +133,87 @@ public class TokenPattern {
     return pattern;
   }
 
-  /** Split a token subexpression into its three pieces (word, PoS, and stem). */
-  private static String[] splitTokenExpression(TokenLexer scanner, String subexpression)
+  private static Pattern<TokenAnnotation> parseKleeneToken(TokenLexer scanner, boolean start,
+      TokenTransition openChunk, TokenTransition anyChunk, TokenTransition closeChunk,
+      TokenTransition singleChunk, boolean optional) {
+    // "*" => optional == true; "+" => optional == false;
+    boolean end = scanner.atChunkEnd();
+    Pattern<TokenAnnotation> sub;
+    if (start && end) {
+      sub = Pattern.chain(
+          Pattern.chain(Pattern.match(openChunk), Pattern.match(anyChunk).optional().repeat()),
+          Pattern.match(closeChunk));
+      sub = Pattern.branch(sub,
+          optional ? Pattern.match(singleChunk).optional() : Pattern.match(singleChunk));
+    } else if (end) {
+      sub = Pattern.chain(Pattern.match(anyChunk).optional().repeat(), Pattern.match(closeChunk));
+      if (optional) sub.optional();
+    } else {
+      if (start) sub = Pattern.chain(Pattern.match(openChunk), Pattern.match(anyChunk).optional()
+          .repeat());
+      else sub = Pattern.match(anyChunk).repeat();
+      if (scanner.maybeAtChunkEnd()) {
+        if (start) sub = Pattern.branch(
+            sub,
+            Pattern.branch(
+                Pattern.chain(
+                    Pattern.chain(Pattern.match(openChunk), Pattern.match(anyChunk).optional()
+                        .repeat()), Pattern.match(closeChunk)), Pattern.match(singleChunk)));
+        else sub = Pattern.branch(sub,
+            Pattern.chain(Pattern.match(anyChunk).optional().repeat(), Pattern.match(closeChunk)));
+      }
+      if (optional) sub.optional();
+    }
+    return sub;
+  }
+
+  private static Pattern<TokenAnnotation> parseChunkToken(String[] items, TokenLexer scanner,
+      String chunk, boolean start, TokenTransition anyChunk, TokenTransition closeChunk)
       throws PatternSyntaxException {
-    if (subexpression.endsWith("_") && !subexpression.endsWith("\\_"))
-      throw new PatternSyntaxException("illegal token expression " + subexpression,
-          scanner.toString(), scanner.offset());
-    String[] items = subexpression.split("(?<!\\\\)_");
+    boolean end = scanner.atChunkEnd();
+    Pattern<TokenAnnotation> sub;
+    String next = scanner.peek();
+    boolean isOpt = "?".equals(next);
+    if (isOpt) scanner.next();
+    if (end || scanner.maybeAtChunkEnd()) {
+      TokenTransition tEnd = new TokenTransition(items[0], items[1], items[2], chunk, start,
+          true);
+      sub = Pattern.match(tEnd);
+      if (!end) {
+        TokenTransition tNoEnd = new TokenTransition(items[0], items[1], items[2], chunk, start,
+            false);
+        sub = Pattern.branch(sub, Pattern.match(tNoEnd));
+      }
+    } else {
+      TokenTransition t = new TokenTransition(items[0], items[1], items[2], chunk, start,
+          false);
+      sub = Pattern.match(t);
+    }
+    if (isOpt) sub.optional();
+    return sub;
+  }
+
+  /** Split a token into its three pieces (optional word, and the PoS and its stem). */
+  private static String[] splitToken(TokenLexer scanner, String token)
+      throws PatternSyntaxException {
+    if (token.endsWith("_") && !token.endsWith("\\_"))
+      throw new PatternSyntaxException("illegal token expression " + token, scanner.toString(),
+          scanner.offset());
+    String[] items = token.split("(?<!\\\\)_");
     for (String i : items)
       if (i.length() == 0)
-        throw new PatternSyntaxException("empty token component " + subexpression,
-            scanner.toString(), scanner.offset());
+        throw new PatternSyntaxException("empty token component " + token, scanner.toString(),
+            scanner.offset());
     if (items.length == 2) items = new String[] { "*", items[0], items[1] };
     else if (items.length != 3)
-      throw new PatternSyntaxException("illegal token expression (" + items.length + ") " +
-          subexpression, scanner.toString(), scanner.offset());
+      throw new PatternSyntaxException("illegal token expression (" + items.length + ") " + token,
+          scanner.toString(), scanner.offset());
     return items;
   }
 
-  /** Peek into the scanner to check if a chunk end token is coming up. */
-  private static boolean nextIsChunkEnd(TokenLexer scanner) {
-    return scanner.hasNext() && "]".equals(scanner.peek());
+  /** Peek into the scanner to check if next is an optional marker (?). */
+  private static boolean nextIsOptional(TokenLexer scanner) {
+    return scanner.hasNext() && "?".equals(scanner.peek());
   }
 
   /** Chunk parsing recursion. */
@@ -235,11 +224,12 @@ public class TokenPattern {
     } catch (IndexOutOfBoundsException e) {
       throw new PatternSyntaxException("bad terminal chunk", scanner.toString(), scanner.offset());
     }
-    return parse(scanner, new Pattern<TokenAnnotation>(), chunk);
+    return parseWithChunk(scanner, new Pattern<TokenAnnotation>(), chunk, true);
   }
 
   /** Capture group parsing recursion. */
-  private static Pattern<TokenAnnotation> parseGroup(TokenLexer scanner, String chunk) {
-    return Pattern.capture(parse(scanner, new Pattern<TokenAnnotation>(), chunk));
+  private static Pattern<TokenAnnotation> parseGroup(TokenLexer scanner, String chunk,
+      boolean start) {
+    return Pattern.capture(parse(scanner, new Pattern<TokenAnnotation>(), chunk, start));
   }
 }

@@ -40,4 +40,8 @@ public class TokenLambdaTransition implements Transition<TokenAnnotation> {
   public String toString() {
     return "*";
   }
+
+  public double weight() {
+    return Double.MIN_VALUE; // slightly better than a simple epsilon transition
+  }
 }

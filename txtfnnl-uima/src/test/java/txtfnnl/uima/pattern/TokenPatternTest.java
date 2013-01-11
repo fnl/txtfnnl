@@ -150,6 +150,7 @@ public class TokenPatternTest {
     EasyMock.expect(token.getChunkBegin()).andReturn(true);
     EasyMock.expect(token.getChunkEnd()).andReturn(true);
     EasyMock.expect(token.getChunk()).andReturn("CHUNK");
+    EasyMock.expect(token.getChunk()).andReturn("CHUNK");
     EasyMock.replay(token);
     l.add(token);
     m.reset(l);
@@ -165,6 +166,7 @@ public class TokenPatternTest {
     TokenAnnotation token = EasyMock.createMock(TokenAnnotation.class);
     EasyMock.expect(token.getChunkBegin()).andReturn(true);
     EasyMock.expect(token.getChunkEnd()).andReturn(true);
+    EasyMock.expect(token.getChunk()).andReturn("CHUNK");
     EasyMock.expect(token.getChunk()).andReturn("CHUNK");
     EasyMock.replay(token);
     l.add(token);
@@ -231,7 +233,7 @@ public class TokenPatternTest {
 
   @Test
   public final void testMatchOptional() {
-    Pattern<TokenAnnotation> p = TokenPattern.compile("?");
+    Pattern<TokenAnnotation> p = TokenPattern.compile("*_* ?");
     List<TokenAnnotation> l = new LinkedList<TokenAnnotation>();
     Matcher<TokenAnnotation> m = p.matcher(l);
     assertTrue(m.find());

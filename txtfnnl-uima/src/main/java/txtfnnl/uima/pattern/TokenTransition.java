@@ -4,6 +4,8 @@ package txtfnnl.uima.pattern;
 
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang.StringUtils;
+
 import txtfnnl.uima.tcas.TokenAnnotation;
 
 /**
@@ -18,6 +20,8 @@ public class TokenTransition extends TokenLambdaTransition {
   final Pattern chunk;
   final boolean chunkBegin;
   final boolean chunkEnd;
+  final double weight;
+  final int code;
 
   @SuppressWarnings("unused")
   private TokenTransition() {
@@ -36,17 +40,40 @@ public class TokenTransition extends TokenLambdaTransition {
     this.chunk = "*".equals(chunk) ? null : Pattern.compile(chunk);
     this.chunkBegin = chunkBegin;
     this.chunkEnd = chunkEnd;
+    this.weight = calculateWeight();
+    this.code = calculateHashCode();
   }
 
   @Override
   public boolean matches(TokenAnnotation token) {
     if (chunkBegin && !token.getChunkBegin()) return false;
     else if (chunkEnd && !token.getChunkEnd()) return false;
-    else if (chunk != null && !this.chunk.matcher(token.getChunk()).matches()) return false;
-    else if (pos != null && !this.pos.matcher(token.getPos()).matches()) return false;
-    else if (stem != null && !this.stem.matcher(token.getStem()).matches()) return false;
+    else if (chunk != null &&
+        (token.getChunk() == null || !this.chunk.matcher(token.getChunk()).matches())) return false;
+    else if (pos != null &&
+        (token.getPos() == null || !this.pos.matcher(token.getPos()).matches())) return false;
+    else if (stem != null &&
+        (token.getStem() == null || !this.stem.matcher(token.getStem()).matches())) return false;
     else if (text != null && !this.text.matcher(token.getCoveredText()).matches()) return false;
     else return true;
+  }
+
+  private double calculateWeight() {
+    int w = 1;
+    if (chunkBegin) w *= 2;
+    if (chunkEnd) w *= 2;
+    if (chunk != null) w += chunk.pattern().length() * 2;
+    if (pos != null) w += pos.pattern().length() * 2;
+    if (stem != null)
+      w += stem.pattern().length() / (StringUtils.countMatches(stem.pattern(), "|") + 1);
+    if (text != null)
+      w += text.pattern().length() / (StringUtils.countMatches(text.pattern(), "|") + 1);
+    return (double) w;
+  }
+  
+  @Override
+  public double weight() {
+    return weight;
   }
 
   @Override
@@ -58,6 +85,10 @@ public class TokenTransition extends TokenLambdaTransition {
 
   @Override
   public int hashCode() {
+    return code;
+  }
+  
+  private int calculateHashCode() {
     int result = 17;
     result = 31 * result + (chunkBegin ? 1 : 0);
     result = 31 * result + (chunkEnd ? 1 : 0);
