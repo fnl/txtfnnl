@@ -166,6 +166,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
       logger.log(Level.SEVERE, "geniatagger setup failed (dict path: ''{0}'')", dictionariesPath);
       throw new ResourceInitializationException(e);
     }
+    logger.log(Level.INFO, "initialized GENIA tagger");
   }
 
   @Override
@@ -178,8 +179,8 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
       throw new AnalysisEngineProcessException(e);
     }
     final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textCas);
-    final List<TokenAnnotation> buffer = new LinkedList<TokenAnnotation>();
     List<Token> tokens;
+    int count = 0;
     while (sentenceIt.hasNext()) {
       final Annotation sentenceAnn = sentenceIt.next();
       final String sentence = sentenceAnn.getCoveredText().replace('\n', ' ');
@@ -193,6 +194,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
         throw new AnalysisEngineProcessException(e);
       }
       TokenAnnotation last = null;
+      count += tokens.size();
       for (final Token t : tokens) {
         wordLength = t.word().length();
         wordOffset = sentence.indexOf(t.word(), wordOffset);
@@ -219,6 +221,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
           break;
         case 'I':
           tokenAnn.setChunk(t.chunk().substring(2));
+          last = tokenAnn;
           break;
         case 'O':
           if (last != null) last.setChunkEnd(true);
@@ -228,13 +231,12 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
           logger.log(Level.SEVERE, "unexpected chunk tag ''{0}''", t.chunk());
           throw new AnalysisEngineProcessException(new RuntimeException("illeagal chunk tag"));
         }
-        buffer.add(tokenAnn);
+        tokenAnn.addToIndexes();
         wordOffset += wordLength;
       }
+      if (last != null) last.setChunkEnd(true);
     }
-    for (final TokenAnnotation ann : buffer) {
-      textCas.addFsToIndexes(ann);
-    }
+    logger.log(Level.FINE, "annotated {0} tokens", count);
   }
 
   @Override

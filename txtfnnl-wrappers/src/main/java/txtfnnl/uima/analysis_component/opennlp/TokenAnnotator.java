@@ -1,8 +1,6 @@
 package txtfnnl.uima.analysis_component.opennlp;
 
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
 
 import opennlp.tools.chunker.ChunkerME;
 import opennlp.tools.postag.POSTaggerME;
@@ -120,6 +118,7 @@ public class TokenAnnotator extends JCasAnnotator_ImplBase {
     tokenizer = new TokenizerME(tokenizerModel.getModel());
     posTagger = new POSTaggerME(posModel.getModel(), POSTaggerME.DEFAULT_BEAM_SIZE, 0);
     chunker = new ChunkerME(chunkerModel.getModel(), ChunkerME.DEFAULT_BEAM_SIZE);
+    logger.log(Level.INFO, "initialized OpenNLP tagger");
   }
 
   /**
@@ -135,10 +134,7 @@ public class TokenAnnotator extends JCasAnnotator_ImplBase {
       throw new AnalysisEngineProcessException(e);
     }
     final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(jcas);
-    // buffer new tokens and only add them to the index after we have
-    // iterated over all sentences - otherwise a concurrent modification
-    // exception would be raised
-    final List<TokenAnnotation> buffer = new LinkedList<TokenAnnotation>();
+    int count = 0;
     while (sentenceIt.hasNext()) {
       final Annotation sentence = sentenceIt.next();
       final String text = sentence.getCoveredText();
@@ -158,7 +154,7 @@ public class TokenAnnotator extends JCasAnnotator_ImplBase {
         token.setIdentifier(IDENTIFIER);
         token.setNamespace(NAMESPACE);
         anns[i] = token;
-        buffer.add(token);
+        count++;
       }
       // annotate the PoS and chunk tags on each token
       final String[] tags = posTagger.tag(tokens);
@@ -171,10 +167,12 @@ public class TokenAnnotator extends JCasAnnotator_ImplBase {
         case 'B':
           if (last != null) last.setChunkEnd(true);
           token.setChunk(chunks[i].substring(2));
+          token.setChunkBegin(true);
           last = token;
           break;
         case 'I':
           token.setChunk(chunks[i].substring(2));
+          last = token;
           break;
         case 'O':
           if (last != null) last.setChunkEnd(true);
@@ -184,12 +182,11 @@ public class TokenAnnotator extends JCasAnnotator_ImplBase {
           throw new AssertionError("Unexpected chunk: " + chunks[i] + " at postion " + i +
               " in '" + text + "'");
         }
+        token.addToIndexes();
       }
+      if (last != null) last.setChunkEnd(true);
     }
-    for (final TokenAnnotation token : buffer) {
-      token.addToIndexes(jcas);
-    }
-    logger.log(Level.FINE, "annotated " + buffer.size() + " tokens");
+    logger.log(Level.FINE, "annotated {0} tokens", count);
   }
 
   @Override
