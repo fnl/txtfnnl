@@ -83,6 +83,12 @@ Currently, the following pipelines are available:
   lemmatized. 
 - ``tag`` works just as ``pre``, but outputs the content in plaintext format
   instead of XMI. 
+- ``grep`` enables the use of syntax patterns similar to the output of ``tag`` to
+  annotate semantic entities or detect (pattern-based) relationships between
+  those entities. In other words, this pipeline provides a syntactic regular
+  expression language for matching token sequences and their part-of-speech,
+  chunk tags, and lemmas in UIMA. This functionality is similar to GATE's JAPE,
+  but adds in relationship annotation capabilities. 
 - ``entities`` annotates known entity mentions on documents by supplying a mapping
   of input file names (w/o sufffix) to entity identifiers (type, namespace,
   identifier), looking up the names for those entity IDs in a DB, and
