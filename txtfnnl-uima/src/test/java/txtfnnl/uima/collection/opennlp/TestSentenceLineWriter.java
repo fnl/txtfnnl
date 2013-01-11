@@ -71,7 +71,7 @@ public class TestSentenceLineWriter {
   @Test
   public void testProcessJCasDisableJoinLines() throws UIMAException, IOException {
     final AnalysisEngine slw = AnalysisEngineFactory.createPrimitive(SentenceLineWriter.configure(
-        null, null, true, false, false));
+        null, null, true, false, false, true));
     final String result = SENTENCE_1.trim() + System.getProperty("line.separator") + "  " +
         SEPARATOR + "  " + System.getProperty("line.separator") + SENTENCE_2.trim() +
         System.getProperty("line.separator");
@@ -85,7 +85,7 @@ public class TestSentenceLineWriter {
     final File existing = new File(tmpDir, "test.txt.txt");
     Assert.assertTrue(existing.createNewFile());
     final AnalysisEngine slw = AnalysisEngineFactory.createPrimitive(SentenceLineWriter.configure(
-        tmpDir, "UTF-32", true, false, true));
+        tmpDir, "UTF-32", true, false, true, true));
     final String result = SENTENCE_1.replace('\n', ' ').trim() +
         System.getProperty("line.separator") + SEPARATOR + System.getProperty("line.separator") +
         SENTENCE_2.replace('\n', ' ').trim() + System.getProperty("line.separator");
