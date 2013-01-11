@@ -14,6 +14,7 @@ import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.AnalysisEngineFactory;
@@ -59,6 +60,11 @@ public class SentenceLineWriter extends TextWriter {
   static final Pattern REGEX_SINGLE_LINEBREAK = Pattern.compile("(?<!\\r?\\n)\\r?\\n(?!\\r?\\n)");
   static final String LINEBREAK = System.getProperty("line.separator");
 
+  /** In addition to the sentences, write out all content between them, too (default: true). */
+  public static final String PARAM_INCLUDE_ALL_CONTENT = "IncludeNonSentenceContent";
+  @ConfigurationParameter(name = PARAM_INCLUDE_ALL_CONTENT, defaultValue = "true")
+  private boolean includeAllContent;
+  
   /**
    * Configure a SentenceLineWriter description. Note that if the {@link #outputDirectory} is
    * <code>null</code> and {@link #printToStdout} is <code>false</code>, a
@@ -70,6 +76,7 @@ public class SentenceLineWriter extends TextWriter {
    * @param overwriteFiles whether to overwrite existing files or not
    * @param replaceNewlines whether to replace <i>single</i> line-breaks in sentences with
    *        white-spaces and trim consecutive spaces or not
+   * @param includeContent add content between sentences to the output
    * @return a configured AE description
    * @throws IOException
    * @throws UIMAException
@@ -77,7 +84,7 @@ public class SentenceLineWriter extends TextWriter {
   @SuppressWarnings("serial")
   public static AnalysisEngineDescription configure(final File outputDirectory,
       final String encoding, final boolean printToStdout, final boolean overwriteFiles,
-      final boolean replaceNewlines) throws UIMAException, IOException {
+      final boolean replaceNewlines, final boolean includeContent) throws UIMAException, IOException {
     return AnalysisEngineFactory.createPrimitiveDescription(SentenceLineWriter.class,
         UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
           {
@@ -86,6 +93,7 @@ public class SentenceLineWriter extends TextWriter {
             put(PARAM_PRINT_TO_STDOUT, printToStdout);
             put(PARAM_OVERWRITE_FILES, overwriteFiles);
             put(PARAM_REPLACE_NEWLINES, replaceNewlines);
+            put(PARAM_INCLUDE_ALL_CONTENT, includeContent);
           }
         }));
   }
@@ -98,6 +106,7 @@ public class SentenceLineWriter extends TextWriter {
    * <li>printToStdout=<code>true</code></li>
    * <li>overwriteFiles=<code>false</code></li>
    * <li>replaceNewlines=<code>true</code></li>
+   * <li>includeContent=<code>true</code></li>
    * </ul>
    * 
    * @see #configure(File, String, boolean, boolean, boolean)
@@ -106,7 +115,7 @@ public class SentenceLineWriter extends TextWriter {
    * @throws UIMAException
    */
   public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-    return SentenceLineWriter.configure(null, null, true, false, true);
+    return SentenceLineWriter.configure(null, null, true, false, true, true);
   }
 
   @Override
@@ -123,13 +132,15 @@ public class SentenceLineWriter extends TextWriter {
     final String text = textJCas.getDocumentText();
     int offset = 0;
     final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textJCas);
+    int count = 0;
     while (sentenceIt.hasNext()) {
+      count++;
       final Annotation ann = sentenceIt.next();
       final String prefix = text.substring(offset, ann.getBegin());
       final String normalPrefix = normalizeSpaces(prefix);
       final String sentence = ann.getCoveredText();
       try {
-        if (normalPrefix.length() > 0 && !" ".equals(normalPrefix)) {
+        if (includeAllContent && normalPrefix.length() > 0 && !" ".equals(normalPrefix)) {
           write(replaceNewlines ? normalPrefix : prefix);
           write(LINEBREAK);
         }
@@ -148,13 +159,14 @@ public class SentenceLineWriter extends TextWriter {
       offset = ann.getEnd();
     }
     try {
-      if (offset != text.length()) {
+      if (includeAllContent && offset != text.length()) {
         write(normalizeSpaces(text.substring(offset)));
       }
       unsetStream();
     } catch (final IOException e) {
       throw new AnalysisEngineProcessException(e);
     }
+    logger.log(Level.FINE, "wrote {0} sentences", count);
   }
 
   /**
