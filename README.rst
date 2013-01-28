@@ -22,18 +22,18 @@ Dependencies
   
 In addition, the following direct dependencies exist:
 
-- `uimaFIT <http://code.google.com/p/uimafit/>`_ 1.4 for configuration and testing
-- for making gene mention annotations (via the ``entities`` pipeline), a gnamed_ DB
-  has to be available on the network, which in turn (by default) requires
-  `PostgreSQL <http://www.postgresql.org/>`_ 8.4+; SQL-realted tests for txtfnnl
-  furthermore use the `H2 <http://www.h2database.com/>`_ in-memory DB.
+- `uimaFIT <http://code.google.com/p/uimafit/>`_ 1.4 for configuration and
+  testing
+- for making gene mention annotations (via the ``entities`` pipeline), a
+  gnamed_ DB has to be available on the network, which in turn (by default)
+  requires `PostgreSQL <http://www.postgresql.org/>`_ 8.4+; SQL-realted tests
+  for txtfnnl furthermore use the `H2 <http://www.h2database.com/>`_ in-memory
+  DB.
 - for the **txtfnnl-wrappers** module, the relevant external tools need to be
   downloaded, installed, and visible on the system ``$PATH``.
-  Supported external tools are listed in the section Installation.
-  the `LinkGrammar <http://www.link.cs.cmu.edu/link/>`_ parser and
-  the `GENIA Tagger <http://www.nactem.ac.uk/tsujii/GENIA/tagger/>`_
-  for tokenization, lemmatization, tagging, and chunking.
-- `BioLemmatizer <http://biolemmatizer.sourceforge.net/>`_ 1.1 in **txtfnnl-wrappers**
+  Supported external tools are listed in the section Installation below.
+- `BioLemmatizer <http://biolemmatizer.sourceforge.net/>`_ 1.1 in
+  **txtfnnl-wrappers**
 
 Installation
 ------------
@@ -83,24 +83,43 @@ Currently, the following pipelines are available:
   lemmatized. 
 - ``tag`` works just as ``pre``, but outputs the content in plaintext format
   instead of XMI. 
-- ``grep`` enables the use of syntax patterns similar to the output of ``tag`` to
-  annotate semantic entities or detect (pattern-based) relationships between
-  those entities. In other words, this pipeline provides a syntactic regular
-  expression language for matching token sequences and their part-of-speech,
-  chunk tags, and lemmas in UIMA. This functionality is similar to GATE's JAPE,
-  but adds in relationship annotation capabilities. 
-- ``entities`` annotates known entity mentions on documents by supplying a mapping
-  of input file names (w/o sufffix) to entity identifiers (type, namespace,
-  identifier), looking up the names for those entity IDs in a DB, and
-  matching any of those names in the extracted plain-text. Example use: for
+- ``grep`` enables the use of syntax patterns (written in a style similar to
+  the output of ``tag``) to annotate semantic entities and relationships
+  between those entities.
+  In other words, this pipeline provides a regular syntax expression language
+  for matching token sequences and their part-of-speech, chunk tags, and lemmas
+  in UIMA. This is a functionality similar to that provided by GATE's
+  `JAPE <http://gate.ac.uk/wiki/jape-repository/>`_, but a much simpler grammar
+  with far less features. 
+- ``entities`` annotates known entity mentions on documents by supplying a
+  mapping of input file names (w/o sufffix) to entity identifiers (type,
+  namespace, identifier), looking up the names for those entity IDs in a DB,
+  and matching any of those names in the extracted plain-text. Example use: for
   gene mention annotations using gnamed_
 - ``patterns`` extracts relationship patterns between named entities in a known
   relationship. A relationship is defined as one or more entity IDs (as for
-  ``patterns``) together with the input file name and is supposed to be contained
-  within a single sentence. If a sentence with all required entities is found,
-  a number of patterns used to syntactically combine the entities are
+  ``patterns``) together with the input file name and is supposed to be
+  contained within a single sentence. If a sentence with all required entities
+  is found, a number of patterns used to syntactically combine the entities are
   extracted. Each pattern is printed on a single line and patterns for
   different sentences are separated by an empty line.
+
+A quick reference of the CF regular expression grammar for syntax patterns::
+
+  S -> Phrase S? | Capture S? | Token S?
+  Phrase -> "[" Chunk InPhrase "]" "?"?
+  Capture -> "(" S ")" # for Semantic and/or Relationship Annotations
+  InPhrase -> CaptureInPhrase InPhrase? | Token InPhrase?
+  CaptureInPhrase -> "(" InPhrase ")" # for Semantic and/or Relationship Ann.
+  Chunk -> "NP" | "VP" | "PP" | "ADVP" ... # i.e., the chunker tags
+  Token -> "." Quantifier? | RegEx Quantifier? # dot "." matches any token
+  Quantifier -> "*" | "?" | "+"
+  RegEx -> RE1 | RE2 | RE3
+  RE1 -> "<lemma>" # Java regex describing how to match lemmas
+  RE2 -> "<PoS>_<lemma>" # as RE1, just two regex patterns separated by underscore
+  RE3 -> "<word>_<PoS>_<lemma>" # idem, with three patterns
+  # to omit one regex in RE2 or RE3, a "*" star can be used
+  # all terminals must be separated by white-spaces
 
 License
 -------
