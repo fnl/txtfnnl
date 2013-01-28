@@ -6,40 +6,40 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
-public class TokenLexerTest {
+public class TestRegExLexer {
   
   @Test
   public final void testSetup() {
-    TokenLexer l = new TokenLexer("expression");
+    RegExLexer l = new RegExLexer("expression");
     assertNotNull(l);
   }
   
   @Test
   public final void testIterator() {
-    Iterator<String> it = (new TokenLexer("expression")).iterator();
+    Iterator<String> it = (new RegExLexer("expression")).iterator();
     assertNotNull(it);
   }
   
   @Test
   public final void testBasicIteration() {
-    TokenLexer l = new TokenLexer("a  b");
+    RegExLexer l = new RegExLexer("a  b");
     assertEquals(0, l.offset());
     assertTrue(l.hasNext());
     assertEquals("a", l.peek());
     assertEquals(0, l.offset());
     assertEquals("a", l.next());
-    assertEquals(2, l.offset());
+    assertEquals(3, l.offset());
     assertTrue(l.hasNext());
     assertEquals("b", l.peek());
-    assertEquals(2, l.offset());
-    assertEquals("b", l.next());
     assertEquals(3, l.offset());
+    assertEquals("b", l.next());
+    assertEquals(4, l.offset());
     assertFalse(l.hasNext());
   }
   
   @Test
   public final void testEscapedWhitespace() {
-    TokenLexer l = new TokenLexer("a\\ \\ \\ b");
+    RegExLexer l = new RegExLexer("a\\ \\ \\ b");
     assertTrue(l.hasNext());
     assertEquals("a   b", l.peek());
     assertEquals("a   b", l.next());
@@ -48,7 +48,7 @@ public class TokenLexerTest {
   
   @Test
   public final void testEscapedEscape() {
-    TokenLexer l = new TokenLexer("a\\\\ b");
+    RegExLexer l = new RegExLexer("a\\\\ b");
     assertTrue(l.hasNext());
     assertEquals("a\\\\", l.peek());
     assertEquals("a\\\\", l.next());
@@ -60,7 +60,7 @@ public class TokenLexerTest {
   
   @Test
   public final void testMultiEscapedWhitespace() {
-    TokenLexer l = new TokenLexer("a\\\\\\ b");
+    RegExLexer l = new RegExLexer("a\\\\\\ b");
     assertTrue(l.hasNext());
     assertEquals("a\\\\ b", l.peek());
     assertEquals("a\\\\ b", l.next());
@@ -69,7 +69,7 @@ public class TokenLexerTest {
 
   @Test
   public final void testEndWithWhitespace() {
-    TokenLexer l = new TokenLexer("a\\  b");
+    RegExLexer l = new RegExLexer("a\\  b");
     assertTrue(l.hasNext());
     assertEquals("a ", l.peek());
     assertEquals("a ", l.next());
@@ -82,7 +82,7 @@ public class TokenLexerTest {
 
   @Test
   public final void testStartWithWhitespace() {
-    TokenLexer l = new TokenLexer("a \\ b");
+    RegExLexer l = new RegExLexer("a \\ b");
     assertTrue(l.hasNext());
     assertTrue(l.hasNext());
     assertEquals("a", l.peek());

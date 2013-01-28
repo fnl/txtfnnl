@@ -15,18 +15,18 @@ import txtfnnl.pattern.Matcher;
 import txtfnnl.pattern.Pattern;
 import txtfnnl.uima.tcas.TokenAnnotation;
 
-public class TokenPatternTest {
+public class TestSyntaxPattern {
   @Before
   public void setUp() throws Exception {}
 
   @Test
   public final void testCompileEmpty() {
-    assertTrue(TokenPattern.compile("") instanceof Pattern<?>);
+    assertTrue(SyntaxPattern.compile("") instanceof Pattern<?>);
   }
 
   @Test
   public final void testMatchEmpty() {
-    Pattern<TokenAnnotation> p = TokenPattern.compile("");
+    Pattern<TokenAnnotation> p = SyntaxPattern.compile("");
     List<TokenAnnotation> l = new LinkedList<TokenAnnotation>();
     TokenAnnotation mock = EasyMock.createMock(TokenAnnotation.class);
     l.add(mock);
@@ -39,13 +39,13 @@ public class TokenPatternTest {
 
   @Test
   public final void testCompileSimple() {
-    assertTrue(TokenPattern.compile("*_*_*") instanceof Pattern<?>);
-    assertTrue(TokenPattern.compile("a_b_c") instanceof Pattern<?>);
+    assertTrue(SyntaxPattern.compile("*_*_*") instanceof Pattern<?>);
+    assertTrue(SyntaxPattern.compile("a_b_c") instanceof Pattern<?>);
   }
 
   @Test
   public final void testMatchSimple() {
-    Pattern<TokenAnnotation> p = TokenPattern.compile("*_*_*");
+    Pattern<TokenAnnotation> p = SyntaxPattern.compile("*_*");
     List<TokenAnnotation> l = new LinkedList<TokenAnnotation>();
     TokenAnnotation mock = EasyMock.createMock(TokenAnnotation.class);
     l.add(mock);
@@ -59,13 +59,14 @@ public class TokenPatternTest {
 
   @Test
   public final void testCompileShort() {
-    assertTrue(TokenPattern.compile("*_*") instanceof Pattern<?>);
-    assertTrue(TokenPattern.compile("a_b") instanceof Pattern<?>);
+    assertTrue(SyntaxPattern.compile(".") instanceof Pattern<?>);
+    assertTrue(SyntaxPattern.compile("*") instanceof Pattern<?>);
+    assertTrue(SyntaxPattern.compile("A") instanceof Pattern<?>);
   }
 
   @Test
   public final void testMatchShort() {
-    Pattern<TokenAnnotation> p = TokenPattern.compile("*_*");
+    Pattern<TokenAnnotation> p = SyntaxPattern.compile(".");
     List<TokenAnnotation> l = new LinkedList<TokenAnnotation>();
     TokenAnnotation mock = EasyMock.createMock(TokenAnnotation.class);
     l.add(mock);
@@ -79,8 +80,8 @@ public class TokenPatternTest {
 
   @Test
   public final void testMatchEscape() {
-    assertTrue(TokenPattern.compile("*_\\_") instanceof Pattern<?>);
-    Pattern<TokenAnnotation> p = TokenPattern.compile("\\_a\\__*_*");
+    assertTrue(SyntaxPattern.compile("*_\\_") instanceof Pattern<?>);
+    Pattern<TokenAnnotation> p = SyntaxPattern.compile("\\_a\\__*_*");
     List<TokenAnnotation> l = new LinkedList<TokenAnnotation>();
     TokenAnnotation mock = EasyMock.createMock(TokenAnnotation.class);
     mock.getCoveredText();
@@ -93,12 +94,12 @@ public class TokenPatternTest {
 
   @Test
   public final void testCompileCapture() {
-    assertTrue(TokenPattern.compile("( )") instanceof Pattern<?>);
+    assertTrue(SyntaxPattern.compile("( )") instanceof Pattern<?>);
   }
 
   @Test
   public final void testMatchEmptyCapture() {
-    Pattern<TokenAnnotation> p = TokenPattern.compile("( )");
+    Pattern<TokenAnnotation> p = SyntaxPattern.compile("( )");
     List<TokenAnnotation> l = new LinkedList<TokenAnnotation>();
     Matcher<TokenAnnotation> m = p.matcher(l);
     assertTrue(m.find());
@@ -118,8 +119,8 @@ public class TokenPatternTest {
 
   @Test
   public final void testMatchCaptureGroup() {
-    String expr = "( *_* )";
-    Pattern<TokenAnnotation> p = TokenPattern.compile(expr);
+    String expr = "( . )";
+    Pattern<TokenAnnotation> p = SyntaxPattern.compile(expr);
     List<TokenAnnotation> l = new LinkedList<TokenAnnotation>();
     Matcher<TokenAnnotation> m = p.matcher(l);
     assertFalse(m.find());
@@ -137,12 +138,12 @@ public class TokenPatternTest {
 
   @Test
   public final void testCompileChunk() {
-    assertTrue(TokenPattern.compile("[ CHUNK ]") instanceof Pattern<?>);
+    assertTrue(SyntaxPattern.compile("[ CHUNK ]") instanceof Pattern<?>);
   }
 
   @Test
   public final void testMatchChunk() {
-    Pattern<TokenAnnotation> p = TokenPattern.compile("[ CHUNK *_* ]");
+    Pattern<TokenAnnotation> p = SyntaxPattern.compile("[ CHUNK . ]");
     List<TokenAnnotation> l = new LinkedList<TokenAnnotation>();
     Matcher<TokenAnnotation> m = p.matcher(l);
     assertFalse(m.find());
@@ -161,7 +162,7 @@ public class TokenPatternTest {
 
   @Test
   public final void testMatchCapturedChunk() {
-    Pattern<TokenAnnotation> p = TokenPattern.compile("( [ CHUNK *_* ] )");
+    Pattern<TokenAnnotation> p = SyntaxPattern.compile("( [ CHUNK . ] )");
     List<TokenAnnotation> l = new LinkedList<TokenAnnotation>();
     TokenAnnotation token = EasyMock.createMock(TokenAnnotation.class);
     EasyMock.expect(token.getChunkBegin()).andReturn(true);
@@ -181,28 +182,28 @@ public class TokenPatternTest {
 
   @Test(expected = PatternSyntaxException.class)
   public final void testCompileSafe() {
-    assertTrue(TokenPattern.compile("a_b_") instanceof Pattern<?>);
+    assertTrue(SyntaxPattern.compile("a_b_") instanceof Pattern<?>);
   }
 
   @Test(expected = PatternSyntaxException.class)
   public final void testCompileShortSafe() {
-    assertTrue(TokenPattern.compile("_*") instanceof Pattern<?>);
+    assertTrue(SyntaxPattern.compile("_A") instanceof Pattern<?>);
   }
 
   @Test
   public final void testCompileEscape() {
-    assertTrue(TokenPattern.compile("\\__*_*") instanceof Pattern<?>);
+    assertTrue(SyntaxPattern.compile("\\__A_B") instanceof Pattern<?>);
   }
 
   @Test
   public final void testCompileRealisticExpression() {
-    String expr = "( [ NP + NN.*_factor ] ) * [ VP * VB.?_bind|interact ] ( [ NP + NN.*_gene ] )";
-    assertTrue(TokenPattern.compile(expr) instanceof Pattern<?>);
+    String expr = "( [ NP DT_* ? . + NN_factor ] ) . * [ VP . * VB.?_bind|interact ] [ NP DT_* ? ( . + NN.*_gene ) ]";
+    assertTrue(SyntaxPattern.compile(expr) instanceof Pattern<?>);
   }
 
   @Test
   public final void testMatchAnything() {
-    Pattern<TokenAnnotation> p = TokenPattern.compile("*");
+    Pattern<TokenAnnotation> p = SyntaxPattern.compile(". *");
     List<TokenAnnotation> l = new LinkedList<TokenAnnotation>();
     Matcher<TokenAnnotation> m = p.matcher(l);
     assertTrue(m.find());
@@ -218,7 +219,7 @@ public class TokenPatternTest {
 
   @Test
   public final void testMatchOneOrMore() {
-    Pattern<TokenAnnotation> p = TokenPattern.compile("+");
+    Pattern<TokenAnnotation> p = SyntaxPattern.compile(". +");
     List<TokenAnnotation> l = new LinkedList<TokenAnnotation>();
     Matcher<TokenAnnotation> m = p.matcher(l);
     assertFalse(m.find());
@@ -233,7 +234,7 @@ public class TokenPatternTest {
 
   @Test
   public final void testMatchOptional() {
-    Pattern<TokenAnnotation> p = TokenPattern.compile("*_* ?");
+    Pattern<TokenAnnotation> p = SyntaxPattern.compile(". ?");
     List<TokenAnnotation> l = new LinkedList<TokenAnnotation>();
     Matcher<TokenAnnotation> m = p.matcher(l);
     assertTrue(m.find());

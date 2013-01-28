@@ -15,7 +15,7 @@ import txtfnnl.uima.analysis_component.BioLemmatizerAnnotator;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
 import txtfnnl.uima.analysis_component.NOOPAnnotator;
 import txtfnnl.uima.analysis_component.SentenceFilterAnnotator;
-import txtfnnl.uima.analysis_component.TokenPatternAnnotator;
+import txtfnnl.uima.analysis_component.SyntaxPatternAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
 import txtfnnl.uima.collection.SemanticAnnotationWriter;
@@ -110,7 +110,7 @@ public class PatternExtractor extends Pipeline {
         // the GENIA Tagger already lemmatizes; nothing to do
         grep.set(4, NOOPAnnotator.configure());
       }
-      grep.set(5, TokenPatternAnnotator.configure(patterns, "\t", completeSentence));
+      grep.set(5, SyntaxPatternAnnotator.configure(patterns, "\t", completeSentence, null, null));
       if (completeSentence) grep.setConsumer(SentenceLineWriter.configure(outputDirectory,
           encoding, outputDirectory == null, overwriteFiles, true, false));
       else grep.setConsumer(SemanticAnnotationWriter.configure(outputDirectory, encoding,

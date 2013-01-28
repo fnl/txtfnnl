@@ -28,7 +28,7 @@ import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
 
-public class TestTokenPatternAnnotator {
+public class TestSyntaxPatternAnnotator {
   AnalysisEngineDescription annotator;
   AnalysisEngine engine;
   File patternResource;
@@ -48,7 +48,7 @@ public class TestTokenPatternAnnotator {
       out.write('\n');
     }
     out.close();
-    annotator = TokenPatternAnnotator.configure(patternResource);
+    annotator = SyntaxPatternAnnotator.configure(patternResource);
     engine = AnalysisEngineFactory.createPrimitive(annotator);
   }
 
@@ -122,7 +122,7 @@ public class TestTokenPatternAnnotator {
             { "NP" }, { "a", "DT", "a" }, { "XYZ", "NN", "xyz" },
             { "promoter", "NN", "promoter" }, { "" }, { "ADVP" }, { "in", "FW", "in" },
             { "vivo", "FW", "vivo" }, { "" }, { ".", ".", "." } } };
-    createEngine("( [ NP + ] ) [ VP * ( *_* ) ] [ PP ( * ) ] ( [ NP + ] )"
+    createEngine("( [ NP . + ] ) [ VP . * ( . ) ] [ PP ( . * ) ] ( [ NP . + ] )"
         + "\trel\tinteraction\tsem\tactor\tsem\taction\tsem\tqualifier\tsem\tactor");
     JCas doc = getJCas(tokens);
     engine.process(doc);
@@ -153,7 +153,7 @@ public class TestTokenPatternAnnotator {
             { "" }, { "VP" }, { "was", "VBZ", "be" }, { "regulating", "VB", "regulate" }, { "" },
             { "NP" }, { "XYZ", "NN", "xyz" }, { "promoters", "NN", "promoter" }, { "" },
             { "ADVP" }, { "in", "FW", "in" }, { "vivo", "FW", "vivo" }, { "" }, { ".", ".", "." } } };
-    createEngine("( [ NP + ] ) [ VP * ( *_bind|regulate ) ] [ PP * ] [ NP DT_* ? ( + ) *_target ? *_gene|promoter ]"
+    createEngine("( [ NP . + ] ) [ VP . * ( bind|regulate ) ] [ PP . * ] [ NP DT_* ? ( . + ) target ? gene|promoter ]"
         + "\trel\tinteraction\tsem\tregulator\tsem\taction\tsem\ttarget");
     JCas doc = getJCas(tokens);
     engine.process(doc);
@@ -177,7 +177,7 @@ public class TestTokenPatternAnnotator {
         { "PP" }, { "in", "IN", "in" }, { "" }, { "NP" }, { "the", "DT", "the" },
         { "Hsp90", "NN", "hsp90" }, { "molecular", "JJ", "molecular" },
         { "chaperone", "NN", "chaperone" }, { "" }, { ".", ".", "." } } };
-    createEngine("[ NP DT_* ? ( + ) *_site ] [ VP * ] [ PP * *_in ] [ NP DT_* ? ( + ) ]"
+    createEngine("[ NP DT_* ? ( . + ) site ] [ VP . * ] [ PP . * IN_* ] [ NP DT_* ? ( . + ) ]"
         + "\trel\tinteraction\tsem\tregulator\tsem\ttarget");
     // TODO: somehow, matching fails after the second DT has been found/matched!
     JCas doc = getJCas(tokens);

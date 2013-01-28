@@ -6,13 +6,15 @@ import txtfnnl.pattern.Transition;
 import txtfnnl.uima.tcas.TokenAnnotation;
 
 /**
- * LambdaTokenTransition TokenAnnotation element matcher for a pattern matching implementation.
+ * TokenAnnotation element matcher for a pattern matching implementation.
  * This is a default implementation that matches any token.
  * 
  * @author Florian Leitner
  */
-public class TokenLambdaTransition implements Transition<TokenAnnotation> {
-  public TokenLambdaTransition() {
+class TokenLambdaTransition implements Transition<TokenAnnotation> {
+  static TokenLambdaTransition INSTANCE = new TokenLambdaTransition();
+  
+  protected TokenLambdaTransition() {
     super();
   }
 
@@ -25,20 +27,19 @@ public class TokenLambdaTransition implements Transition<TokenAnnotation> {
   public boolean equals(Object o) {
     if (o == this) return true;
     else if (!(o instanceof TokenLambdaTransition)) return false;
-    else return true; // XXX: all instances are the same (so far...)
-    //else return ((TokenLambdaTransition) o).hashCode() == hashCode();
+    else return true; // all instances are the same
   }
 
   @Override
   public int hashCode() {
     int result = 17;
-    // XXX: all instances the same (so far...)
+    // all instances are equal
     return result;
   }
 
   @Override
   public String toString() {
-    return "*";
+    return RegExParser.WILD_CARD;
   }
 
   public double weight() {

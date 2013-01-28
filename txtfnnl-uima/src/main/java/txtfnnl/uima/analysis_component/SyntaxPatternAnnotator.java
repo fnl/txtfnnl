@@ -4,6 +4,7 @@
 package txtfnnl.uima.analysis_component;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -35,37 +36,43 @@ import org.uimafit.factory.AnalysisEngineFactory;
 import txtfnnl.pattern.Matcher;
 import txtfnnl.pattern.Pattern;
 import txtfnnl.uima.Views;
-import txtfnnl.uima.pattern.TokenPattern;
+import txtfnnl.uima.pattern.SyntaxPattern;
 import txtfnnl.uima.resource.LineBasedStringArrayResource;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
+import txtfnnl.uima.utils.UIMAUtils;
 
 /**
  * Annotate SOFAs based on pattern matching of token sequences using a finite state machine.
  * <p>
- * See {@link txtfnnl.uima.pattern.TokenPattern} for a description of the pattern language.
+ * See {@link txtfnnl.uima.pattern.SyntaxPattern} for a description of the pattern language. This
+ * AE provides a regular expression language for UIMA that can be used to annotate pattern-based
+ * {@link RelationshipAnntation relationships} between {@link SemanticAnnotation semantic entities}.
  * <p>
  * Matching patterns and any capture groups within the patterns are {@link SemanticAnnotation
  * semantically annotated} using the namespace and identifier values defined in the
  * {@link LineBasedStringArrayResource pattern resource}. A pattern resource line first contains
- * the pattern itself, and then two values (namespace, identifier) each for (1) the desired
- * semantic annotation of the entire matched pattern and then (2) for each capture group. If the
- * entire pattern should not be annotated, the two first values can be left empty. If the
- * annotations are omitted entirely, default values for the namespace and identifier annotation of
- * the matched patterns are used.
+ * the pattern itself, then a namespace, identifier pair for the semantic or relationship
+ * annotation of the entire matched pattern and finally namespace, identifier pairs for all
+ * (optional) semantic annotations of capture groups. If only the capture groups should be
+ * annotated, the two namespace, identifier pair should be left empty. If the annotations are
+ * omitted entirely, default values for the namespace and identifier annotation of the whole
+ * matched pattern are used. Patterns, namespaces, and identifiers should all be separated with a
+ * (default: tab) separator defined via the {@link #MODEL_KEY_PATTERN_RESOURCE pattern resource
+ * model}.
  * 
  * @author Florian Leitner
  */
-public class TokenPatternAnnotator extends JCasAnnotator_ImplBase {
+public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
   /** The URI of this Annotator (namespace and ID are defined dynamically). */
-  public static final String URI = TokenPatternAnnotator.class.getName();
+  public static final String URI = SyntaxPatternAnnotator.class.getName();
   protected Logger logger;
   // TODO: implement token namespace via global NS settings
   private String tokenNamespace = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
   /** The key used for the LineBasedStringArrayResource. */
-  public static final String MODEL_KEY_PATTERN_RESOURCE = "TokenPatterns";
+  public static final String MODEL_KEY_PATTERN_RESOURCE = "SyntaxPatterns";
   @ExternalResource(key = MODEL_KEY_PATTERN_RESOURCE)
   private LineBasedStringArrayResource patternResource;
   // will be populated from the resource
@@ -80,31 +87,52 @@ public class TokenPatternAnnotator extends JCasAnnotator_ImplBase {
   @ConfigurationParameter(name = PARAM_REMOVE_UNMATCHED, defaultValue = "false")
   private boolean removeUnmatched;
   /** Fallback if no annotation identifier for a pattern is provided in the resource. */
-  private String defaultIdentifier = "Phrase";  // TODO: configuration
+  public static final String PARAM_DEFAULT_IDENTIFIER = "DefaultIdentifier";
+  @ConfigurationParameter(name = PARAM_DEFAULT_IDENTIFIER, defaultValue = "Phrase")
+  private String defaultIdentifier;
   /** Fallback if no annotation namespace for a pattern are provided in the resource. */
-  // TODO: configuration
-  private String defaultNamespace = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
+  public static final String PARAM_DEFAULT_NAMESPACE = "DefaultNamespace";
+  @ConfigurationParameter(name = PARAM_DEFAULT_NAMESPACE,
+      defaultValue = "http://nlp2rdf.lod2.eu/schema/doc/sso/")
+  private String defaultNamespace;
 
   /**
    * Configure a new descriptor with a pattern file resource.
    * 
    * @param patterns to match
-   * @param separator between values in the patterns file
+   * @param separator between values in the pattern resource
    * @param removeUnmatched remove sentence annotations where none of the patterns matched
+   * @param namespace default namespace for the semantic annotations
+   * @param identifier default identifier for the semantic annotations
    * @return a configured AE description
    * @throws UIMAException
+   * @throws IOException
    */
+  @SuppressWarnings("serial")
   public static AnalysisEngineDescription configure(File patterns, String separator,
-      boolean removeUnmatched) throws UIMAException {
+      final boolean removeUnmatched, final String namespace, final String identifier)
+      throws UIMAException, IOException {
     final ExternalResourceDescription patternResource = LineBasedStringArrayResource.configure(
         "file:" + patterns.getAbsolutePath(), separator);
-    return AnalysisEngineFactory.createPrimitiveDescription(TokenPatternAnnotator.class,
-        MODEL_KEY_PATTERN_RESOURCE, patternResource, PARAM_REMOVE_UNMATCHED, removeUnmatched);
+    return AnalysisEngineFactory.createPrimitiveDescription(SyntaxPatternAnnotator.class,
+        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
+          {
+            put(MODEL_KEY_PATTERN_RESOURCE, patternResource);
+            put(PARAM_REMOVE_UNMATCHED, removeUnmatched);
+            put(PARAM_DEFAULT_NAMESPACE, namespace);
+            put(PARAM_DEFAULT_IDENTIFIER, identifier);
+          }
+        }));
   }
 
-  /** Default configuration only requires the pattern resource file. */
-  public static AnalysisEngineDescription configure(File patterns) throws UIMAException {
-    return TokenPatternAnnotator.configure(patterns, null, false);
+  /**
+   * Default configuration only requires the pattern resource file.
+   * 
+   * @throws IOException
+   */
+  public static AnalysisEngineDescription configure(File patterns) throws UIMAException,
+      IOException {
+    return SyntaxPatternAnnotator.configure(patterns, null, false, null, null);
   }
 
   @Override
@@ -126,7 +154,7 @@ public class TokenPatternAnnotator extends JCasAnnotator_ImplBase {
       patternHits.put(pattern[0], 0);
       try {
         if (pattern.length % 2 == 1) {
-          patterns.put(pattern[0], TokenPattern.compile(pattern[0]));
+          patterns.put(pattern[0], SyntaxPattern.compile(pattern[0]));
           List<String[]> anns;
           if (pattern.length > 1) {
             anns = new ArrayList<String[]>((pattern.length - 1) / 2);
@@ -214,18 +242,22 @@ public class TokenPatternAnnotator extends JCasAnnotator_ImplBase {
      * 3. match and annotate groups semantically; put into one relationship (ns:id)
      */
     boolean matched = false;
+    // collect a list of done semantic annotations keyed by the position of the first and last
+    // token in the TokenAnnotation list ("tokens") to avoid annotating the same segment twice
+    Map<int[], List<SemanticAnnotation>> done = new HashMap<int[], List<SemanticAnnotation>>();
     for (String expr : matchers.keySet()) {
       final Matcher<TokenAnnotation> matcher = matchers.get(expr).reset(tokens);
-      while (matcher.find()) {
+      int offset = 0; // detect partial overlaps
+      while (matcher.find(offset)) {
         patternHits.put(expr, patternHits.get(expr) + 1);
         logger.log(Level.FINE, "''{0}'' matched", expr);
         final List<String[]> annList = annotations.get(expr);
         matched = true;
         if (annList.size() == 1) { // annotate case 1.
-          semanticAnnotationOfEntirePattern(annList, matcher, tokens, jcas);
+          semanticAnnotationOfEntirePattern(annList, matcher, tokens, jcas, done);
         } else if (annList.get(0).length == 0) { // annotate case 2.
           try {
-            semanticAnnotationOfCaptureGroups(annList, matcher, tokens, jcas);
+            semanticAnnotationOfCaptureGroups(annList, matcher, tokens, jcas, done);
           } catch (IndexOutOfBoundsException e) {
             logger.log(Level.SEVERE, "less annotations than capture groups in pattern ''{0}''",
                 expr);
@@ -233,11 +265,19 @@ public class TokenPatternAnnotator extends JCasAnnotator_ImplBase {
           }
         } else { // annotate case 3.
           try {
-            semanticRelationshipAnnotationOfPattern(annList, matcher, tokens, jcas);
+            semanticRelationshipAnnotationOfPattern(annList, matcher, tokens, jcas, done);
           } catch (IndexOutOfBoundsException e) {
             logger.log(Level.SEVERE, "more annotations than capture groups in pattern ''{0}''",
                 expr);
           }
+        }
+        offset = matcher.start();
+        if (tokens.get(offset).getChunk() != null) {
+          String chunk = tokens.get(offset).getChunk();
+          while (chunk.equals(tokens.get(offset).getChunk()) && offset < matcher.end())
+            offset++;
+        } else {
+          offset = matcher.end();
         }
       }
     }
@@ -245,24 +285,24 @@ public class TokenPatternAnnotator extends JCasAnnotator_ImplBase {
   }
 
   private void semanticAnnotationOfCaptureGroups(final List<String[]> annList,
-      final Matcher<TokenAnnotation> matcher, final List<TokenAnnotation> tokens, JCas jcas)
-      throws AnalysisEngineProcessException {
+      final Matcher<TokenAnnotation> matcher, final List<TokenAnnotation> tokens, JCas jcas,
+      Map<int[], List<SemanticAnnotation>> done) throws AnalysisEngineProcessException {
     for (int i = 1; i <= matcher.groupCount(); i++) {
-      if (matcher.start(i) != matcher.end(i)) { // skip/ignore unmatched groups
-        annotate(annList.get(i), tokens.get(matcher.start(i)).getBegin(),
-            tokens.get(matcher.end(i) - 1).getEnd(), jcas);
-      }
+      if (matcher.start(i) != matcher.end(i)) // skip/ignore unmatched groups
+        annotateOrGet(annList.get(i), matcher.start(i), matcher.end(i) - 1, jcas, done,
+            tokens);
     }
   }
 
   private void semanticAnnotationOfEntirePattern(final List<String[]> annList,
-      final Matcher<TokenAnnotation> matcher, final List<TokenAnnotation> tokens, JCas jcas) {
-    annotate(annList.get(0), tokens.get(matcher.start()).getBegin(), tokens.get(matcher.end() - 1)
-        .getEnd(), jcas);
+      final Matcher<TokenAnnotation> matcher, final List<TokenAnnotation> tokens, JCas jcas,
+      Map<int[], List<SemanticAnnotation>> done) {
+    annotateOrGet(annList.get(0), matcher.start(), matcher.end() - 1, jcas, done, tokens);
   }
 
   private void semanticRelationshipAnnotationOfPattern(final List<String[]> annList,
-      final Matcher<TokenAnnotation> matcher, final List<TokenAnnotation> tokens, JCas jcas) {
+      final Matcher<TokenAnnotation> matcher, final List<TokenAnnotation> tokens, JCas jcas,
+      Map<int[], List<SemanticAnnotation>> done) {
     final RelationshipAnnotation rel = new RelationshipAnnotation(jcas);
     final FSArray groups = new FSArray(jcas, annList.size() - 1);
     rel.setAnnotator(URI);
@@ -273,12 +313,29 @@ public class TokenPatternAnnotator extends JCasAnnotator_ImplBase {
       if (matcher.start(i) != matcher.end(i)) { // skip/ignore unmatched groups
         groups.set(
             i - 1,
-            annotate(annList.get(i), tokens.get(matcher.start(i)).getBegin(),
-                tokens.get(matcher.end(i) - 1).getEnd(), jcas));
+            annotateOrGet(annList.get(i), matcher.start(i), matcher.end(i) - 1, jcas, done,
+                tokens));
       }
     }
     rel.setSources(groups);
     rel.setTargets(groups); // undirected rel: sources == targets
+  }
+
+  private SemanticAnnotation annotateOrGet(String[] ns_id, int first, int last, JCas jcas,
+      Map<int[], List<SemanticAnnotation>> done, final List<TokenAnnotation> tokens) {
+    int[] positions = { first, last };
+    if (done.containsKey(positions)) {
+      for (SemanticAnnotation ann : done.get(positions)) {
+        if (ann.getNamespace().equals(ns_id[0]) && ann.getIdentifier().equals(ns_id[1]))
+          return ann;
+      }
+    } else {
+      done.put(positions, new LinkedList<SemanticAnnotation>());
+    }
+    SemanticAnnotation ann = annotate(ns_id, tokens.get(positions[0]).getBegin(),
+        tokens.get(positions[1]).getEnd(), jcas);
+    done.get(positions).add(ann);
+    return ann;
   }
 
   /** {@link SemanticAnnotation Annotate} a particular match with a namespace and ID. */
@@ -293,7 +350,7 @@ public class TokenPatternAnnotator extends JCasAnnotator_ImplBase {
     ann.addToIndexes();
     return ann;
   }
-  
+
   @Override
   public void destroy() {
     for (String pattern : patternHits.keySet())

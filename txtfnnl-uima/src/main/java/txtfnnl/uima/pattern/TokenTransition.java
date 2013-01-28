@@ -13,7 +13,7 @@ import txtfnnl.uima.tcas.TokenAnnotation;
  * 
  * @author Florian Leitner
  */
-public class TokenTransition extends TokenLambdaTransition {
+class TokenTransition extends TokenLambdaTransition {
   final Pattern text;
   final Pattern pos;
   final Pattern stem;
@@ -28,11 +28,11 @@ public class TokenTransition extends TokenLambdaTransition {
     throw new AssertionError("n/a (use EpsilonTokenTransitions)");
   }
 
-  public TokenTransition(String text, String pos, String stem, String chunk) {
+  TokenTransition(String text, String pos, String stem, String chunk) {
     this(text, pos, stem, chunk, false, false);
   }
 
-  public TokenTransition(String text, String pos, String stem, String chunk, boolean chunkBegin,
+  TokenTransition(String text, String pos, String stem, String chunk, boolean chunkBegin,
       boolean chunkEnd) {
     this.text = "*".equals(text) ? null : Pattern.compile(text);
     this.pos = "*".equals(pos) ? null : Pattern.compile(pos);
@@ -58,22 +58,20 @@ public class TokenTransition extends TokenLambdaTransition {
     else return true;
   }
 
-  private double calculateWeight() {
-    int w = 1;
-    if (chunkBegin) w *= 2;
-    if (chunkEnd) w *= 2;
-    if (chunk != null) w += chunk.pattern().length() * 2;
-    if (pos != null) w += pos.pattern().length() * 2;
-    if (stem != null)
-      w += stem.pattern().length() / (StringUtils.countMatches(stem.pattern(), "|") + 1);
-    if (text != null)
-      w += text.pattern().length() / (StringUtils.countMatches(text.pattern(), "|") + 1);
-    return (double) w;
-  }
-  
   @Override
   public double weight() {
     return weight;
+  }
+
+  private double calculateWeight() {
+    int w = 0;
+    if (chunkBegin) w++;
+    if (chunkEnd) w++;
+    if (chunk != null) w++;
+    if (pos != null) w++;
+    if (stem != null) w += StringUtils.countMatches(stem.pattern(), "|") + 1;
+    if (text != null) w += StringUtils.countMatches(text.pattern(), "|") + 1;
+    return (w > 0) ? (double) w : Double.MIN_VALUE;
   }
 
   @Override
@@ -87,7 +85,7 @@ public class TokenTransition extends TokenLambdaTransition {
   public int hashCode() {
     return code;
   }
-  
+
   private int calculateHashCode() {
     int result = 17;
     result = 31 * result + (chunkBegin ? 1 : 0);
@@ -103,16 +101,23 @@ public class TokenTransition extends TokenLambdaTransition {
   public String toString() {
     final StringBuilder sb = new StringBuilder();
     if (chunkBegin) {
-      sb.append("[ ");
+      sb.append("[");
       sb.append(chunk == null ? '*' : chunk.pattern());
-      sb.append(' ');
+      sb.append(':');
     }
-    sb.append(text == null ? '*' : text.pattern());
-    sb.append('_');
-    sb.append(pos == null ? '*' : pos.pattern());
-    sb.append('_');
-    sb.append(stem == null ? '*' : stem.pattern());
-    if (chunkEnd) sb.append(" ]");
+    if (text == null && pos == null && stem == null) {
+      sb.append('.');
+    } else {
+      sb.append(text == null ? '*' : text.pattern());
+      sb.append('_');
+      sb.append(pos == null ? '*' : pos.pattern());
+      sb.append('_');
+      sb.append(stem == null ? '*' : stem.pattern());
+    }
+    if (chunkEnd) sb.append(']');
+    sb.append("@{");
+    sb.append(weight);
+    sb.append('}');
     return sb.toString();
   }
 }
