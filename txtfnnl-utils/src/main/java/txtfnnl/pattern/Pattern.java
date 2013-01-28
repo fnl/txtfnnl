@@ -12,39 +12,45 @@ import java.util.Queue;
 import java.util.Set;
 
 /**
- * A NFA-based pattern matching implementation using backtracking for capture groups.
+ * A generic NFA-based pattern matching implementation using backtracking for capture groups.
  * <p>
- * This is a class that should be combined with a parser that implements some expression grammar to
- * describe the state machine that should be created from the expression. In addition to this
- * class, the {@link Transition} interface should be implemented and define how elements on the
+ * This class provides methods to compile a non-deterministic state machine. In addition to this
+ * class, the {@link Transition} interface has to be implemented, defining how elements on the
  * sequence should be matched. In other words, combined with the {@link Matcher}, this class,
  * {@link State}, and {@link Transition} collectively form a generic implementation of a
- * non-deterministic, finite state machine using backtracking to find captured groups.
+ * non-deterministic, finite state machine using weighted backtracking to find capture groups.
  * <p>
  * The entire API for this generic NFA is designed as close as possible to Java's own
- * {@link java.util.regex.Pattern} API. It is "pseudo-abstract" because while the class is usable,
- * it provides no static <code>compile</code> method Java's own Pattern class provides.
+ * {@link java.util.regex.Pattern} API. It is incomplete, because while the class is usable, it
+ * provides no static <code>compile(String regex)</code> method. Therefore, a regular expression
+ * language needs to be designed and a parser/compiler for it implemented. For the same reason,
+ * there is no <code>toString()</code> method that would convert the Pattern to a String of the
+ * regular expression.
  * <p>
- * Users of this package should therefore implement a method such as
- * <code>public static Pattern compile(String)</code> that compiles a NFA from a given
- * (grammatical) expression. The patterns can be constructed from the default constructor, and the
- * static methods {@link #match(Transition) element} (a single transition),
+ * <b>Compiling a Pattern</b>
+ * <p>
+ * Users of this generic NFA package should inherit this class and implement a method such as
+ * <code>public static Pattern<E> compile(String)</code> that compiles the NFA from an (regular)
+ * expression. The patterns should be constructed using the default constructor, and the static
+ * methods {@link #match(Transition) element} (a single transition),
  * {@link #chain(Pattern, Pattern) chain} ("and", i.e., a sequence of transitions), and
  * {@link #branch(Pattern...) branch} ("or", "|"). The core sequence element matching should be
  * done by implementing the {@link Transition} interface. A pattern's behavior can be augmented by
  * making it {@link #optional() optional} ("?") and/or by allowing it to be {@link #repeat()
  * repeated} ("+"; a pattern that is made both optional and repeated effectively acts as a Kleene
- * closure, "*"). Unless there are good reasons to not do so, the last step of compiling a pattern
- * should be to call {@link #minimize()} on itself.
+ * closure, "*"). Unless there are good reasons not to, the last step of compiling a pattern should
+ * be to call {@link #minimize()} on itself.
  * 
  * @author Florian Leitner
  */
-public final class Pattern<E> {
+public class Pattern<E> {
   private final State<E> entry;
   private State<E> exit;
 
   /**
    * Create a pattern that matches a single transition.
+   * <p>
+   * The perfect "seed" for assembling patterns if the required transition is known already.
    * 
    * @param t the transition that has to match
    * @return a NFA
@@ -67,6 +73,11 @@ public final class Pattern<E> {
     first.exit.makeNonFinal();
     first.exit.addEpsilonTransition(second.entry);
     return new Pattern<T>(first.entry, second.exit);
+  }
+  
+  @Override
+  public final String toString() {
+    return String.format("Pattern:\n%s", entry.toString());
   }
 
   /**
@@ -122,6 +133,7 @@ public final class Pattern<E> {
    * Construct the simplest possible pattern: a two-state NFA joined by an epsilon transition.
    * <p>
    * This pattern will match anything, from the empty sequence ("lambda"), to the infinite one.
+   * Therefore, it provides the perfect "seed" for assembling more complex patterns.
    */
   public Pattern() {
     entry = new State<E>();
@@ -271,4 +283,8 @@ public final class Pattern<E> {
   public final Matcher<E> matcher(List<E> input) {
     return new Matcher<E>(entry, exit, input);
   }
+  
+  // XXX: possible future additions to this class:
+  // public final List<E>[] split(List<E> input)
+  // public final List<E>[] split(List<E> input, int limit)
 }

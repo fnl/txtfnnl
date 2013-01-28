@@ -4,6 +4,8 @@ package txtfnnl.pattern;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -27,9 +29,66 @@ final class State<E> {
   /** A representation of a State for debugging purposes. */
   @Override
   public String toString() {
-    return String.format("%s[%s%s%s#e-trans=%d, #trans=%d]#%d", State.class.getName(), accept
-        ? "final, " : "", captureStart ? "capStart, " : "", captureEnd ? "capEnd, " : "",
-        epsilonTransitions.size(), transitions.size(), hashCode());
+    Set<State<E>> visited = new HashSet<State<E>>();
+    visited.add(this);
+    return toStringVisitor(visited, 0);
+  }
+
+  String toStringVisitor(Set<State<E>> visited, int level) {
+    StringBuffer sb = new StringBuffer();
+    List<State<E>> toVisit = new LinkedList<State<E>>();
+    sb.append(State.class.getSimpleName());
+    sb.append(String.format("[acc=%s cap=%s%s e:%d t:%d]\n", accept, captureStart ? "(" : "",
+        captureEnd ? ")" : "", epsilonTransitions.size(), transitions.size()));
+    for (int i = 0; i < level; i++)
+      sb.append("  ");
+    sb.append("{");
+    boolean any = false;
+    level++;
+    for (State<E> s : epsilonTransitions) {
+      if (!visited.contains(s)) {
+        visited.add(s);
+        toVisit.add(s);
+      }
+    }
+    for (State<E> s : toVisit) {
+      any = true;
+      sb.append("\n");
+      for (int i = 0; i < level; i++)
+        sb.append("  ");
+      sb.append("epsilon => ");
+      sb.append(s.toStringVisitor(new HashSet<State<E>>(visited), level));
+    }
+    toVisit.clear();
+    for (Transition<E> t : transitions.keySet()) {
+      for (State<E> s : transitions.get(t)) {
+        if (!visited.contains(s)) {
+          visited.add(s);
+          toVisit.add(s);
+        }
+      }
+    }
+    for (Transition<E> t : transitions.keySet()) {
+      for (State<E> s : transitions.get(t)) {
+        if (toVisit.contains(s)) {
+          any = true;
+          sb.append("\n");
+          for (int i = 0; i < level; i++)
+            sb.append("  ");
+          sb.append(t);
+          sb.append(" => ");
+          sb.append(s.toStringVisitor(new HashSet<State<E>>(visited), level));
+        }
+      }
+    }
+    level--;
+    if (any) {
+      sb.append("\n");
+      for (int i = 0; i < level; i++)
+        sb.append("  ");
+    }
+    sb.append("}");
+    return sb.toString();
   }
 
   /** Make this state a final state (sets the "accept" flag). */
