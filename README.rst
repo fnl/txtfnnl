@@ -106,26 +106,49 @@ Currently, the following pipelines are available:
 
 A quick reference of the CF regular expression grammar for syntax patterns::
 
-  S -> Phrase S? | Capture S? | Token S?
-  Phrase -> "[" Chunk InPhrase "]" "?"?
-  Capture -> "(" S ")" # for Semantic and/or Relationship Annotations
-  InPhrase -> CaptureInPhrase InPhrase? | Token InPhrase?
-  CaptureInPhrase -> "(" InPhrase ")" # for Semantic and/or Relationship Ann.
-  Chunk -> "NP" | "VP" | "PP" | "ADVP" ... # i.e., the chunker tags
+  S -> Capture S? | Phrase S? | Token S?
+  Capture -> "(" S ")" # => Semantic Relationship Annotations
+  
   Token -> "." Quantifier? | RegEx Quantifier? # dot "." matches any token
-  Quantifier -> "*" | "?" | "+"
-  RegEx -> RE1 | RE2 | RE3
-  RE1 -> "<lemma>" # Java regex describing how to match lemmas
-  RE2 -> "<PoS>_<lemma>" # as RE1, just two regex patterns separated by underscore
-  RE3 -> "<word>_<PoS>_<lemma>" # idem, with three patterns
-  # to omit one regex in RE2 or RE3, a "*" star can be used
+  Quantifier -> "*" | "?" | "+" # zero-or-more, zero-or-one, one-or-more
+  
+  Phrase -> "[" Chunk InPhrase "]" "?"? # may be skipped with "?"
+  Chunk -> "NP" | "VP" | "PP" | "ADVP" ... # i.e., a chunker tag
+  InPhrase -> CaptureInPhrase InPhrase? | Token InPhrase?
+  CaptureInPhrase -> "(" InPhrase ")" # => Semantic Relationship Ann.
+  # InPhrase and CaptureInPhrase ensure that phrases are never nested
+  
+  RegEx -> RE1 | RE2 | RE3 # token annotation-specific matching
+  RE1 -> "<lemma>" # a Java regex used to match the token's lemma
+  RE2 -> "<PoS>_<lemma>" # as RE1, two regex patterns separated by underscore
+  RE3 -> "<word>_<PoS>_<lemma>" # idem, w/ 3 patterns (PoS = Part-of-Speech)
+  # to allow any match for a word, PoS or lemma annotation in RE2 or RE3:
+  #    use a "*" in stead of the corresponding regex, e.g.: "IN_*" 
   # all terminals must be separated by white-spaces
 
-License
--------
+An example line in a pattern resource file that will annotate relationships
+between two entities: the first entity is a noun phrase with a head lemma of
+gene or protein, any number of tokens, a verb phrase with a head lemma of
+bind, and optional IN-preposition, and the second entity, which may be any
+other noun phrase::
 
-**txtfnnl** is governed by the
+  [ NP DT_* ? ( . + ) gene|protein|factor ] . * [ VP . * bind ] IN_* ? [ NP DT_* ? ( . + ) ]  interaction PPI actor   source    actor target
+  
+After the pattern, separated by tabs, the annotations are specified: a match
+will result in a RelationshipAnnotation with namespace "interaction" and ID
+"PPI" between the matched entities, which are annotated as SemanticAnnotations
+with namespace "actor", IDs "source" and "target", respectively. I.e., the
+first namespace-ID-pair defines the relationship annotation, all following
+pairs should correspond with the number of capture groups in the pattern and
+define the semantic (entity) annotations that should be made.
+
+License, Author and Copyright Notice
+------------------------------------
+
+**txtfnnl** is free, open software provided via a
 `Apache 2.0 License <http://www.apache.org/licenses/LICENSE-2.0.html>`_ -
 see ``LICENSE.txt`` in this directory for details.
+
+Copyright 2012, 2013 - Florian Leitner (fnl). All rights reserved.
 
 .. _gnamed: http://github.com/fnl/gnamed
