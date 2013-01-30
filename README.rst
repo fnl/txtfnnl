@@ -59,11 +59,11 @@ should be installed. The following NLP tools are supported by **txtfnnl**:
   argument. A sensible place for the tagger directory might be
   ``/usr/local/share/geniatagger`` if you have write access to it.
  
-libfmsg_
+libfsmg_
   A generic finite state machine library developed by the principal author
   of the ``txtfnnl`` framework. Clone from github (``git clone
   git://github.com/fnl/libfsmg.git``), and run ``mvn install``
-  in the newly created ``libsfsmg`` directory to install. 
+  in the newly created ``libfsmg`` directory to install. 
 
 All Java dependencies should be resolved by Maven (if you have a working
 Internet connection). To "install" **txtfnnl** itself, execute ``mvn install``
@@ -98,7 +98,7 @@ Currently, the following pipelines are available:
   for matching token sequences and their part-of-speech, chunk tags, and lemmas
   in UIMA. This is a functionality similar to that provided by GATE's
   `JAPE <http://gate.ac.uk/wiki/jape-repository/>`_, but a much simpler grammar
-  with far less features. 
+  with far less features. This pipeline implements a libfsmg_ FSM.
 - ``entities`` annotates known entity mentions on documents by supplying a
   mapping of input file names (w/o sufffix) to entity identifiers (type,
   namespace, identifier), looking up the names for those entity IDs in a DB,
@@ -160,3 +160,4 @@ see ``LICENSE.txt`` in this directory for details.
 Copyright 2012, 2013 - Florian Leitner (fnl). All rights reserved.
 
 .. _gnamed: http://github.com/fnl/gnamed
+.. _libfsmg: http://github.com/fnl/libfsmg
