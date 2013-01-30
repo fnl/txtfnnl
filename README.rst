@@ -98,7 +98,7 @@ Currently, the following pipelines are available:
   for matching token sequences and their part-of-speech, chunk tags, and lemmas
   in UIMA. This is a functionality similar to that provided by GATE's
   `JAPE <http://gate.ac.uk/wiki/jape-repository/>`_, but a much simpler grammar
-  with far less features. 
+  with far less features. This pipeline implements a libfmsg_ FSM.
 - ``entities`` annotates known entity mentions on documents by supplying a
   mapping of input file names (w/o sufffix) to entity identifiers (type,
   namespace, identifier), looking up the names for those entity IDs in a DB,
@@ -160,3 +160,4 @@ see ``LICENSE.txt`` in this directory for details.
 Copyright 2012, 2013 - Florian Leitner (fnl). All rights reserved.
 
 .. _gnamed: http://github.com/fnl/gnamed
+.. _libfmsg: http://github.com/fnl/libfsmg
