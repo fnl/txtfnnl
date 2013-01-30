@@ -29,6 +29,8 @@ In addition, the following direct dependencies exist:
   requires `PostgreSQL <http://www.postgresql.org/>`_ 8.4+; SQL-realted tests
   for txtfnnl furthermore use the `H2 <http://www.h2database.com/>`_ in-memory
   DB.
+- for the syntactic grep facilities (via the ``grep`` pipeline), libfsmg_ has
+  to be in your local Maven repository. 
 - for the **txtfnnl-wrappers** module, the relevant external tools need to be
   downloaded, installed, and visible on the system ``$PATH``.
   Supported external tools are listed in the section Installation below.
@@ -56,6 +58,12 @@ should be installed. The following NLP tools are supported by **txtfnnl**:
   have to add the directory containing the ``morphdic`` directory as an
   argument. A sensible place for the tagger directory might be
   ``/usr/local/share/geniatagger`` if you have write access to it.
+ 
+libfmsg_
+  A generic finite state machine library developed by the principal author
+  of the ``txtfnnl`` framework. Clone from github (``git clone
+  git://github.com/fnl/libfsmg.git``), and run ``mvn install``
+  in the newly created ``libsfsmg`` directory to install. 
 
 All Java dependencies should be resolved by Maven (if you have a working
 Internet connection). To "install" **txtfnnl** itself, execute ``mvn install``

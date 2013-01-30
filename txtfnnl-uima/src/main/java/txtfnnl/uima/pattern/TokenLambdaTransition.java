@@ -2,18 +2,18 @@
  * Copyright 2012. All rights reserved. */
 package txtfnnl.uima.pattern;
 
-import txtfnnl.pattern.Transition;
 import txtfnnl.uima.tcas.TokenAnnotation;
+import es.fnl.fsm.Transition;
 
 /**
- * TokenAnnotation element matcher for a pattern matching implementation.
- * This is a default implementation that matches any token.
+ * TokenAnnotation element matcher for a pattern matching implementation. This is a default
+ * implementation that matches any token.
  * 
  * @author Florian Leitner
  */
 class TokenLambdaTransition implements Transition<TokenAnnotation> {
   static TokenLambdaTransition INSTANCE = new TokenLambdaTransition();
-  
+
   protected TokenLambdaTransition() {
     super();
   }

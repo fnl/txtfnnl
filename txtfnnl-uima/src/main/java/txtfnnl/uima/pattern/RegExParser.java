@@ -5,8 +5,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.PatternSyntaxException;
 
-import txtfnnl.pattern.Pattern;
 import txtfnnl.uima.tcas.TokenAnnotation;
+import es.fnl.fsm.Pattern;
 
 /** Compile a syntax pattern's regex into a pattern. */
 class RegExParser {

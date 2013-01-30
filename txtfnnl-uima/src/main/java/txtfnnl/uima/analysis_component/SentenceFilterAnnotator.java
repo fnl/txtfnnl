@@ -128,8 +128,8 @@ public class SentenceFilterAnnotator extends JCasAnnotator_ImplBase {
       }
       if (!removeMatched) removeBuffer.add(sa);
     }
-    logger.log(Level.FINE, "removed {0}/{1} sentence annotations", new Object[] {
-        removeBuffer.size(), count });
+    logger.log(Level.FINE, "removed {0}/{1} sentence annotations",
+        new Object[] { removeBuffer.size(), count });
     for (SentenceAnnotation s : removeBuffer)
       s.removeFromIndexes();
   }

@@ -5,9 +5,9 @@ package txtfnnl.uima.pattern;
 import java.util.List;
 import java.util.regex.PatternSyntaxException;
 
-import txtfnnl.pattern.Matcher;
-import txtfnnl.pattern.Pattern;
 import txtfnnl.uima.tcas.TokenAnnotation;
+import es.fnl.fsm.Matcher;
+import es.fnl.fsm.Pattern;
 
 /**
  * A regular syntax expression pattern compiler for matching sequences of {@link TokenAnnotation
@@ -80,7 +80,6 @@ import txtfnnl.uima.tcas.TokenAnnotation;
  * @author Florian Leitner
  */
 public class SyntaxPattern extends Pattern<TokenAnnotation> {
-
   private SyntaxPattern() {
     throw new RuntimeException("n/a");
   }
@@ -100,7 +99,7 @@ public class SyntaxPattern extends Pattern<TokenAnnotation> {
         scanner.toString(), scanner.offset()); }
     return pattern.minimize();
   }
-  
+
   /**
    * Attempts to {@link Matcher#find() find} a pattern in a {@link TokenAnnotation} sequence.
    * 

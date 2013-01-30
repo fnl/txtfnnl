@@ -17,10 +17,10 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.AnalysisEngineFactory;
 
-import txtfnnl.utils.StringUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.utils.UIMAUtils;
+import txtfnnl.utils.StringUtils;
 
 /**
  * A CAS consumer that writes CSV content, adding line separators after the segments annotated as
@@ -68,7 +68,8 @@ public class SemanticAnnotationWriter extends TextWriter {
   @SuppressWarnings("serial")
   public static AnalysisEngineDescription configure(final File outputDirectory,
       final String encoding, final boolean printToStdout, final boolean overwriteFiles,
-      final boolean replaceNewlines, final String fieldSeparator) throws UIMAException, IOException {
+      final boolean replaceNewlines, final String fieldSeparator) throws UIMAException,
+      IOException {
     return AnalysisEngineFactory.createPrimitiveDescription(SemanticAnnotationWriter.class,
         UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
           {
@@ -116,8 +117,8 @@ public class SemanticAnnotationWriter extends TextWriter {
     final FSIterator<Annotation> annotationIt = SemanticAnnotation.getIterator(textJCas);
     while (annotationIt.hasNext()) {
       final SemanticAnnotation ann = (SemanticAnnotation) annotationIt.next();
-      final String text = replaceNewlines ? StringUtils.join(
-          ' ', ann.getCoveredText().split(LINEBREAK)) : ann.getCoveredText();
+      final String text = replaceNewlines ? StringUtils.join(' ',
+          ann.getCoveredText().split(LINEBREAK)) : ann.getCoveredText();
       try {
         write(ann.getNamespace());
         write(fieldSeparator);

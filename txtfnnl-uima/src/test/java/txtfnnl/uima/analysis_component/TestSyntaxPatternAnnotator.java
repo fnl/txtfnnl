@@ -1,6 +1,6 @@
 package txtfnnl.uima.analysis_component;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.io.BufferedWriter;
 import java.io.File;

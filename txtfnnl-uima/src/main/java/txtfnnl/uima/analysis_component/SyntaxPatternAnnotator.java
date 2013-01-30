@@ -33,8 +33,6 @@ import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
 import org.uimafit.factory.AnalysisEngineFactory;
 
-import txtfnnl.pattern.Matcher;
-import txtfnnl.pattern.Pattern;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.pattern.SyntaxPattern;
 import txtfnnl.uima.resource.LineBasedStringArrayResource;
@@ -43,6 +41,8 @@ import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
 import txtfnnl.uima.utils.UIMAUtils;
+import es.fnl.fsm.Matcher;
+import es.fnl.fsm.Pattern;
 
 /**
  * Annotate SOFAs based on pattern matching of token sequences using a finite state machine.
@@ -289,8 +289,7 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
       Map<int[], List<SemanticAnnotation>> done) throws AnalysisEngineProcessException {
     for (int i = 1; i <= matcher.groupCount(); i++) {
       if (matcher.start(i) != matcher.end(i)) // skip/ignore unmatched groups
-        annotateOrGet(annList.get(i), matcher.start(i), matcher.end(i) - 1, jcas, done,
-            tokens);
+        annotateOrGet(annList.get(i), matcher.start(i), matcher.end(i) - 1, jcas, done, tokens);
     }
   }
 
@@ -311,10 +310,11 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
     rel.setConfidence(1);
     for (int i = 1; i < annList.size(); i++) {
       if (matcher.start(i) != matcher.end(i)) { // skip/ignore unmatched groups
-        groups.set(
-            i - 1,
-            annotateOrGet(annList.get(i), matcher.start(i), matcher.end(i) - 1, jcas, done,
-                tokens));
+        groups
+            .set(
+                i - 1,
+                annotateOrGet(annList.get(i), matcher.start(i), matcher.end(i) - 1, jcas, done,
+                    tokens));
       }
     }
     rel.setSources(groups);

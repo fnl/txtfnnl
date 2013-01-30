@@ -59,12 +59,11 @@ public class SentenceLineWriter extends TextWriter {
   static final Pattern REGEX_LINEBREAK_SPACE = Pattern.compile("(\\r?\\n) ");
   static final Pattern REGEX_SINGLE_LINEBREAK = Pattern.compile("(?<!\\r?\\n)\\r?\\n(?!\\r?\\n)");
   static final String LINEBREAK = System.getProperty("line.separator");
-
   /** In addition to the sentences, write out all content between them, too (default: true). */
   public static final String PARAM_INCLUDE_ALL_CONTENT = "IncludeNonSentenceContent";
   @ConfigurationParameter(name = PARAM_INCLUDE_ALL_CONTENT, defaultValue = "true")
   private boolean includeAllContent;
-  
+
   /**
    * Configure a SentenceLineWriter description. Note that if the {@link #outputDirectory} is
    * <code>null</code> and {@link #printToStdout} is <code>false</code>, a
@@ -84,7 +83,8 @@ public class SentenceLineWriter extends TextWriter {
   @SuppressWarnings("serial")
   public static AnalysisEngineDescription configure(final File outputDirectory,
       final String encoding, final boolean printToStdout, final boolean overwriteFiles,
-      final boolean replaceNewlines, final boolean includeContent) throws UIMAException, IOException {
+      final boolean replaceNewlines, final boolean includeContent) throws UIMAException,
+      IOException {
     return AnalysisEngineFactory.createPrimitiveDescription(SentenceLineWriter.class,
         UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
           {

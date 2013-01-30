@@ -19,8 +19,8 @@ import org.uimafit.factory.ExternalResourceFactory;
 
 /**
  * A generic implementation of a StringMapResource that reads data from a line-based stream with
- * the data separated by some separator. By default, tab is used as separator. Implementing
- * classes must define a protocol to parse the values into generic types.
+ * the data separated by some separator. By default, tab is used as separator. Implementing classes
+ * must define a protocol to parse the values into generic types.
  * 
  * @author Florian Leitner
  * @param <V> is the value type returned by the resource for the String keys
