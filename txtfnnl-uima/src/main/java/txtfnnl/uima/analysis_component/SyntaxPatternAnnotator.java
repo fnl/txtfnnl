@@ -6,10 +6,13 @@ package txtfnnl.uima.analysis_component;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.PatternSyntaxException;
 
 import org.apache.uima.UIMAException;
@@ -96,6 +99,56 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
       defaultValue = "http://nlp2rdf.lod2.eu/schema/doc/sso/")
   private String defaultNamespace;
 
+  private class MatchContainer {
+    final int[] offsets;
+    final List<String[]> nsidPairs;
+
+    MatchContainer(int[] o, List<String[]> nsids) {
+      offsets = o;
+      nsidPairs = nsids;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other == null || !(other instanceof MatchContainer)) return false;
+      MatchContainer o = (MatchContainer) other;
+      if (offsets.length != o.offsets.length) return false;
+      if (nsidPairs.size() != o.nsidPairs.size()) return false;
+      for (int i = offsets.length - 1; i >= 0; i--)
+        if (offsets[i] != o.offsets[i]) return false;
+      for (int i = nsidPairs.size() - 1; i >= 0; i--)
+        if (!nsidPairs.get(i)[0].equals(o.nsidPairs.get(i)[0]) ||
+            !nsidPairs.get(i)[1].equals(o.nsidPairs.get(i)[1])) return false;
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      int code = 17;
+      for (int i : offsets)
+        code *= 31 + i;
+      for (String[] nsid : nsidPairs)
+        for (String i : nsid)
+          code *= 31 + i.hashCode();
+      return code;
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder();
+      sb.append(Arrays.toString(offsets));
+      sb.append(":{");
+      for (String[] nsid : nsidPairs) {
+        sb.append(nsid[0]);
+        sb.append(':');
+        sb.append(nsid[1]);
+        sb.append(',');
+      }
+      sb.setCharAt(sb.length() - 1, '}');
+      return sb.toString();
+    }
+  }
+
   /**
    * Configure a new descriptor with a pattern file resource.
    * 
@@ -160,19 +213,21 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
             anns = new ArrayList<String[]>((pattern.length - 1) / 2);
             countIdx = (pattern.length == 3) ? 0 : 2;
             for (int i = 1; i < pattern.length; i += 2) {
-              // store rel ns:id for the pattern (i==1) or sem ns:id for capture group (i>2)
-              if (pattern[i].length() > 0 && pattern[i + 1].length() > 0) anns.add(new String[] {
-                  pattern[i], pattern[i + 1] });
-              else if (i == 0 && pattern.length > 4) {
-                // if annotating groups only, don't define/store a ns:id for whole pattern
+              if (pattern[i].length() > 0 && pattern[i + 1].length() > 0) {
+                // store rel ns:id for the pattern (i==1) or sem ns:id for capture group (i>1)
+                anns.add(new String[] { pattern[i], pattern[i + 1] });
+              } else if (i == 0 && pattern.length > 4) {
+                // if annotating groups only, don't store a ns:id pairs for the whole pattern
                 countIdx = 1;
                 anns.add(new String[0]);
+              } else {
+                // empty ns:id pairs for capture groups use the default ns:id values
+                anns.add(defaultNsId);
               }
-              // empty ns:id pairs for capture groups use the default ns:id
-              else anns.add(defaultNsId);
             }
             counts[countIdx]++;
-          } else { // annotate entire pattern semantically with default ns:id
+          } else {
+            // annotate the entire pattern semantically with the default ns:id
             counts[0]++;
             anns = new ArrayList<String[]>(1);
             anns.add(defaultNsId);
@@ -245,39 +300,54 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
     // collect a list of done semantic annotations keyed by the position of the first and last
     // token in the TokenAnnotation list ("tokens") to avoid annotating the same segment twice
     Map<int[], List<SemanticAnnotation>> done = new HashMap<int[], List<SemanticAnnotation>>();
+    Set<MatchContainer> annotated = new HashSet<MatchContainer>();
     for (String expr : matchers.keySet()) {
       final Matcher<TokenAnnotation> matcher = matchers.get(expr).reset(tokens);
       int offset = 0; // detect partial overlaps
+      int nextOffset = 0;
       while (matcher.find(offset)) {
-        patternHits.put(expr, patternHits.get(expr) + 1);
-        logger.log(Level.FINE, "''{0}'' matched", expr);
-        final List<String[]> annList = annotations.get(expr);
-        matched = true;
-        if (annList.size() == 1) { // annotate case 1.
-          semanticAnnotationOfEntirePattern(annList, matcher, tokens, jcas, done);
-        } else if (annList.get(0).length == 0) { // annotate case 2.
-          try {
-            semanticAnnotationOfCaptureGroups(annList, matcher, tokens, jcas, done);
-          } catch (IndexOutOfBoundsException e) {
-            logger.log(Level.SEVERE, "less annotations than capture groups in pattern ''{0}''",
-                expr);
-            throw new AnalysisEngineProcessException(e);
+        for (int two = 0; two < 2; two++) {
+          if (two == 1) {
+            matcher.greedy = true;
+            matcher.find(matcher.start());
+          } else {
+            nextOffset = matcher.end();
           }
-        } else { // annotate case 3.
-          try {
-            semanticRelationshipAnnotationOfPattern(annList, matcher, tokens, jcas, done);
-          } catch (IndexOutOfBoundsException e) {
-            logger.log(Level.SEVERE, "more annotations than capture groups in pattern ''{0}''",
-                expr);
+          patternHits.put(expr, patternHits.get(expr) + 1);
+          logger.log(Level.FINE, "''{0}'' matched", expr);
+          final List<String[]> annList = annotations.get(expr);
+          // skip/continue on already made annotations:
+          final MatchContainer mc = new MatchContainer(matcher.groups(), annList);
+          if (annotated.contains(mc)) continue;
+          else annotated.add(mc);
+          matched = true;
+          if (annList.size() == 1) { // annotate case 1.
+            semanticAnnotationOfEntirePattern(annList, matcher, tokens, jcas, done);
+          } else if (annList.get(0).length == 0) { // annotate case 2.
+            try {
+              semanticAnnotationOfCaptureGroups(annList, matcher, tokens, jcas, done);
+            } catch (IndexOutOfBoundsException e) {
+              logger.log(Level.SEVERE, "less annotations than capture groups in pattern ''{0}''",
+                  expr);
+              throw new AnalysisEngineProcessException(e);
+            }
+          } else { // annotate case 3.
+            try {
+              semanticRelationshipAnnotationOfPattern(annList, matcher, tokens, jcas, done);
+            } catch (IndexOutOfBoundsException e) {
+              logger.log(Level.SEVERE, "more annotations than capture groups in pattern ''{0}''",
+                  expr);
+            }
           }
         }
+        matcher.greedy = false;
         offset = matcher.start();
         if (tokens.get(offset).getChunk() != null) {
           String chunk = tokens.get(offset).getChunk();
           while (chunk.equals(tokens.get(offset).getChunk()) && offset < matcher.end())
             offset++;
         } else {
-          offset = matcher.end();
+          offset = nextOffset;
         }
       }
     }
