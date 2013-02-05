@@ -24,7 +24,7 @@ public class StructureAnnotation extends TextAnnotation {
    * @param annoatorUri to filter on
    * @param namespaceStr to filter on
    * @param identifierStr to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular structure annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace,
       String identifier) {
@@ -33,23 +33,23 @@ public class StructureAnnotation extends TextAnnotation {
   }
 
   /**
-   * Return a specialized filter for sentence annotations.
+   * Return a specialized filter for structure annotations.
    * 
    * @param jcas to create the constraint for
    * @param annoatorUri to filter on
    * @param namespace to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular structure annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace) {
     return StructureAnnotation.makeConstraint(jcas, annotatorUri, namespace, null);
   }
 
   /**
-   * Return a specialized filter for sentence annotations.
+   * Return a specialized filter for structure annotations.
    * 
    * @param jcas to create the constraint for
    * @param namespace to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular structure annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String namespace) {
     return StructureAnnotation.makeConstraint(jcas, null, namespace);
@@ -59,7 +59,7 @@ public class StructureAnnotation extends TextAnnotation {
    * Return an iterator over the index for this annotation type.
    * 
    * @param jcas providing the index
-   * @return
+   * @return an annotation feature structure iterator
    */
   public static FSIterator<Annotation> getIterator(JCas jcas) {
     return jcas.getAnnotationIndex(StructureAnnotation.type).iterator();
