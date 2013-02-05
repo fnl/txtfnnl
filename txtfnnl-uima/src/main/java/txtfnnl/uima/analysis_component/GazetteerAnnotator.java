@@ -43,37 +43,24 @@ import txtfnnl.uima.utils.UIMAUtils;
  * {@link #PARAM_ENTITY_NAMESPACE namespace} and a confidence value depending on the uniqueness of
  * the mapping.
  * <p>
- * <b>Resources:</b>
- * <dl>
- * <dt>{@link KnownEvidenceAnnotator#MODEL_KEY_EVIDENCE_STRING_MAP Evidence String Map}</dt>
- * <dd>a TSV file of known entity IDs per input file</dd>
- * <dt>{@link GazetteerAnnotator#MODEL_KEY_JDBC_CONNECTION Entity Name DB}</dt>
- * <dd>a JDBC-enabled DB of names for the entities grouped by entity IDs</dd>
- * </dl>
- * The <b>Evidence String Map</b> resource has to be a TSV file with the following columns:
- * <ol>
- * <li>Document ID: SOFA URI basename (without the file suffix)</li>
- * <li>Entity Type: will be used as the identifier feature value of the {@link SemanticAnnotation
- * SemanticAnnotations}, and these SemanticAnnotations will use the {@link #PARAM_NAMESPACE
- * PARAM_NAMESPACE} parameter set for the AE as the namespace feature value</li>
- * <li>Entity Namespace: as used in the <i>Entity Name DB</i> (and not to be confused with the <i>
- * <code>PARAM_NAMESPACE</code></i> parameter of this Annotator)</li>
- * <li>Entity ID: as used in the <i>Entity Name DB</i></li>
- * </ol>
- * The <b>Entity Name DB</b> resource has to be a database that can produce a list of (String)
- * names for a given Entity Namespace and ID from the <i>Evidence String Map</i> by executing all
- * <i> {@link #PARAM_QUERIES}</i> provided during AE setup. The Entity Namespace/ID pairs from the
- * <i>Evidence String Map</i> will be used as positional parameters in the DB queries (Entity
- * Namespace first, then ID). For example, the simplest possible SQL query might be configures like
- * this:
+ * The <b>Entity DB</b> has to be a database that can produce a list of (String) IDs and names and
+ * by executing a {@link JdbcGazetteerResource#PARAM_QUERY_SQL SQL query} provided during AE setup.
+ * The Entities' {@link #PARAM_ENTITY_NAMESPACE namespace} for the entities is used to create the
+ * resulting {@link SemanticAnnotation semantic annotations}. The simplest possible SQL query might
+ * be configures like this:
  * 
  * <pre>
- * SELECT name FROM entities WHERE namespace=? AND identifier=?
+ * SELECT id, name FROM entities;
  * </pre>
  * 
- * I.e., in this example query, the Entity Name DB would have a table "entities" with three
- * columns, "name", "namespace", and "identifier". As Entity names might be found in multiple
- * tables, it is possible to configure multiple SQL queries for this AE.
+ * For name matching, the name must match exactly to the (Unicode) letters and numbers, while the
+ * type of separator to use between different letter and number tokens (defined as consecutive
+ * spans of code points with the same Unicode category or a capitalized token) may be any character
+ * except letters and numbers. If such a "normalized" name matches multiple DB IDs, the confidence
+ * of each annotation is reduced proportionally. If the name only matches after ignoring the
+ * positions of the required separators, the confidence is reduced proportionally to the number of
+ * separators the name contained. Finally, if only a case-independent version of the name matches,
+ * the confidence is reduced proportionally to the number case adjustments.
  * 
  * @author Florian Leitner
  */
@@ -113,7 +100,8 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    * @param sourceIdentifier of the {@link TextAnnotation TextAnnotations} containing the text
    *        elements to process (optional)
    * @param sqlQuery to use for fetching the entity names from the JDBC-connected DB
-   * @param caseInsensitiveMatching whether optionally use case insensitive matching, too
+   * @param idMatching whether to match the DB IDs themselves, too
+   * @param exactCaseMatching whether to only detect exact case matches
    * @param dbUrl of the entity DB to connect to
    * @param driverClass to use for connecting to the DB
    * @param dbUsername to use for connecting to the DB (optional)
@@ -122,18 +110,18 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    * @throws ResourceInitializationException
    */
   public static AnalysisEngineDescription configure(String entityNamespace,
-      String sourceNamespace, String sourceIdentifier, String sqlQuery,
-      boolean caseInsensitiveMatching, String dbUrl, String driverClass, String dbUsername,
+      String sourceNamespace, String sourceIdentifier, String sqlQuery, boolean idMatching,
+      boolean exactCaseMatching, String dbUrl, String driverClass, String dbUsername,
       String dbPassword) throws UIMAException, IOException {
     final ExternalResourceDescription gazetteer = JdbcGazetteerResource.configure(dbUrl, sqlQuery,
-        !caseInsensitiveMatching, driverClass, dbUsername, dbPassword, -1, null, true);
+        idMatching, exactCaseMatching, driverClass, dbUsername, dbPassword, -1, null, true);
     return GazetteerAnnotator.configure(entityNamespace, sourceNamespace, sourceIdentifier,
         gazetteer);
   }
 
   /**
-   * Configure a {@link GazetteerAnnotator} description using only the essential
-   * configuration parameters for this AE.
+   * Configure a {@link GazetteerAnnotator} description using only the essential configuration
+   * parameters for this AE.
    * 
    * @param entityNamespace to use for the {@link SemanticAnnotation SemanticAnnotations} of the
    *        entity DB IDs
@@ -148,13 +136,13 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   public static AnalysisEngineDescription configure(String entityNamespace,
       String sourceNamespace, String sourceIdentifier, String sqlQuery, String dbUrl,
       String driverClass) throws UIMAException, IOException {
-    return GazetteerAnnotator.configure(entityNamespace, sourceNamespace, null, sqlQuery,
+    return GazetteerAnnotator.configure(entityNamespace, sourceNamespace, null, sqlQuery, true,
         false, dbUrl, driverClass, null, null);
   }
 
   /**
-   * Configure an {@link GazetteerAnnotator} description with an already configured DB
-   * gazetteer resource description.
+   * Configure an {@link GazetteerAnnotator} description with an already configured DB gazetteer
+   * resource description.
    * 
    * @param entityNamespace to use for the {@link SemanticAnnotation SemanticAnnotations} of the
    *        entity DB IDs
@@ -162,7 +150,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    *        text to search/match
    * @param sourceIdentifier of the {@link SemanticAnnotation SemanticAnnotations} containing the
    *        text to search/match (optional)
-   * @param jdbcGazetteerResource a gazetteer that can match the entities in the text
+   * @param jdbcGazetteerResource a gazetteer for mapping text entities to DB IDs
    * @return a configured AE description
    * @throws ResourceInitializationException
    */
@@ -204,42 +192,108 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       findEntities(jcas, it.next());
   }
 
-  private void findEntities(JCas jcas, Annotation ann) {
-    int base = ann.getBegin();
-    Map<JdbcGazetteerResource.Offset, String> matches = gazetteer.match(ann.getCoveredText());
+  /**
+   * Iterate over the entity keys and offsets of all gazetteer matches in the text of the
+   * <code>annotation</code>.
+   */
+  private void findEntities(JCas jcas, Annotation annotation) {
+    int base = annotation.getBegin();
+    Map<JdbcGazetteerResource.Offset, String> matches = gazetteer.match(annotation
+        .getCoveredText());
     for (JdbcGazetteerResource.Offset offset : matches.keySet())
       annotateEntities(jcas, matches.get(offset), base + offset.begin, base + offset.end);
   }
 
+  /**
+   * Determine if the match is exact, only after normalizing (removing) the separators, without
+   * case sensitive matching, or both.
+   */
   private void annotateEntities(JCas jcas, String entityKey, int begin, int end) {
-    Set<String> dbIds = gazetteer.get(entityKey);
-    double confidence = 1.0;
-    if (dbIds == null) {
-      // the actual separation of the matched name is not matching the positions of the separators
-      // in the original name
-      confidence /= divisor(entityKey); // reduce conf. proportionally to number of separators
-      dbIds = gazetteer.get(entityKey.replace("-", ""));
-      if (dbIds == null)
-        logger.log(Level.SEVERE, "unknown entity key ''" + entityKey + "'' from ''" +
-            jcas.getDocumentText().substring(begin, end) + "''");
-    }
-    confidence /= dbIds.size();
-    if (entityKey.charAt(0) == '~') confidence *= 0.5;
-    for (String id : dbIds) {
-      SemanticAnnotation entity = new SemanticAnnotation(jcas, begin, end);
-      entity.setAnnotator(URI);
-      entity.setConfidence(confidence);
-      entity.setIdentifier(id);
-      entity.setNamespace(entityNamespace);
-      entity.addToIndexes();
+    if (gazetteer.containsKey(entityKey)) {
+      annotateAll(jcas, gazetteer.get(entityKey), begin, end, 1.0);
+    } else if (gazetteer.containsNormal(entityKey.replace("-", ""))) {
+      String normalKey = entityKey.replace("-", "");
+      // set base confidence to (2 / 2 + numSep)
+      annotateAll(jcas, gazetteer.getNormal(normalKey), begin, end,
+          2.0 / (2.0 + entityKey.length() - normalKey.length()));
+    } else {
+      String loweCaseKey = String.format("~%s", entityKey.toLowerCase());
+      if (!gazetteer.usesExactCaseMatching() && gazetteer.containsKey(loweCaseKey)) {
+        caseInsensitiveMatch(jcas, entityKey, gazetteer.get(loweCaseKey), begin, end);
+      } else if (!gazetteer.usesExactCaseMatching() &&
+          gazetteer.containsNormal(loweCaseKey.replace("-", ""))) {
+        caseInsensitiveMatch(jcas, entityKey, gazetteer.getNormal(loweCaseKey.replace("-", "")),
+            begin, end);
+      } else {
+        logger.log(Level.WARNING, "unmatched key ''" + entityKey + "'' from entity ''" +
+            jcas.getDocumentText().substring(begin, end));
+      }
     }
   }
 
-  private double divisor(String entityKey) {
-    int div = 1;
-    int idx = -1;
-    while ((idx = entityKey.indexOf('-', idx + 1)) != -1)
-      ++div;
-    return (double) div;
+  /** Annotate all the given database IDs at the given offset, equally spreading the confidence. */
+  private void annotateAll(JCas jcas, Set<String> dbIds, int begin, int end, double confidence) {
+    confidence /= dbIds.size(); // spread probability across all IDs
+    for (String id : dbIds)
+      annotate(id, jcas, begin, end, confidence);
+  }
+
+  /**
+   * Annotate all database IDs that can be found for the set of keys at the given offset, equally
+   * spreading the confidence between all database IDs, and reducing each ID's confidence
+   * proportionally to the {@link #distanceMod(CharSequence, CharSequence) distance} of its key to
+   * the originally matched entity key.
+   */
+  private void caseInsensitiveMatch(JCas jcas, String entityKey, Set<String> keys, int begin,
+      int end) {
+    Map<String, String> idToKey = new HashMap<String, String>();
+    for (String key : keys) {
+      for (String id : gazetteer.get(key))
+        if (!idToKey.containsKey(id) ||
+            distanceMod(entityKey, idToKey.get(id)) < distanceMod(entityKey, key))
+          idToKey.put(id, key);
+    }
+    double confidence = 1.0 / idToKey.size(); // spread probability across all IDs
+    for (String id : idToKey.keySet())
+      // reduce per-id confidence proportionally to edit distance from the original entity key
+      annotate(id, jcas, begin, end, confidence * distanceMod(entityKey, idToKey.get(id)));
+  }
+
+  /** Return a String distance-based confidence modifier. */
+  private double distanceMod(String a, String b) {
+    // exact matches: distance modifier = 1
+    if (a.equals(b)) return 1.0;
+    // Abc1 and ABC1 cases: distance modifier = 1/2
+    if (a.toUpperCase().equals(b) || b.toUpperCase().equals(a)) return 0.5;
+    // otherwise, calculate the Levenshtein distance L
+    int[][] distance = new int[a.length() + 1][b.length() + 1];
+    for (int i = 0; i <= a.length(); i++)
+      distance[i][0] = i;
+    for (int j = 1; j <= b.length(); j++)
+      distance[0][j] = j;
+    for (int i = 1; i <= a.length(); i++)
+      for (int j = 1; j <= b.length(); j++)
+        distance[i][j] = minimum(distance[i - 1][j] + 1, distance[i][j - 1] + 1,
+            distance[i - 1][j - 1] + ((a.charAt(i - 1) == b.charAt(j - 1)) ? 0 : 1));
+    // and return a distance modifier of (2 / [2 + L])
+    return 2.0 / ((double) 2 + distance[a.length()][b.length()]);
+  }
+
+  /** Return the smalles of the three integers. */
+  private static int minimum(int a, int b, int c) {
+    return Math.min(Math.min(a, b), c);
+  }
+
+  /**
+   * Add a {@link SemanticAnnotation semantic annotation} for a DB ID at the given offset and with
+   * the given confidence value.
+   */
+  private void annotate(String id, JCas jcas, int begin, int end, double confidence) {
+    SemanticAnnotation entity = new SemanticAnnotation(jcas, begin, end);
+    entity.setAnnotator(URI);
+    entity.setConfidence(confidence);
+    entity.setIdentifier(id);
+    entity.setNamespace(entityNamespace);
+    entity.addToIndexes();
   }
 }
