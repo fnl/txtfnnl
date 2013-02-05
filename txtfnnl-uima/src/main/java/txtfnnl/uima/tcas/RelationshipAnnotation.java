@@ -1,6 +1,7 @@
 /* First created by JCasGen Wed Jun 06 14:45:22 CEST 2012 */
 package txtfnnl.uima.tcas;
 
+import org.apache.uima.cas.FSMatchConstraint;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.JCasRegistry;
 import org.apache.uima.jcas.cas.FSArray;
@@ -16,6 +17,44 @@ import org.apache.uima.jcas.cas.TOP_Type;
  * @generated
  */
 public class RelationshipAnnotation extends SofaAnnotation {
+  /**
+   * Return a specialized filter for this annotation type.
+   * 
+   * @param jcas to create the constraint for
+   * @param annoatorUri to filter on
+   * @param namespaceStr to filter on
+   * @param identifierStr to filter on
+   * @return a particular relationship annotation constraint
+   */
+  public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace,
+      String identifier) {
+    return SofaAnnotation.makeConstraint(RelationshipAnnotation.class.getName(), jcas,
+        annotatorUri, namespace, identifier);
+  }
+
+  /**
+   * Return a specialized filter for relationship annotations.
+   * 
+   * @param jcas to create the constraint for
+   * @param annotatorUri to filter on
+   * @param namespace to filter on
+   * @return a particular relationship annotation constraint
+   */
+  public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace) {
+    return RelationshipAnnotation.makeConstraint(jcas, annotatorUri, namespace, null);
+  }
+
+  /**
+   * Return a specialized filter for relationship annotations.
+   * 
+   * @param jcas to create the constraint for
+   * @param namespace to filter on
+   * @return a particular relationship annotation constraint
+   */
+  public static FSMatchConstraint makeConstraint(JCas jcas, String namespace) {
+    return RelationshipAnnotation.makeConstraint(jcas, null, namespace);
+  }
+
   /**
    * @generated
    * @ordered

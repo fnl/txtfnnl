@@ -1,6 +1,12 @@
 /* First created by JCasGen Wed Jun 06 13:10:16 CEST 2012 */
 package txtfnnl.uima.tcas;
 
+import org.apache.uima.cas.CASRuntimeException;
+import org.apache.uima.cas.ConstraintFactory;
+import org.apache.uima.cas.FSMatchConstraint;
+import org.apache.uima.cas.FSStringConstraint;
+import org.apache.uima.cas.Feature;
+import org.apache.uima.cas.FeaturePath;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.JCasRegistry;
 import org.apache.uima.jcas.cas.AnnotationBase;
@@ -17,6 +23,93 @@ import txtfnnl.uima.cas.Property;
  * @generated
  */
 public class SofaAnnotation extends AnnotationBase {
+  
+  /**
+   * Return a specialized filter for this annotation type.
+   * 
+   * @param typeName of the annotation to constrain to
+   * @param jcas to create the constraint for
+   * @param annoatorUri to filter on
+   * @param namespaceStr to filter on
+   * @param identifierStr to filter on
+   * @return a particular SOFA annotation constraint
+   */
+  protected static FSMatchConstraint makeConstraint(String typeName, JCas jcas,
+      String annotatorUri, String namespace, String identifier) {
+    final ConstraintFactory cf = jcas.getConstraintFactory();
+    FSMatchConstraint constraint = null;
+    if (annotatorUri != null) {
+      constraint = SofaAnnotation
+          .createConstraint(typeName + ":annotator", jcas, annotatorUri, cf);
+    }
+    if (namespace != null) {
+      if (constraint == null) {
+        constraint = SofaAnnotation.createConstraint(typeName + ":namespace", jcas, namespace, cf);
+      } else {
+        constraint = cf.and(constraint,
+            SofaAnnotation.createConstraint(typeName + ":namespace", jcas, namespace, cf));
+      }
+    }
+    if (identifier != null) {
+      if (constraint == null) {
+        constraint = SofaAnnotation.createConstraint(typeName + ":identifier", jcas, identifier,
+            cf);
+      } else {
+        constraint = cf.and(constraint,
+            SofaAnnotation.createConstraint(typeName + ":identifier", jcas, identifier, cf));
+      }
+    }
+    return constraint;
+  }
+
+  private static FSMatchConstraint createConstraint(String featureName, JCas jcas,
+      String stringConstraint, ConstraintFactory cf) throws CASRuntimeException {
+    final Feature feature = jcas.getTypeSystem().getFeatureByFullName(featureName);
+    final FeaturePath featurePath = jcas.createFeaturePath();
+    featurePath.addFeature(feature);
+    final FSStringConstraint fsStringConstraint = cf.createStringConstraint();
+    fsStringConstraint.equals(stringConstraint);
+    return cf.embedConstraint(featurePath, fsStringConstraint);
+  }
+
+  /**
+   * Return a specialized filter for this annotation type.
+   * 
+   * @param jcas to create the constraint for
+   * @param annoatorUri to filter on
+   * @param namespaceStr to filter on
+   * @param identifierStr to filter on
+   * @return a particular SOFA annotation constraint
+   */
+  public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace,
+      String identifier) {
+    return SofaAnnotation.makeConstraint(SofaAnnotation.class.getName(), jcas, annotatorUri,
+        namespace, identifier);
+  }
+
+  /**
+   * Return a specialized filter for SOFA annotations.
+   * 
+   * @param jcas to create the constraint for
+   * @param annoatorUri to filter on
+   * @param namespace to filter on
+   * @return a particular SOFA annotation constraint
+   */
+  public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace) {
+    return SofaAnnotation.makeConstraint(jcas, annotatorUri, namespace, null);
+  }
+
+  /**
+   * Return a specialized filter for SOFA annotations.
+   * 
+   * @param jcas to create the constraint for
+   * @param namespace to filter on
+   * @return a particular SOFA annotation constraint
+   */
+  public static FSMatchConstraint makeConstraint(JCas jcas, String namespace) {
+    return SofaAnnotation.makeConstraint(jcas, null, namespace);
+  }
+
   /**
    * @generated
    * @ordered
