@@ -8,7 +8,7 @@ import org.apache.uima.jcas.JCasRegistry;
 import org.apache.uima.jcas.cas.TOP_Type;
 import org.apache.uima.jcas.tcas.Annotation;
 
-import txtfnnl.uima.utils.Offset;
+import txtfnnl.utils.Offset;
 
 /**
  * TextAnnotations of semantic elements (PoS, named entities, etc.). Updated by JCasGen Tue Nov 27

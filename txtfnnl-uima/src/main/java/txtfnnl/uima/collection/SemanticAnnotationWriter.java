@@ -17,9 +17,9 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.AnalysisEngineFactory;
 
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SemanticAnnotation;
-import txtfnnl.uima.utils.UIMAUtils;
 import txtfnnl.utils.StringUtils;
 
 /**

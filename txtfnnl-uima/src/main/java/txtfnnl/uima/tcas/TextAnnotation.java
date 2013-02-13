@@ -17,7 +17,7 @@ import org.apache.uima.jcas.cas.TOP_Type;
 import org.apache.uima.jcas.tcas.Annotation;
 
 import txtfnnl.uima.cas.Property;
-import txtfnnl.uima.utils.Offset;
+import txtfnnl.utils.Offset;
 
 /**
  * Annotations on a specific text span. Updated by JCasGen Tue Nov 27 14:20:54 CET 2012 XML source:

@@ -23,8 +23,8 @@ import org.uimafit.component.CasConsumer_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.AnalysisEngineFactory;
 
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
-import txtfnnl.uima.utils.UIMAUtils;
 import txtfnnl.utils.IOUtils;
 
 /**

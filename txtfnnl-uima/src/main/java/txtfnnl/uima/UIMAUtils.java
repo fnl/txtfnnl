@@ -1,4 +1,4 @@
-package txtfnnl.uima.utils;
+package txtfnnl.uima;
 
 import java.io.File;
 import java.io.IOException;

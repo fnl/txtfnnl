@@ -24,11 +24,11 @@ import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
 import org.uimafit.factory.AnalysisEngineFactory;
 
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.resource.JdbcGazetteerResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
-import txtfnnl.uima.utils.UIMAUtils;
 
 /**
  * A "NER" to detect the presence of names from a DB of entities in particular text spans. This AE
@@ -279,7 +279,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     return 2.0 / ((double) 2 + distance[a.length()][b.length()]);
   }
 
-  /** Return the smalles of the three integers. */
+  /** Return the smallest of three integers. */
   private static int minimum(int a, int b, int c) {
     return Math.min(Math.min(a, b), c);
   }

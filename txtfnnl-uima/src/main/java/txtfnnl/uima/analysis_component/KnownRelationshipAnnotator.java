@@ -29,12 +29,12 @@ import org.apache.uima.util.Level;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.AnalysisEngineFactory;
 
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.resource.Entity;
 import txtfnnl.uima.resource.RelationshipStringMapResource;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.SentenceAnnotation;
-import txtfnnl.uima.utils.UIMAUtils;
 
 /**
  * An AE that annotates {@link SemanticAnnotation semantic annotations} of {@link Entity entities}

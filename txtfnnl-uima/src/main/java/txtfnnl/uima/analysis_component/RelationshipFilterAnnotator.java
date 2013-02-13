@@ -25,10 +25,10 @@ import org.uimafit.component.JCasAnnotator_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.AnalysisEngineFactory;
 
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
-import txtfnnl.uima.utils.UIMAUtils;
 
 /**
  * Remove {@link RelationshipAnnotation relationships} whose linked {@link TextAnnotation text

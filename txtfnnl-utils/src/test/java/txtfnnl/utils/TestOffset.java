@@ -1,7 +1,9 @@
-package txtfnnl.uima.utils;
+package txtfnnl.utils;
 
 import org.junit.Assert;
 import org.junit.Test;
+
+import txtfnnl.utils.Offset;
 
 public class TestOffset {
   Offset oneValue = new Offset(1);

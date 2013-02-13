@@ -19,9 +19,9 @@ import org.apache.uima.util.Level;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.AnalysisEngineFactory;
 
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
-import txtfnnl.uima.utils.UIMAUtils;
 
 /**
  * A CAS consumer that writes plaintext content, adding line separators after the segments

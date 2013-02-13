@@ -1,4 +1,4 @@
-package txtfnnl.uima.utils;
+package txtfnnl.utils;
 
 import java.util.Arrays;
 import java.util.HashSet;
