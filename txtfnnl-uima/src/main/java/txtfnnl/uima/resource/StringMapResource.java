@@ -9,7 +9,7 @@ import org.apache.uima.resource.SharedResourceObject;
  * 
  * @author Florian Leitner
  */
-public interface StringMapResource<V> extends SharedResourceObject {
+public interface StringMapResource<V> extends SharedResourceObject, Iterable<String> {
   /**
    * Return the mapped value V for a given key.
    * 

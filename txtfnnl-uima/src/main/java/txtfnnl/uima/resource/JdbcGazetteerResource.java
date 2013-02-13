@@ -8,7 +8,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -22,11 +21,13 @@ import java.util.regex.Pattern;
 import org.apache.uima.resource.DataResource;
 import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.ExternalResourceFactory;
 
-import txtfnnl.uima.utils.UIMAUtils;
+import txtfnnl.uima.UIMAUtils;
+import txtfnnl.utils.StringLengthComparator;
 import txtfnnl.utils.StringUtils;
 
 /**
@@ -116,8 +117,8 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
    * @throws IOException
    */
   @SuppressWarnings("serial")
-  public static ExternalResourceDescription configure(String connectionUrl,
-      final String querySql, final boolean idMatching,
+  public static ExternalResourceDescription configure(String connectionUrl, final String querySql,
+      final boolean idMatching,
       final boolean exactCaseMatching, // final boolean fuzzyMatching,
       final String driverClass, final String username, final String password,
       final int loginTimeout, final String isolationLevel, final boolean readOnly)
@@ -176,9 +177,15 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       Statement stmt = conn.createStatement();
       ResultSet result = stmt.executeQuery(querySql);
       String regexSep = SEPARATOR + "{0,3}"; // limit separators to a max. of three characters
-      String dbId = result.getString(1); 
       while (result.next()) {
+        String dbId = result.getString(1);
         String key = makeKey(result.getString(2));
+        if (key == null) continue;
+        if (key.length() == 1 && Character.isLetter(key.charAt(0))) {
+          logger.log(Level.FINE, "ignoring single-letter key ''{0}'' from name ''{1}'' (ID={2})",
+              new Object[] { key, result.getString(2), dbId });
+          continue;
+        }
         if (!keyIds.containsKey(key)) {
           String pattern = key.replace("-", regexSep);
           regexes.add(String.format("\\b%s|%s\\b", pattern, pattern));
@@ -187,28 +194,30 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
         if (idMatching) {
           regexes.add(String.format("\\b%s\\b", Pattern.quote(dbId)));
           String idKey = makeKey(dbId);
-          if (!keyIds.containsKey(idKey)) keyIds.put(idKey, new HashSet<String>());
-          keyIds.get(idKey).add(dbId);
+          if (idKey != null) {
+            if (!keyIds.containsKey(idKey)) keyIds.put(idKey, new HashSet<String>());
+            keyIds.get(idKey).add(dbId);
+          }
         }
         addMappings(key, result.getString(1));
         if (!exactCaseMatching) addMappings(String.format("~%s", key.toLowerCase()), key);
       }
       conn.close();
     } catch (SQLException e) {
+      logger.log(Level.SEVERE, "SQL error", e);
+      throw new RuntimeException(e);
+    } catch (Exception e) {
+      logger.log(Level.SEVERE, "unknown error", e);
       throw new RuntimeException(e);
     }
     // (2) sort longest patterns first
-    Collections.sort(regexes, new Comparator<String>() {
-      public int compare(String a, String b) {
-        if (a.length() > b.length()) return -1;
-        else if (a.length() < b.length()) return 1;
-        else return 0;
-      }
-    });
+    Collections.sort(regexes, StringLengthComparator.INSTANCE); 
     // (3) compile the patterns
+    logger.log(Level.INFO, "compiling {0} unique patterns", regexes.size());
     if (exactCaseMatching) patterns = Pattern.compile(StringUtils.join('|', regexes.iterator()));
     else patterns = Pattern.compile(StringUtils.join('|', regexes.iterator()),
         Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    logger.log(Level.INFO, "compiled all patterns for {0} keys", keyIds.size());
   }
 
   /** Add the key-to-ID and normalized-key-to-ID mappings. */
@@ -230,8 +239,10 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       }
     }
     String pattern = regex.toString();
-    if (pattern.length() == 0)
-      throw new IllegalArgumentException("zero-length pattern from \"" + name + "\"");
+    if (pattern.length() == 0) {
+      logger.log(Level.WARNING, "\"" + name + "\" leads to an empty pattern");
+      return null;
+    }
     return pattern;
   }
 

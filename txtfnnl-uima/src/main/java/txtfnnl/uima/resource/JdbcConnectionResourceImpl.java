@@ -5,18 +5,20 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.logging.Logger;
 
+import org.apache.uima.UIMAFramework;
 import org.apache.uima.resource.DataResource;
 import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.util.Level;
+import org.apache.uima.util.Logger;
 
 import org.uimafit.component.ExternalResourceAware;
 import org.uimafit.component.initialize.ConfigurationParameterInitializer;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.ExternalResourceFactory;
 
-import txtfnnl.uima.utils.UIMAUtils;
+import txtfnnl.uima.UIMAUtils;
 
 /**
  * A JDBC resource to interface with arbitrary databases. Any DB that has a JDBC driver can be used
@@ -91,7 +93,7 @@ public class JdbcConnectionResourceImpl implements JdbcConnectionResource, Exter
   @ConfigurationParameter(name = PARAM_ISOLATION_LEVEL, mandatory = false)
   private String isolationStr;
   protected int isolationLevel = -1;
-  private final Logger logger = Logger.getLogger(getClass().getName());
+  protected Logger logger = null;
 
   /**
    * Configure a JDBC Connection Resource.
@@ -177,24 +179,22 @@ public class JdbcConnectionResourceImpl implements JdbcConnectionResource, Exter
 
   /** {@inheritDoc} */
   public synchronized Connection getConnection() throws SQLException {
-    logger.info("connecting to '" + connectionUrl + "'");
+    logger.log(Level.INFO, "connecting to '" + connectionUrl + "'");
     Connection conn;
-    if (username == null || password == null) {
-      conn = DriverManager.getConnection(connectionUrl);
-    } else {
-      conn = DriverManager.getConnection(connectionUrl, username, password);
-    }
-    if (isolationLevel > -1) {
-      conn.setTransactionIsolation(isolationLevel);
-    }
+    if (username == null || password == null) conn = DriverManager.getConnection(connectionUrl);
+    else conn = DriverManager.getConnection(connectionUrl, username, password);
+    if (isolationLevel > -1) conn.setTransactionIsolation(isolationLevel);
     conn.setReadOnly(readOnly);
-    logger.fine("connected to '" + connectionUrl + "'");
+    logger.log(Level.FINE, "connected to '" + connectionUrl + "'");
     return conn;
   }
 
   public void load(DataResource dataResource) throws ResourceInitializationException {
     ConfigurationParameterInitializer.initialize(this, dataResource);
+    logger = dataResource.getLogger();
+    if (logger == null) logger = UIMAFramework.getLogger(this.getClass());
     connectionUrl = dataResource.getUri().toString();
+    logger.log(Level.INFO, "resource loaded");
   }
 
   public String getResourceName() {
