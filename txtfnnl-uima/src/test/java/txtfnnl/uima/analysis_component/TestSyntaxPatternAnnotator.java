@@ -33,7 +33,6 @@ public class TestSyntaxPatternAnnotator {
   AnalysisEngine engine;
   File patternResource;
 
-  // TODO: test more (complex) patterns!!!
   @Before
   public void setUp() {
     DisableLogging.enableLogging(Level.WARNING);

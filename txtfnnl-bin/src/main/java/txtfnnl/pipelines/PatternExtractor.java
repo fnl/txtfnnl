@@ -55,7 +55,7 @@ public class PatternExtractor extends Pipeline {
         "use GENIA (with the dir containing 'morphdic/') instead of OpenNLP");
     // semantic pattern tagger options
     opts.addOption("p", "patterns", true, "match sentences with semantic patterns");
-    // ouptput options
+    // output options
     opts.addOption("c", "complete-sentences", false,
         "print complete sentences, not just matching phrases");
     try {
