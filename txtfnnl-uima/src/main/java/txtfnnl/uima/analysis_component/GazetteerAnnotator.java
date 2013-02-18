@@ -1,6 +1,8 @@
 package txtfnnl.uima.analysis_component;
 
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -74,6 +76,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   private GazetteerResource<Set<String>> gazetteer;
   private Similarity measure = LeitnerLevenshtein.INSTANCE; // TODO: make configurable?
   private Logger logger;
+  private int count;
 
   public static class Builder extends AnalysisComponentBuilder {
     Builder(String entityNamespace, ExternalResourceDescription gazetteerResourceDescription) {
@@ -116,7 +119,9 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
     logger = ctx.getLogger();
-    logger.log(Level.INFO, "initialized with {0} entities", gazetteer.size());
+    logger.log(Level.INFO, "{0} Gazetteer initialized with {1} entities", new Object[] {
+        entityNamespace, gazetteer.size() });
+    count = 0;
   }
 
   @Override
@@ -130,26 +135,40 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     if (sourceNamespace == null) {
       Map<Offset, String> matches = gazetteer.match(jcas.getDocumentText());
       for (Offset offset : matches.keySet())
-        annotateEntities(jcas, matches.get(offset), offset.start(), offset.end());
+        for (SemanticAnnotation ann : annotateEntities(jcas, matches.get(offset), offset.start(),
+            offset.end()))
+          ann.addToIndexes();
     } else {
       FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, sourceNamespace,
           sourceIdentifier);
       FSIterator<Annotation> it = TextAnnotation.getIterator(jcas);
       it = jcas.createFilteredIterator(it, cons);
+      List<SemanticAnnotation> coll = new LinkedList<SemanticAnnotation>();
       while (it.hasNext())
-        findEntities(jcas, it.next());
+        findEntities(jcas, it.next(), coll);
+      for (SemanticAnnotation ann : coll)
+        ann.addToIndexes();
     }
+  }
+
+  @Override
+  public void destroy() {
+    logger.log(Level.INFO, "tagged {0} {1} entities", new String[] { Integer.toString(count),
+        entityNamespace });
   }
 
   /**
    * Iterate over the entity keys and offsets of all Gazetteer matches in the text of the
    * <code>annotation</code>.
    */
-  private void findEntities(JCas jcas, Annotation annotation) {
+  private void findEntities(JCas jcas, Annotation annotation, List<SemanticAnnotation> coll) {
     int base = annotation.getBegin();
+    logger.log(Level.FINE, "scanning for {1} in:\n{0}", new String[] {
+        annotation.getCoveredText(), entityNamespace });
     Map<Offset, String> matches = gazetteer.match(annotation.getCoveredText());
     for (Offset offset : matches.keySet())
-      annotateEntities(jcas, matches.get(offset), base + offset.start(), base + offset.end());
+      coll.addAll(annotateEntities(jcas, matches.get(offset), base + offset.start(),
+          base + offset.end()));
   }
 
   /**
@@ -157,12 +176,14 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    * (normalized) {@link Similarity#similarity(String, String) string similarity} for the
    * annotation confidence.
    */
-  private void annotateEntities(JCas jcas, String entityKey, int begin, int end) {
+  private List<SemanticAnnotation>
+      annotateEntities(JCas jcas, String entityKey, int begin, int end) {
+    List<SemanticAnnotation> coll = new LinkedList<SemanticAnnotation>();
     if (gazetteer.containsKey(entityKey)) {
       Set<String> dbIds = gazetteer.get(entityKey);
       double confidence = 1.0 / dbIds.size();
       for (String dbId : dbIds)
-        annotate(dbId, jcas, begin, end, confidence);
+        coll.add(annotate(dbId, jcas, begin, end, confidence));
     } else {
       Map<String, Double> dbIdToSim = new HashMap<String, Double>();
       Set<String> targets = gazetteer.resolve(entityKey);
@@ -174,20 +195,24 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         }
       }
       for (String dbId : dbIdToSim.keySet())
-        annotate(dbId, jcas, begin, end, dbIdToSim.get(dbId));
+        coll.add(annotate(dbId, jcas, begin, end, dbIdToSim.get(dbId)));
     }
+    return coll;
   }
 
   /**
    * Add a {@link SemanticAnnotation semantic annotation} for a DB ID with a given confidence
    * value.
    */
-  private void annotate(String id, JCas jcas, int begin, int end, double confidence) {
+  private SemanticAnnotation annotate(String id, JCas jcas, int begin, int end, double confidence) {
     SemanticAnnotation entity = new SemanticAnnotation(jcas, begin, end);
     entity.setAnnotator(URI);
     entity.setConfidence(confidence);
     entity.setIdentifier(id);
     entity.setNamespace(entityNamespace);
-    entity.addToIndexes();
+    logger.log(Level.FINE, "detected {0}:{1} ({2})",
+        new String[] { entityNamespace, id, Double.toString(confidence) });
+    count++;
+    return entity;
   }
 }

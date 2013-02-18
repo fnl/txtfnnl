@@ -200,12 +200,12 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
     // therefore, this code throws a RuntimeException to the same effect...
     super.afterResourcesInitialized();
     List<String> regexes = new LinkedList<String>();
+    String regexSep = separatorRegEx(0);
     // (1) retrieve the names
     try {
       Connection conn = getConnection();
       Statement stmt = conn.createStatement();
       ResultSet result = stmt.executeQuery(querySql);
-      String regexSep = separatorRegEx(0);
       while (result.next()) {
         String key = makeKey(result.getString(2));
         if (key == null) continue;
@@ -236,6 +236,12 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
     Collections.sort(regexes, StringLengthComparator.INSTANCE);
     // (3) compile the patterns
     logger.log(Level.INFO, "compiling {0} unique patterns", regexes.size());
+    if (logger.isLoggable(Level.FINE)) {
+      StringBuilder sb = new StringBuilder();
+      for (String pattern : regexes)
+        sb.append(pattern).append('\n');
+      logger.log(Level.FINE, "patterns:\n{0}", sb.toString().replace(regexSep, "-"));
+    }
     if (exactCaseMatching) patterns = Pattern.compile(StringUtils.join('|', regexes.iterator()));
     else patterns = Pattern.compile(StringUtils.join('|', regexes.iterator()),
         Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
