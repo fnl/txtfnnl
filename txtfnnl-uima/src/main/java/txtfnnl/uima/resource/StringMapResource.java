@@ -19,6 +19,14 @@ public interface StringMapResource<V> extends SharedResourceObject, Iterable<Str
   public V get(String key);
 
   /**
+   * Check if the given key exists.
+   * 
+   * @param key to check
+   * @return <code>true</code> if the key is known to the resource
+   */
+  public boolean containsKey(String key);
+  
+  /**
    * Return the number of keys.
    * 
    * @return the number of keys known by this resource.
@@ -44,5 +52,5 @@ public interface StringMapResource<V> extends SharedResourceObject, Iterable<Str
    * 
    * @return the resource URL string or <code>null</code>
    */
-  public String getResourceUrl();
+  public String getUrl();
 }
