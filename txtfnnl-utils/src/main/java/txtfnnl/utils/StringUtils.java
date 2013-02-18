@@ -12,6 +12,27 @@ public final class StringUtils {
     throw new AssertionError("n/a");
   }
 
+  /** Create a code-point array from a string. */
+  public static int[] toCodePointArray(String str) {
+    return toCodePointArray(str, str.codePointCount(0, str.length()));
+  }
+
+  /** Create a code-point array from a string with a known number of code points. */
+  public static int[] toCodePointArray(String str, int numberOfCodePoints) {
+    int[] arr = new int[numberOfCodePoints];
+    for (int cp = 0, off = 0; cp < numberOfCodePoints; off += charCount(str, cp++))
+      arr[cp] = str.codePointAt(off);
+    return arr;
+  }
+
+  /**
+   * Return the Java {@link Character#charCount char count} of a Unicode character ("code point")
+   * in a string at a given <code>offset</code>.
+   */
+  public static int charCount(String str, int offset) {
+    return Character.charCount(str.codePointAt(offset));
+  }
+
   public static final String join(String... strings) {
     final StringBuffer b = new StringBuffer();
     for (String s : strings)
@@ -56,7 +77,7 @@ public final class StringUtils {
     if (last != -1) b.append(strings[last]);
     return b.toString();
   }
-  
+
   public static final String join(char using, Iterator<String> stringIt) {
     final StringBuffer b = new StringBuffer();
     while (stringIt.hasNext()) {
@@ -65,6 +86,4 @@ public final class StringUtils {
     }
     return b.length() == 0 ? "" : b.replace(b.length() - 1, b.length(), "").toString();
   }
-
-
 }
