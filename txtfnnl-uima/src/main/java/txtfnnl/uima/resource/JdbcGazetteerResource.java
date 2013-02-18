@@ -2,7 +2,6 @@
  * Copyright 2013. All rights reserved. */
 package txtfnnl.uima.resource;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -14,153 +13,183 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.uima.resource.DataResource;
-import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
-import org.uimafit.factory.ExternalResourceFactory;
 
-import txtfnnl.uima.UIMAUtils;
+import txtfnnl.utils.Offset;
 import txtfnnl.utils.StringLengthComparator;
 import txtfnnl.utils.StringUtils;
 
 /**
- * JdbcGazetteerResource fetches a list of id, name values from a DB using a user-defined query and
- * generates regular expression matchers for those names. Only the alphanumeric values (in terms of
- * Unicode super-categories, i.e., N and L) are matches, while any number of non-alphanumerics are
- * allowed between each such Unicode category change except for one single upper-case to lower-case
- * change.
+ * A JdbcGazetteerResource uses a {@link JdbcConnectionResourceImpl#PARAM_DRIVER_CLASS JDBC} to
+ * retrieve the ID, name values used to populate the Gazetteer. It can use any user-defined
+ * {@link JdbcGazetteerResource#PARAM_QUERY_SQL query} that selects these ID, name values and uses
+ * regular expressions matching for those names. The {@link JdbcGazetteerResource#PARAM_SEPARATORS
+ * token-separating characters} that should be ignored and the
+ * {@link JdbcGazetteerResource#PARAM_SEPARATOR_LENGTH max. length} of these separating spans can
+ * be parameterized. Finally, it is possible to specify if the
+ * {@link JdbcGazetteerResource#PARAM_ID_MATCHING IDs should be matched} and if only
+ * {@link JdbcGazetteerResource#PARAM_CASE_MATCHING exact case matches} should be considered
+ * (otherwise, Unicode-based, case-insensitive matching is used).
  * <p>
- * For example, the name "[AbcDEFghi 123]-Jkl" will separate into five tokens: "Abc", "DEF", "ghi",
- * "123", and "Jkl"; All tokens may be separated by zero or more non-alphanumerics.
+ * <b>Tokens</b> are separated at the defined separators and at any change of Unicode character
+ * {@link Character#getType(int) category} in the entity name, with the only exception of a
+ * transition from a single upper-case character to lower-case (i.e., capitalized words). For
+ * example, the name "Abc" is a single token, but "ABCdef" are two, just as "AbcDef", "ABC1", or
+ * "abc def".
  * <p>
- * After loading the names and generating the pattern matchers at startup, input text can be
- * matched against this gazetteer using the {@link #match(String)} method. The resulting Map
- * contains the offsets (in the input string) and keys of the found matches. For each key the list
- * of matching DB IDs can be fetched with {@link #get(String)}. If case-insensitive matching is
- * configured and the key begins with a '~' (tilde) character, the match only could be made for the
- * case-insensitive version of the key.
+ * The {@link JdbcGazetteerResource#get(String) get} method returns a set of matching DB IDs for
+ * any existing key, the {@link JdbcGazetteerResource#size() size} reports the <b>total</b> number
+ * of keys (incl. normalized and/or lower-cased versions), while
+ * {@link JdbcGazetteerResource#iterator() iterator} only provides the <b>regular</b> keys.
+ * Normalized and/or lower-cased keys, although reported by size() and retrievable via get(String
+ * key), are never directly exposed.
+ * <p>
+ * <b>Unicode characters</b>: Entity names may be any characters from all Unicode ranges <i>except
+ * the private range</i>. Please make sure no private range characters are present in your names.
  * 
  * @author Florian Leitner
  */
 public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
-    StringMapResource<Set<String>> {
-  /** The SQL query to fetch the entity names. */
+    GazetteerResource<Set<String>> {
+  /** The <b>mandatory</b> SQL query used to fetch the entity names. */
   public static final String PARAM_QUERY_SQL = "QuerySQL";
   @ConfigurationParameter(name = PARAM_QUERY_SQL, mandatory = true)
   private String querySql;
-  /** Whether to match the DB IDs themselves, too (default: <code>true</code>). */
+  /**
+   * Normalized separator characters between tokens (default: the underscore and all Unicode spaces
+   * and dashes).
+   */
+  public static final String PARAM_SEPARATORS = "Separators";
+  /** Default separators: spaces, dashes, and the underscore. */
+  public static final String DEFAULT_SEPARATORS = " \u00A0\u2000-\u200B\u202F\u205F\u3000\uFEFF_\\-\u1680\u2010-\u2015\u2212\uFE58\uFE63\uFF0D";
+  @ConfigurationParameter(name = PARAM_SEPARATORS,
+      mandatory = false,
+      defaultValue = DEFAULT_SEPARATORS)
+  private String separators;
+  /**
+   * The max. length of matchable consecutive separator characters (default: 3).
+   * <p>
+   * Should not be less than one.
+   */
+  public static final String PARAM_SEPARATOR_LENGTH = "SeparatorLength";
+  @ConfigurationParameter(name = PARAM_SEPARATOR_LENGTH, mandatory = false, defaultValue = "3")
+  private int separatorLength;
+  /** Whether to match the DB IDs themselves, too (default: <code>false</code>). */
   public static final String PARAM_ID_MATCHING = "IDMatching";
-  @ConfigurationParameter(name = PARAM_ID_MATCHING, mandatory = false, defaultValue = "true")
+  @ConfigurationParameter(name = PARAM_ID_MATCHING, mandatory = false, defaultValue = "false")
   private boolean idMatching;
-  /** Whether to do case-sensitive matching only (default: <code>false</code>). */
+  /** Whether to require exact case-sensitive matching (default: <code>false</code>). */
   public static final String PARAM_CASE_MATCHING = "CaseMatching";
   @ConfigurationParameter(name = PARAM_CASE_MATCHING, mandatory = false, defaultValue = "false")
   private boolean exactCaseMatching;
-  // /** Whether to use the fuzzy matcher or not (default: <code>false</code>). */
-  /* XXX: fuzzy matching?
-  public static final String PARAM_FUZZY_MATCHING = "FuzzyMatching";
-  @ConfigurationParameter(name = PARAM_FUZZY_MATCHING, mandatory = false, defaultValue = "false")
-  private boolean fuzzyMatching;
-  */
-  private Map<String, Set<String>> keyIds;
-  private Map<String, Set<String>> normalIds;
+  // additional private range Unicode characters to identify special key properties:
+  static final String LOWERCASE = "\uE3A8";
+  static final String NORMAL = "\uE3A9";
+  /** Mappings of regular keys to ID sets and of normalized keys to regular key sets. */
+  private Map<String, Set<String>> mappings;
+  /** The "meta-pattern" created from all individual names. */
   private Pattern patterns;
-  static final String SEPARATOR = "[ _~\\.\\-\u2010-\u2015\\/\\\\]"; // NB: without a quantifier!
-  static final Pattern SPLIT_ON_SEP = Pattern.compile(SEPARATOR + "+");
+  /** The pattern used to find token splits. */
+  private Pattern split;
 
-  /** Simple container for two hashable integers, <code>begin</code> and <code>end</code>. */
-  public class Offset {
-    public final int begin;
-    public final int end;
-
-    Offset(int b, int e) {
-      begin = b;
-      end = e;
+  public static class Builder extends JdbcConnectionResourceImpl.Builder {
+    Builder(String url, String driverClass, String querySql) {
+      super(JdbcGazetteerResource.class, url, driverClass);
+      setRequiredParameter(PARAM_QUERY_SQL, querySql);
     }
 
-    @Override
-    public boolean equals(Object other) {
-      if (!(other instanceof Offset)) return false;
-      Offset o = (Offset) other;
-      return begin == o.begin && end == o.end;
+    /** Match the DB IDs themselves, too. */
+    public Builder idMatching() {
+      setOptionalParameter(PARAM_ID_MATCHING, Boolean.TRUE);
+      return this;
     }
 
-    @Override
-    public int hashCode() {
-      return (17 + begin) * (31 + end);
+    /** Only do exact, case-sensitive matching. */
+    public Builder caseMatching() {
+      setOptionalParameter(PARAM_CASE_MATCHING, Boolean.TRUE);
+      return this;
+    }
+
+    /**
+     * Define name token separator characters (default: spaces, hyphens, and the underscore).
+     * <p>
+     * Separator characters are not allowed within the matched target tokens, while only characters
+     * defined as separators may be matched between tokens. This means that if any of these
+     * separator characters are encountered within a token of the entity name, the match will fail.
+     * <p>
+     * Consecutive character ranges can be grouped as in a regular expression (like "A-Z" for all
+     * upper-case ASCII letters), and generally all escaping rules of regular expressions must be
+     * obeyed.
+     * <p>
+     * For example, for gene names we suggest to extend the default separators with commas, dots,
+     * and slashes.
+     */
+    public Builder setSeparators(String separators) {
+      setOptionalParameter(PARAM_SEPARATORS, separators);
+      return this;
+    }
+
+    /** Define max. number of consecutive separator characters (default: 3; must be > 0). */
+    public Builder setSeparatorLengths(int length) {
+      if (length < 1) throw new IllegalArgumentException("length must be positive");
+      setOptionalParameter(PARAM_SEPARATOR_LENGTH, length);
+      return this;
     }
   }
 
   /**
-   * Configure a JdbcGazetterResource.
+   * Configure a JDBC Gazetteer Resource.
+   * <p>
+   * The SQL query to fetch the entity IDs and names should always be a <code>SELECT</code>
+   * statement that has as its two first results a ID and a name (String). A very simplistic query
+   * could just be:
    * 
-   * @param connectionUrl the JDBC URL to connect to ("<code>jdbc:</code> <i>[provider]</i>
-   *        <code>://</code><i>[host[:port]]</i> <code>/</code><i>[database]</i>")
-   * @param querySql the SQL query returning id, value pairs
-   * @param exactCaseMatching flag indicating if case-sensitive (<code>true</code>) or also
-   *        case-insensitive (<code>false</code>) matching is used
-   * @param driverClass the driver's class name to use (see {@link #PARAM_DRIVER_CLASS})
-   * @param username the username to use (optional)
-   * @param password the password to use (optional)
-   * @param loginTimeout seconds before timing out the connection (optional)
-   * @param isolationLevel an isolation level name (see {@link #PARAM_ISOLATION_LEVEL}, optional)
-   * @param readOnly if <code>false</code>, the resulting connections can be used to write to the
-   *        DB
-   * @return a configured descriptor
-   * @throws IOException
+   * <pre>
+   * SELECT id, name FROM entities;
+   * </pre>
+   * 
+   * @param databaseUrl a JDBC database URL
+   * @param driverClassName a fully qualified JDBC driver class name
+   * @param querySql a SQL statement that retrieves ID, name pairs
    */
-  @SuppressWarnings("serial")
-  public static ExternalResourceDescription configure(String connectionUrl, final String querySql,
-      final boolean idMatching,
-      final boolean exactCaseMatching, // final boolean fuzzyMatching,
-      final String driverClass, final String username, final String password,
-      final int loginTimeout, final String isolationLevel, final boolean readOnly)
-      throws IOException {
-    return ExternalResourceFactory.createExternalResourceDescription(JdbcGazetteerResource.class,
-        connectionUrl, UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-          {
-            put(PARAM_QUERY_SQL, querySql);
-            put(PARAM_ID_MATCHING, idMatching);
-            put(PARAM_CASE_MATCHING, exactCaseMatching);
-            // put(PARAM_FUZZY_MATCHING, fuzzyMatching);
-            put(PARAM_DRIVER_CLASS, driverClass);
-            put(PARAM_USERNAME, username);
-            put(PARAM_PASSWORD, password);
-            put(PARAM_ISOLATION_LEVEL, isolationLevel);
-            put(PARAM_LOGIN_TIMEOUT, loginTimeout);
-            put(PARAM_READ_ONLY, readOnly);
-          }
-        }));
+  public static Builder configure(String databaseUrl, String driverClassName, String querySql) {
+    return new Builder(databaseUrl, driverClassName, querySql);
   }
 
-  /**
-   * Configure a JdbcGazetterResource using case-insensitive matching with a <b>read-only</b>,
-   * non-isolated DB connection that requires neither username or password.
-   * 
-   * @param connectionUrl the URL to connect to
-   * @param querySql the SQL query returning id, value pairs
-   * @param driverClass the driver's class name to use (see {@link #PARAM_DRIVER_CLASS})
-   * @return a configured descriptor
-   * @throws IOException
-   */
-  public static ExternalResourceDescription configure(String connectionUrl, String querySql,
-      String driverClass) throws IOException {
-    return JdbcGazetteerResource.configure(connectionUrl, querySql, true, false, // false,
-        driverClass, null, null, -1, null, true);
+  /** Create a case-insensitive key. */
+  private static String makeLower(String key) {
+    return String.format("%s%s", LOWERCASE, key.toLowerCase());
+  }
+
+  /** Create a separator-agnostic key. */
+  private static String makeNormal(String key) {
+    return String.format("%s%s", NORMAL, key.replace(SEPARATOR, ""));
+  }
+
+  /** Create a key that is both case-insensitive and separator-agnostic. */
+  private static String makeNormalLower(String key) {
+    return makeNormal(makeLower(key));
   }
 
   @Override
   public void load(DataResource dataResource) throws ResourceInitializationException {
     super.load(dataResource);
-    keyIds = new HashMap<String, Set<String>>();
-    normalIds = new HashMap<String, Set<String>>();
+    mappings = new HashMap<String, Set<String>>();
+    split = Pattern.compile(separatorRegEx(1));
+  }
+
+  /** Create a RegEx from the specified separators, valid up to the defined length. */
+  private String separatorRegEx(int minLen) {
+    return String.format("[%s]{%d,%d}", separators, minLen, separatorLength);
   }
 
   /** Generate the names' regex patterns and the key-to-ID mappings. */
@@ -176,31 +205,23 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       Connection conn = getConnection();
       Statement stmt = conn.createStatement();
       ResultSet result = stmt.executeQuery(querySql);
-      String regexSep = SEPARATOR + "{0,3}"; // limit separators to a max. of three characters
+      String regexSep = separatorRegEx(0);
       while (result.next()) {
-        String dbId = result.getString(1);
         String key = makeKey(result.getString(2));
         if (key == null) continue;
-        if (key.length() == 1 && Character.isLetter(key.charAt(0))) {
-          logger.log(Level.FINE, "ignoring single-letter key ''{0}'' from name ''{1}'' (ID={2})",
-              new Object[] { key, result.getString(2), dbId });
-          continue;
-        }
-        if (!keyIds.containsKey(key)) {
-          String pattern = key.replace("-", regexSep);
+        final String dbId = result.getString(1);
+        if (!mappings.containsKey(key)) {
+          String pattern = key.replace(SEPARATOR, regexSep);
           regexes.add(String.format("\\b%s|%s\\b", pattern, pattern));
-          keyIds.put(key, new HashSet<String>());
         }
+        processMapping(dbId, key);
         if (idMatching) {
-          regexes.add(String.format("\\b%s\\b", Pattern.quote(dbId)));
-          String idKey = makeKey(dbId);
-          if (idKey != null) {
-            if (!keyIds.containsKey(idKey)) keyIds.put(idKey, new HashSet<String>());
-            keyIds.get(idKey).add(dbId);
-          }
+          key = makeKey(dbId);
+          if (key == null) continue;
+          if (!mappings.containsKey(key))
+            regexes.add(String.format("\\b%s\\b", key.replace(SEPARATOR, regexSep)));
+          processMapping(dbId, key);
         }
-        addMappings(key, result.getString(1));
-        if (!exactCaseMatching) addMappings(String.format("~%s", key.toLowerCase()), key);
       }
       conn.close();
     } catch (SQLException e) {
@@ -210,43 +231,51 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       logger.log(Level.SEVERE, "unknown error", e);
       throw new RuntimeException(e);
     }
+    logger.log(Level.INFO, "collected mappings for {0} keys", mappings.size());
     // (2) sort longest patterns first
-    Collections.sort(regexes, StringLengthComparator.INSTANCE); 
+    Collections.sort(regexes, StringLengthComparator.INSTANCE);
     // (3) compile the patterns
     logger.log(Level.INFO, "compiling {0} unique patterns", regexes.size());
     if (exactCaseMatching) patterns = Pattern.compile(StringUtils.join('|', regexes.iterator()));
     else patterns = Pattern.compile(StringUtils.join('|', regexes.iterator()),
         Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
-    logger.log(Level.INFO, "compiled all patterns for {0} keys", keyIds.size());
   }
 
-  /** Add the key-to-ID and normalized-key-to-ID mappings. */
-  private void addMappings(String key, String id) {
-    if (!keyIds.containsKey(key)) keyIds.put(key, new HashSet<String>());
-    keyIds.get(key).add(id);
-    String normal = key.replace("-", "");
-    if (!normalIds.containsKey(normal)) normalIds.put(normal, new HashSet<String>());
-    normalIds.get(normal).add(id);
+  /** Add regular and normal mapping, as well as their case-insensitive versions if requested. */
+  private void processMapping(final String dbId, final String key) {
+    addMapping(key, dbId); // only the regular key maps to the DB ID
+    // all other keys map to the "real" key:
+    addMapping(makeNormal(key), key);
+    if (!exactCaseMatching) {
+      addMapping(makeLower(key), key);
+      addMapping(makeNormalLower(key), key);
+    }
   }
 
-  /** Return the dash-separated key of the entity name. */
+  /** Add a particular key-value mapping. */
+  private void addMapping(String key, String value) {
+    if (!mappings.containsKey(key)) mappings.put(key, new HashSet<String>());
+    mappings.get(key).add(value);
+  }
+
+  /** Return the "separated" (regular) key of an entity name. */
   private String makeKey(String name) {
     StringBuilder regex = new StringBuilder();
-    for (String sub : SPLIT_ON_SEP.split(name)) {
+    for (String sub : split.split(name)) {
       if (sub.length() > 0) {
-        if (regex.length() > 0) regex.append('-');
+        if (regex.length() > 0) regex.append(SEPARATOR);
         regex.append(makeToken(sub));
       }
     }
     String pattern = regex.toString();
     if (pattern.length() == 0) {
-      logger.log(Level.WARNING, "\"" + name + "\" leads to an empty pattern");
+      logger.log(Level.WARNING, "\"" + name + "\" gives rise to an empty pattern");
       return null;
     }
     return pattern;
   }
 
-  /** Return the dash-separated key of an alphanumeric token. */
+  /** Return the Unicode category-separated (regular) sub-key of an entity token. */
   private String makeToken(String token) {
     StringBuilder regex = new StringBuilder();
     int length = token.length();
@@ -258,7 +287,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       charPoint = token.codePointAt(offset);
       if (Character.getType(charPoint) != charType) {
         if (!isCapitalized(token, lastSplit, offset, charType)) {
-          regex.append('-');
+          regex.append(SEPARATOR);
           lastSplit = offset;
         }
         charType = Character.getType(charPoint);
@@ -278,13 +307,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
         .charCount(token.codePointAt(lastSplit)) + lastSplit == offset);
   }
 
-  /**
-   * For an input string, match all content to this gazetteer, returning offset values mapped to
-   * entity keys.
-   * 
-   * @param input to scan for possible mentions of the gazetteer's entities
-   * @return The matched entities as offsets mapped to their corresponding keys.
-   */
+  // GazetteerResource Methods
   public Map<Offset, String> match(String input) {
     Matcher match = patterns.matcher(input);
     Map<Offset, String> result = new HashMap<Offset, String>();
@@ -296,41 +319,72 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
     return result;
   }
 
-  /** Return the Set of known mappings for a key. */
+  public Set<String> resolve(String key) {
+    Set<String> result = new HashSet<String>();
+    if (mappings.containsKey(makeNormal(key))) {
+      for (String target : mappings.get(makeNormal(key)))
+        result.add(target);
+    }
+    if (!exactCaseMatching && mappings.containsKey(makeLower(key))) {
+      for (String target : mappings.get(makeLower(key)))
+        result.add(target);
+    }
+    if (!exactCaseMatching && mappings.containsKey(makeNormalLower(key))) {
+      for (String target : mappings.get(makeNormalLower(key)))
+        result.add(target);
+    }
+    return result;
+  }
+
+  // StringMapResource Methods
+  /** Return the Set of known ID mappings for any key. */
   public Set<String> get(String key) {
-    return keyIds.get(key);
+    return mappings.get(key);
   }
 
-  /** Return the Set of known mappings for a normalized key. */
-  public Set<String> getNormal(String normal) {
-    return normalIds.get(normal);
-  }
-
-  /** Return the number of mapped entities. */
+  /** Return the number of <b>all</b> (normalized, regular, and/or case-insensitive) keys. */
   public int size() {
-    return keyIds.size();
+    return mappings.size();
   }
 
-  /** Iterate over all known keys. */
+  /** Iterate over the <b>regular</b> keys (only). */
   public Iterator<String> iterator() {
-    return keyIds.keySet().iterator();
+    return new Iterator<String>() {
+      private Iterator<String> it = mappings.keySet().iterator();
+      private String cache;
+
+      public boolean hasNext() {
+        if (cache == null) cache = cacheNext();
+        return cache != null;
+      }
+
+      public String next() {
+        if (cache == null) cache = cacheNext();
+        if (cache != null) {
+          String tmp = cache;
+          cache = null;
+          return tmp;
+        } else {
+          throw new NoSuchElementException();
+        }
+      }
+
+      private String cacheNext() {
+        while (it.hasNext()) {
+          String candidate = it.next();
+          if (!candidate.startsWith(LOWERCASE) && !candidate.startsWith(NORMAL)) return candidate;
+        }
+        return null;
+      }
+
+      public void remove() {
+        it.remove();
+      }
+    };
   }
 
-  public String getResourceUrl() {
-    return getUrl();
-  }
-
-  /** Check if a key is known. */
+  /** Check if the (regular, normalized, and/or case-insensitive) key has a mapping. */
   public boolean containsKey(String key) {
-    return keyIds.containsKey(key);
-  }
-
-  /** Check if a normalized key is known. */
-  public boolean containsNormal(String normal) {
-    return normalIds.containsKey(normal);
-  }
-
-  public boolean usesExactCaseMatching() {
-    return exactCaseMatching;
+    return mappings.containsKey(key);
   }
 }

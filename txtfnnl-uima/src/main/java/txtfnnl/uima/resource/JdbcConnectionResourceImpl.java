@@ -10,6 +10,7 @@ import org.apache.uima.UIMAFramework;
 import org.apache.uima.resource.DataResource;
 import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.resource.SharedResourceObject;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
@@ -18,6 +19,7 @@ import org.uimafit.component.initialize.ConfigurationParameterInitializer;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.ExternalResourceFactory;
 
+import txtfnnl.uima.SharedResourceBuilder;
 import txtfnnl.uima.UIMAUtils;
 
 /**
@@ -71,29 +73,92 @@ public class JdbcConnectionResourceImpl implements JdbcConnectionResource, Exter
   @ConfigurationParameter(name = PARAM_READ_ONLY, mandatory = false, defaultValue = "true")
   protected boolean readOnly;
   /**
-   * An (optional) transaction isolation level String (default: no isolation, <i>-1</i>).
+   * An (optional) transaction isolation level (default: no isolation, <i>-1</i>).
    * <p>
-   * May be set to any of the following String values:
+   * May be set to any of the following values:
    * <ul>
-   * <li>" <code>{@link java.sql.Connection#TRANSACTION_NONE TRANSACTION_NONE}</code> "</li>
-   * <li>"
-   * <code>{@link java.sql.Connection#TRANSACTION_READ_COMMITTED TRANSACTION_READ_COMMITTED}</code>
-   * "</li>
-   * <li>"
-   * <code>{@link java.sql.Connection#TRANSACTION_READ_UNCOMMITTED TRANSACTION_READ_UNCOMMITTED}</code>
-   * "</li>
-   * <li>"
-   * <code>{@link java.sql.Connection#TRANSACTION_REPEATABLE_READ TRANSACTION_REPEATABLE_READ}</code>
-   * "</li>
-   * <li>"
-   * <code>{@link java.sql.Connection#TRANSACTION_SERIALIZABLE TRANSACTION_SERIALIZABLE}</code> "</li>
+   * <li>{@link java.sql.Connection#TRANSACTION_NONE TRANSACTION_NONE}</li>
+   * <li>{@link java.sql.Connection#TRANSACTION_READ_COMMITTED TRANSACTION_READ_COMMITTED}</li>
+   * <li>{@link java.sql.Connection#TRANSACTION_READ_UNCOMMITTED TRANSACTION_READ_UNCOMMITTED}</li>
+   * <li>{@link java.sql.Connection#TRANSACTION_REPEATABLE_READ TRANSACTION_REPEATABLE_READ}</li>
+   * <li>{@link java.sql.Connection#TRANSACTION_SERIALIZABLE TRANSACTION_SERIALIZABLE}</li>
    * </ul>
    */
   public static final String PARAM_ISOLATION_LEVEL = "IsolationLevel";
-  @ConfigurationParameter(name = PARAM_ISOLATION_LEVEL, mandatory = false)
-  private String isolationStr;
-  protected int isolationLevel = -1;
+  @ConfigurationParameter(name = PARAM_ISOLATION_LEVEL, mandatory = false, defaultValue = "-1")
+  protected int isolationLevel;
   protected Logger logger = null;
+
+  public static class Builder extends SharedResourceBuilder {
+    protected Builder(Class<? extends SharedResourceObject> klass, String url, String driverClass) {
+      super(klass, url);
+      setRequiredParameter(PARAM_DRIVER_CLASS, driverClass);
+    }
+
+    Builder(String url, String driverClass) {
+      this(JdbcConnectionResourceImpl.class, url, driverClass);
+    }
+
+    /** Define a <code>username</code> to authenticate DB connections. */
+    public Builder setUsername(String username) {
+      setOptionalParameter(PARAM_USERNAME, username);
+      return this;
+    }
+
+    /** Define a <code>password</code> to authenticate DB connections. */
+    public Builder setPassword(String password) {
+      setOptionalParameter(PARAM_PASSWORD, password);
+      return this;
+    }
+
+    /** Define a login <code>timeout</code> in seconds for the DB authentication process. */
+    public Builder setLoginTimeout(int timeout) {
+      if (timeout < 1 && timeout != -1)
+        throw new IllegalArgumentException("illegal timeout value");
+      setOptionalParameter(PARAM_LOGIN_TIMEOUT, timeout);
+      return this;
+    }
+
+    /** Make the DB connections all read-only. */
+    public Builder readOnly() {
+      setOptionalParameter(PARAM_READ_ONLY, Boolean.TRUE);
+      return this;
+    }
+
+    /** Dirty reads, non-repeatable reads, and phantom reads can occur. */
+    public Builder readUncommittedTransactions() {
+      setOptionalParameter(PARAM_ISOLATION_LEVEL, Connection.TRANSACTION_READ_UNCOMMITTED);
+      return this;
+    }
+
+    /** Prevent dirty reads; non-repeatable reads and phantom reads can occur. */
+    public Builder readCommittedTransactions() {
+      setOptionalParameter(PARAM_ISOLATION_LEVEL, Connection.TRANSACTION_READ_COMMITTED);
+      return this;
+    }
+
+    /** Prevent dirty reads and non-repeatable; phantom reads can occur. */
+    public Builder repeatableReadTransactions() {
+      setOptionalParameter(PARAM_ISOLATION_LEVEL, Connection.TRANSACTION_REPEATABLE_READ);
+      return this;
+    }
+
+    /** Prevent dirty reads, non-repeatable and phantom reads. */
+    public Builder serializableTransactions() {
+      setOptionalParameter(PARAM_ISOLATION_LEVEL, Connection.TRANSACTION_SERIALIZABLE);
+      return this;
+    }
+  }
+
+  /**
+   * Configure a resource for transaction-less, read-write JDBC connections.
+   * 
+   * @param databaseUrl a JDBC database URL
+   * @param driverClassName a fully qualified JDBC driver class name
+   */
+  public static Builder configure(String databaseUrl, String driverClassName) {
+    return new Builder(databaseUrl, driverClassName);
+  }
 
   /**
    * Configure a JDBC Connection Resource.
@@ -172,11 +237,10 @@ public class JdbcConnectionResourceImpl implements JdbcConnectionResource, Exter
    * @return a configured descriptor
    * @throws IOException
    */
-  public static ExternalResourceDescription configure(String connectionUrl, String driverClass)
-      throws IOException {
-    return JdbcConnectionResourceImpl.configure(connectionUrl, driverClass, null, null);
-  }
-
+  /*  public static ExternalResourceDescription configure(String connectionUrl, String driverClass)
+        throws IOException {
+      return JdbcConnectionResourceImpl.configure(connectionUrl, driverClass, null, null);
+    }*/
   /** {@inheritDoc} */
   public synchronized Connection getConnection() throws SQLException {
     logger.log(Level.INFO, "connecting to '" + connectionUrl + "'");
@@ -209,16 +273,6 @@ public class JdbcConnectionResourceImpl implements JdbcConnectionResource, Exter
       throw new AssertionError(new ResourceInitializationException(
           ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] { driverClass,
               PARAM_DRIVER_CLASS }, e));
-    }
-    // determine the isolation level
-    if (isolationStr != null) {
-      try {
-        isolationLevel = Connection.class.getField(isolationStr).getInt(null);
-      } catch (final Exception e) {
-        throw new AssertionError(new ResourceInitializationException(
-            ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] { isolationStr,
-                PARAM_ISOLATION_LEVEL }, e));
-      }
     }
     // set the login timeout
     if (loginTimeout > 0) {
