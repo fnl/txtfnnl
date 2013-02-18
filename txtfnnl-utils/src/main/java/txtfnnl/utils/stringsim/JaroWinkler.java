@@ -52,34 +52,36 @@ public class JaroWinkler implements Similarity {
       strB = strA;
       strA = tmp;
     }
-    int lenA = strA.length(), cpcA = strA.codePointCount(0, lenA);
+    int lenA = strA.length();
     // if A has zero characters: similarity = 0
     if (lenA == 0) return 0.0;
-    int lenB = strB.length(), cpcB = strB.codePointCount(0, lenB), idxA, idxB, last;
+    int idxA, idxB, last;
+    int lenB = strB.length();
+    int cpcA = strA.codePointCount(0, lenA);
+    int cpcB = strB.codePointCount(0, lenB);
     // make Unicode-safe and easier to handle the code points
     int[] cpA = StringUtils.toCodePointArray(strA, cpcA);
     boolean[] matchedA = new boolean[cpcA];
     int[] cpB = StringUtils.toCodePointArray(strB, cpcB);
     boolean[] matchedB = new boolean[cpcB];
     int matchWindow = Math.max(0, cpcB / 2 - 1); // half the max length rounded down, minus one
-    int windowSize = matchWindow + 1; //cpcB - cpcA + 1; // add the extra length of B to the window
-    // count the number of characters the two strings have in common
-    int commons = 0;
+    // count m - matching characters
+    int matching = 0;
     for (idxA = 0; idxA < cpcA; ++idxA) {
       // scan for the current character in strB's match window
-      last = Math.min(cpcB, idxA + windowSize);
+      last = Math.min(cpcB, idxA + matchWindow + 1);
       for (idxB = Math.max(0, idxA - matchWindow); idxB < last; ++idxB) {
         if (!matchedB[idxB] && cpA[idxA] == cpB[idxB]) {
-          commons++; // count common character
+          matching++; // count common character
           matchedA[idxA] = true;
           matchedB[idxB] = true;
           break;
         }
       }
     }
-    // no common characters: similarity = 0
-    if (commons == 0) return 0.0;
-    // count the number of transpositions among the common characters
+    // no matching characters: similarity = 0
+    if (matching == 0) return 0.0;
+    // count t - transpositions (among the matching characters)
     int transpositions = 0;
     idxB = 0;
     for (idxA = 0; idxA < cpcA; idxA++) {
@@ -93,15 +95,19 @@ public class JaroWinkler implements Similarity {
     }
     transpositions /= 2;
     // calculate Jaro score
-    double commonsDouble = (double) commons;
+    double commonsDouble = (double) matching;
     double score = commonsDouble / cpcA + commonsDouble / cpcB;
     score += (commonsDouble - (double) transpositions) / commonsDouble;
     score /= 3;
-    if (winkler == 0.0 || prefix == 0) return score;
-    // weight score with Winkler common prefix modification
-    int common = 0; // common prefix size
-    last = Math.min(prefix, cpcA);
-    for (; common < last && cpA[common] == cpB[common]; ++common);
-    return score + winkler * common * (1.0 - score);
+    // return or add Winkler's common prefix boost to score if configured
+    return (winkler == 0.0 || prefix == 0) ? score : prefixBoost(score, Math.min(prefix, cpcA),
+        cpA, cpB);
+  }
+
+  /** Boost <code>score</code> with Winkler's common prefix addition to the base measure. */
+  private double prefixBoost(double score, int last, int[] cpA, int[] cpB) {
+    int commons = 0; // common prefix size
+    for (; commons < last && cpA[commons] == cpB[commons]; ++commons);
+    return score + winkler * commons * (1.0 - score);
   }
 }
