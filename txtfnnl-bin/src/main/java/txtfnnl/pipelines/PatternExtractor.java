@@ -51,7 +51,7 @@ public class PatternExtractor extends Pipeline {
     opts.addOption("f", "filter-sentences", true, "retain sentences using a file of regex matches");
     opts.addOption("F", "filter-remove", false, "filter removes sentences with matches");
     // tokenizer options setup
-    opts.addOption("g", "genia", true,
+    opts.addOption("G", "genia", true,
         "use GENIA (with the dir containing 'morphdic/') instead of OpenNLP");
     // semantic pattern tagger options
     opts.addOption("p", "patterns", true, "match sentences with semantic patterns");
@@ -78,7 +78,7 @@ public class PatternExtractor extends Pipeline {
         : null;
     final boolean removingSentenceFilter = cmd.hasOption('F');
     // (GENIA) tokenizer
-    final String geniaDir = cmd.getOptionValue('g');
+    final String geniaDir = cmd.getOptionValue('G');
     // semantic patterns
     File patterns = null;
     try {

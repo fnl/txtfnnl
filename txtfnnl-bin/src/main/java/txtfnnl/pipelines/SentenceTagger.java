@@ -44,7 +44,7 @@ public class SentenceTagger extends Pipeline {
     opts.addOption("S", "successive-newlines", false, "split sentences on successive newlines");
     opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
     // tokenizer options setup
-    opts.addOption("g", "genia", true,
+    opts.addOption("G", "genia", true,
         "use GENIA (with the dir containing 'morphdic/') instead of OpenNLP");
     try {
       cmd = parser.parse(opts, arguments);
@@ -55,7 +55,7 @@ public class SentenceTagger extends Pipeline {
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl tag [options] <directory|files...>\n");
     // (GENIA) tokenizer
-    final String geniaDir = cmd.getOptionValue('g');
+    final String geniaDir = cmd.getOptionValue('G');
     // sentence splitter
     String splitSentences = null; // S, s
     if (cmd.hasOption('s')) {
