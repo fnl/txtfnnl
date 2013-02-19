@@ -23,7 +23,6 @@ import txtfnnl.uima.cas.Property;
  * @generated
  */
 public class SofaAnnotation extends AnnotationBase {
-  
   /**
    * Return a specialized filter for this annotation type.
    * 
@@ -37,27 +36,18 @@ public class SofaAnnotation extends AnnotationBase {
   protected static FSMatchConstraint makeConstraint(String typeName, JCas jcas,
       String annotatorUri, String namespace, String identifier) {
     final ConstraintFactory cf = jcas.getConstraintFactory();
-    FSMatchConstraint constraint = null;
+    FSMatchConstraint constraint = null, c;
     if (annotatorUri != null) {
       constraint = SofaAnnotation
           .createConstraint(typeName + ":annotator", jcas, annotatorUri, cf);
     }
     if (namespace != null) {
-      if (constraint == null) {
-        constraint = SofaAnnotation.createConstraint(typeName + ":namespace", jcas, namespace, cf);
-      } else {
-        constraint = cf.and(constraint,
-            SofaAnnotation.createConstraint(typeName + ":namespace", jcas, namespace, cf));
-      }
+      c = SofaAnnotation.createConstraint(typeName + ":namespace", jcas, namespace, cf);
+      constraint = (constraint == null) ? c : cf.and(constraint, c);
     }
     if (identifier != null) {
-      if (constraint == null) {
-        constraint = SofaAnnotation.createConstraint(typeName + ":identifier", jcas, identifier,
-            cf);
-      } else {
-        constraint = cf.and(constraint,
-            SofaAnnotation.createConstraint(typeName + ":identifier", jcas, identifier, cf));
-      }
+      c = SofaAnnotation.createConstraint(typeName + ":identifier", jcas, identifier, cf);
+      constraint = (constraint == null) ? c : cf.and(constraint, c);
     }
     return constraint;
   }
@@ -110,6 +100,15 @@ public class SofaAnnotation extends AnnotationBase {
     return SofaAnnotation.makeConstraint(jcas, null, namespace);
   }
 
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder(getClass().getSimpleName());
+    sb.append('{').append(getAnnotator()).append(':');
+    sb.append(getNamespace()).append('/').append(getIdentifier());
+    sb.append('#').append(getConfidence());
+    return sb.toString();
+  }
+  
   /**
    * @generated
    * @ordered

@@ -149,6 +149,18 @@ public class TextAnnotation extends Annotation {
     return jcas.getAnnotationIndex(TextAnnotation.type).iterator();
   }
 
+  public boolean contains(TextAnnotation other) {
+    return getOffset().contains(other.getOffset());
+  }
+
+  public TextAnnotation(JCas jcas, Offset offset) {
+    super(jcas);
+    setBegin(offset.start());
+    setEnd(offset.end());
+    readObject();
+    this.offset = offset;
+  }
+
   private Offset offset = null;
 
   public Offset getOffset() {
@@ -164,18 +176,14 @@ public class TextAnnotation extends Annotation {
     return offset;
   }
 
-  public boolean contains(TextAnnotation other) {
-    return getOffset().contains(other.getOffset());
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder(getClass().getSimpleName());
+    sb.append('{').append(getAnnotator()).append(':');
+    sb.append(getNamespace()).append('/').append(getIdentifier());
+    sb.append('#').append(getConfidence()).append('@').append(getOffset().toString());
+    return sb.toString();
   }
-
-  public TextAnnotation(JCas jcas, Offset offset) {
-    super(jcas);
-    setBegin(offset.start());
-    setEnd(offset.end());
-    readObject();
-    this.offset = offset;
-  }
-
   /* ADDITIONS END */
   /**
    * @generated
