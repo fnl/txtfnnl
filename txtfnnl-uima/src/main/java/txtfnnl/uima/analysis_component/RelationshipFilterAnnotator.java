@@ -12,10 +12,10 @@ import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.cas.FSMatchConstraint;
-import org.apache.uima.cas.SofaFS;
 import org.apache.uima.cas.text.AnnotationIndex;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
+import org.apache.uima.jcas.cas.TOP;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
@@ -45,22 +45,20 @@ public class RelationshipFilterAnnotator extends JCasAnnotator_ImplBase {
   public static final String URI = RelationshipFilterAnnotator.class.getName();
   protected Logger logger;
   /**
-   * Only iterate over {@link RelationshipAnnotation relationships} from a particular
-   * annotator (default: work with any annotator/all sentences).
+   * Only iterate over {@link RelationshipAnnotation relationships} from a particular annotator
+   * (default: work with any annotator/all sentences).
    */
   public static final String PARAM_RELATIONSHIP_ANNOTATOR = "RelationshipAnnotator";
   @ConfigurationParameter(name = PARAM_RELATIONSHIP_ANNOTATOR)
   private String relationshipAnnotator = null;
   /**
-   * Only iterate over {@link RelationshipAnnotation relationships} with a particular
-   * namespace.
+   * Only iterate over {@link RelationshipAnnotation relationships} with a particular namespace.
    */
   public static final String PARAM_RELATIONSHIP_NAMESPACE = "RelationshipNamespace";
   @ConfigurationParameter(name = PARAM_RELATIONSHIP_NAMESPACE)
   private String relationshipNamespace = null;
   /**
-   * Only iterate over {@link RelationshipAnnotation relationships} with a particular
-   * identifier.
+   * Only iterate over {@link RelationshipAnnotation relationships} with a particular identifier.
    */
   public static final String PARAM_RELATIONSHIP_IDENTIFIER = "RelationshipIdentifier";
   @ConfigurationParameter(name = PARAM_RELATIONSHIP_IDENTIFIER)
@@ -87,22 +85,22 @@ public class RelationshipFilterAnnotator extends JCasAnnotator_ImplBase {
   @ConfigurationParameter(name = PARAM_ENTITY_IDENTIFIER)
   private String entityIdentifier = null;
   /**
-   * Check for {@link TextAnnotation annotations} in the {@link TextAnnotation
-   * entities} from a particular annotator.
+   * Check for {@link TextAnnotation annotations} in the {@link TextAnnotation entities} from a
+   * particular annotator.
    */
   public static final String PARAM_TARGET_ANNOTATOR = "TargetAnnotator";
   @ConfigurationParameter(name = PARAM_TARGET_ANNOTATOR)
   private String targetAnnotator = null;
   /**
-   * Check for {@link TextAnnotation annotations} in the {@link TextAnnotation
-   * entities} with a particular namespace.
+   * Check for {@link TextAnnotation annotations} in the {@link TextAnnotation entities} with a
+   * particular namespace.
    */
   public static final String PARAM_TARGET_NAMESPACE = "TargetNamespace";
   @ConfigurationParameter(name = PARAM_TARGET_NAMESPACE)
   private String targetNamespace = null;
   /**
-   * Check for {@link TextAnnotation annotations} in the {@link TextAnnotation
-   * entities} with a particular identifier.
+   * Check for {@link TextAnnotation annotations} in the {@link TextAnnotation entities} with a
+   * particular identifier.
    */
   public static final String PARAM_TARGET_IDENTIFIER = "TargetIdentifier";
   @ConfigurationParameter(name = PARAM_TARGET_IDENTIFIER)
@@ -134,11 +132,10 @@ public class RelationshipFilterAnnotator extends JCasAnnotator_ImplBase {
    * @throws IOException
    */
   @SuppressWarnings("serial")
-  public static AnalysisEngineDescription
-      configure(final String relAnnotator, final String relNs, final String relId,
-          final String entityAnnotator, final String entityNs, final String entityId,
-          final String targetAnnotator, final String targetNs, final String targetId,
-          final boolean removeMapped) throws UIMAException, IOException {
+  public static AnalysisEngineDescription configure(final String relAnnotator, final String relNs,
+      final String relId, final String entityAnnotator, final String entityNs,
+      final String entityId, final String targetAnnotator, final String targetNs,
+      final String targetId, final boolean removeMapped) throws UIMAException, IOException {
     return AnalysisEngineFactory.createPrimitiveDescription(RelationshipFilterAnnotator.class,
         UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
           {
@@ -166,6 +163,10 @@ public class RelationshipFilterAnnotator extends JCasAnnotator_ImplBase {
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
     logger = ctx.getLogger();
+    logger.log(Level.INFO, "initialized for {0}:{1} relationships from {2} "
+        + "with {3}:{4} entities from {5} and {6}:{7} targets from {8}", new String[] {
+        relationshipNamespace, relationshipIdentifier, relationshipAnnotator, entityNamespace,
+        entityIdentifier, entityAnnotator, targetNamespace, targetIdentifier, targetAnnotator });
   }
 
   @Override
@@ -182,19 +183,19 @@ public class RelationshipFilterAnnotator extends JCasAnnotator_ImplBase {
     final AnnotationIndex<Annotation> textIdx = jcas.getAnnotationIndex(TextAnnotation.type);
     final FSMatchConstraint relCons = RelationshipAnnotation.makeConstraint(jcas,
         relationshipAnnotator, relationshipNamespace, relationshipIdentifier);
-    final FSIterator<SofaFS> relIt = jcas.createFilteredIterator(jcas.getSofaIterator(), relCons);
+     FSIterator<TOP> relIt = jcas.createFilteredIterator(jcas.getJFSIndexRepository()
+     .getAllIndexedFS(RelationshipAnnotation.type), relCons);
     int count = 0;
     List<RelationshipAnnotation> removable = new LinkedList<RelationshipAnnotation>();
     while (relIt.hasNext()) {
       count++;
       rel = (RelationshipAnnotation) relIt.next();
-      boolean mapped = isMapped(jcas, rel.getSources(), targetCons, textIdx);
-      if (mapped) mapped = isMapped(jcas, rel.getTargets(), targetCons, textIdx);
+      boolean mapped = isMapped(jcas, rel.getTargets(), targetCons, textIdx);
       if (!mapped && !removeMapped || mapped && removeMapped) removable.add(rel);
     }
     for (RelationshipAnnotation r : removable)
       r.removeFromIndexes();
-    logger.log(Level.FINE, "removed {0}/{0} relationship annotations",
+    logger.log(Level.INFO, "removed {0}/{1} relationship annotations",
         new Object[] { removable.size(), count });
   }
 
@@ -202,11 +203,11 @@ public class RelationshipFilterAnnotator extends JCasAnnotator_ImplBase {
       final AnnotationIndex<Annotation> textIdx) {
     for (int i = 0; i < entities.size(); i++) {
       TextAnnotation ann = (TextAnnotation) entities.get(i);
-      if (entityAnnotator == null || entityAnnotator.equals(ann.getAnnotator()) &&
-          entityNamespace == null || entityNamespace.equals(ann.getNamespace()) &&
-          entityIdentifier == null || entityIdentifier.equals(ann.getIdentifier()) &&
-          !jcas.createFilteredIterator(textIdx.subiterator(ann, true, true), targetCons).hasNext())
-        return false;
+      if (entityAnnotator != null && !entityAnnotator.equals(ann.getAnnotator())) return false;
+      if (entityNamespace != null && !entityNamespace.equals(ann.getNamespace())) return false;
+      if (entityIdentifier != null && !entityIdentifier.equals(ann.getIdentifier())) return false;
+      if (!(jcas.createFilteredIterator(textIdx.subiterator(ann, true, true), targetCons)
+          .hasNext())) return false;
     }
     return true;
   }
