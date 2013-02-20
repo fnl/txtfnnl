@@ -191,10 +191,10 @@ public class TestJdbcGazetteerResource {
 
   @Test
   public void testCaseInsensitiveMatching() throws SQLException, UIMAException, IOException {
-    createTable(new String[] { "AB-AB" });
+    createTable(new String[] { "unmatched", "AB-AB" });
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
         DummyAnalysisEngine.GAZETTEER, builder.create(), DummyAnalysisEngine.TEST_GAZETTEER_SIZE,
-        4, DummyAnalysisEngine.TEST_MATCH_SIZE, 1, DummyAnalysisEngine.TEST_MATCH_VALUE, "abab");
+        8, DummyAnalysisEngine.TEST_MATCH_SIZE, 1, DummyAnalysisEngine.TEST_MATCH_VALUE, "abab");
     ae.process(ae.newJCas());
   }
 

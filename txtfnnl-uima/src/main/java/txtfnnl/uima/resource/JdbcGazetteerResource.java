@@ -7,11 +7,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -102,6 +102,8 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   private Map<String, Set<String>> mappings;
   /** The "meta-pattern" created from all individual names. */
   private RunAutomaton patterns;
+  private Pattern reservedChars = Pattern
+      .compile("([\\@\\&\\~\\^\\#\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\<\\>])");
   /** The pattern used to find token splits. */
   private Pattern split;
 
@@ -203,9 +205,9 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
     // because it cannot throw a ResourceInitializationException
     // therefore, this code throws a RuntimeException to the same effect...
     super.afterResourcesInitialized();
-    Map<Integer, List<String>> regexes = new HashMap<Integer, List<String>>();
+    Map<Integer, Automaton> regexes = new HashMap<Integer, Automaton>();
     String regexSep = separatorRegEx(0);
-    // (1) retrieve the names
+    int numPatterns = 0;
     try {
       Connection conn = getConnection();
       Statement stmt = conn.createStatement();
@@ -214,14 +216,14 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
         String key = makeKey(result.getString(2));
         if (key == null) continue;
         final String dbId = result.getString(1);
-        if (!mappings.containsKey(key)) addPattern(key.length(), escape(key, regexSep), regexes);
+        if (!mappings.containsKey(key))
+          numPatterns += addPattern(key.length(), makePattern(key, regexSep), regexes);
         processMapping(dbId, key);
         if (idMatching) {
           key = makeKey(dbId);
           if (key == null) continue;
-          if (!mappings.containsKey(key)) {
-            addPattern(key.length(), escape(key, regexSep), regexes);
-          }
+          if (!mappings.containsKey(key))
+            numPatterns += addPattern(key.length(), makePattern(key, regexSep), regexes);
           processMapping(dbId, key);
         }
       }
@@ -233,43 +235,15 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       logger.log(Level.SEVERE, "unknown error", e);
       throw new RuntimeException(e);
     }
-    logger.log(Level.INFO, "collected mappings for {0} keys", mappings.size());
-    // (2) sort longest patterns first and count the patterns
-    List<Integer> lengths = new ArrayList<Integer>(regexes.keySet());
-    // Collections.sort(regexes, StringLengthComparator.INSTANCE);
-    Collections.sort(lengths);
-    Collections.reverse(lengths);
-    int numPatterns = 0;
-    for (List<String> p : regexes.values())
-      numPatterns += p.size();
-    // (3) compile the patterns
-    logger.log(Level.INFO, "compiling {0} unique patterns", numPatterns);
-    if (logger.isLoggable(Level.FINE)) {
-      StringBuilder sb = new StringBuilder();
-      for (List<String> patternList : regexes.values())
-        for (String pattern : patternList)
-          sb.append(pattern).append('\n');
-      logger.log(Level.FINE, "patterns:\n{0}", sb.toString().replace(regexSep, "-"));
-    }
-    compilePatterns(regexes, lengths);
-    logger.log(Level.INFO, "setup complete");
+    logger.log(Level.INFO, "defined {0} keys for {1} unique patterns over {2} length groups",
+        new int[] { mappings.size(), numPatterns, regexes.size() });
+    if (logger.isLoggable(Level.FINE)) debugPatterns(regexes.values(), regexSep);
+    patterns = joinPatterns(regexes);
+    logger.log(Level.INFO, "compiled and ready");
   }
 
-  private String escape(String key, String regexSep) {
-    key = key.replace(".", "\\.");
-    key = key.replace("*", "\\*");
-    key = key.replace("+", "\\+");
-    key = key.replace("?", "\\?");
-    key = key.replace("(", "\\(");
-    key = key.replace(")", "\\)");
-    key = key.replace("[", "\\]");
-    key = key.replace("[", "\\]");
-    key = key.replace("{", "\\{");
-    key = key.replace("}", "\\}");
-    key = key.replace("<", "\\<");
-    key = key.replace("<", "\\>");
-    key = key.replace("@", "\\@");
-    key = key.replace(SEPARATOR, regexSep);
+  private Automaton makePattern(String key, String sep) {
+    key = reservedChars.matcher(key).replaceAll("\\$1");
     if (!exactCaseMatching) {
       int[] unicode = StringUtils.toCodePointArray(key);
       StringBuilder caseInsensitive = new StringBuilder();
@@ -285,49 +259,35 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       }
       key = caseInsensitive.toString();
     }
-    return key;
+    key = key.replace(SEPARATOR, sep);
+    return new RegExp(key).toAutomaton();
   }
 
-  private void addPattern(Integer key, String pattern, Map<Integer, List<String>> regexes) {
+  private int addPattern(Integer key, Automaton pattern, Map<Integer, Automaton> regexes) {
     try {
-      regexes.get(key).add(pattern);
+      regexes.put(key, regexes.get(key).union(pattern));
     } catch (NullPointerException e) {
-      regexes.put(key, new LinkedList<String>());
-      regexes.get(key).add(pattern);
+      regexes.put(key, pattern);
     }
+    return 1;
   }
 
-  private void compilePatterns(Map<Integer, List<String>> regexMap, List<Integer> lengths) {
-    int bucketSize = 0;
-    List<String> bucket = new LinkedList<String>();
-    List<Automaton> automata = new LinkedList<Automaton>();
-    for (Integer key : lengths) {
-      List<String> p = regexMap.get(key);
-      bucketSize += p.size();
-      if (bucketSize > 10000 && p.size() > 5000) {
-        automata.add(compilePattern(bucket));
-        automata.add(compilePattern(p));
-        bucket = new LinkedList<String>();
-        bucketSize = 0;
-      } else if (bucketSize > 10000) {
-        automata.add(compilePattern(bucket));
-        bucket = p;
-        bucketSize = bucket.size();
-      } else if (bucketSize > 5000) {
-        bucket.addAll(p);
-        automata.add(compilePattern(bucket));
-        bucket = new LinkedList<String>();
-        bucketSize = 0;
-      } else {
-        bucket.addAll(p);
-      }
-    }
-    if (bucket.size() > 0) automata.add(compilePattern(bucket));
-    patterns = new RunAutomaton(Automaton.concatenate(automata));
+  private void debugPatterns(Collection<Automaton> patternGroups, String regexSep) {
+    StringBuilder sb = new StringBuilder();
+    for (Automaton pattern : patternGroups)
+      sb.append(pattern.toString()).append('\n');
+    logger.log(Level.FINE, "patterns:\n{0}", sb.toString().replace(regexSep, "-"));
   }
 
-  private Automaton compilePattern(List<String> regexes) {
-    return (new RegExp(StringUtils.join('|', regexes.iterator()), RegExp.NONE)).toAutomaton();
+  private RunAutomaton joinPatterns(Map<Integer, Automaton> regexMap) {
+    // (2) sort longest patterns first and count the patterns
+    List<Integer> lengths = new ArrayList<Integer>(regexMap.keySet());
+    Collections.sort(lengths);
+    Collections.reverse(lengths);
+    Automaton regex = new Automaton();
+    for (Integer key : lengths)
+      regex = regex.union(regexMap.get(key));
+    return new RunAutomaton(regex);
   }
 
   /** Add regular and normal mapping, as well as their case-insensitive versions if requested. */
