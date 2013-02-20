@@ -48,7 +48,7 @@ public class Preprocessor extends Pipeline {
     opts.addOption("S", "successive-newlines", false, "split sentences on successive newlines");
     opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
     // tokenizer options setup
-    opts.addOption("g", "genia", true, "use GENIA (giving its model dir) instead of OpenNLP");
+    opts.addOption("G", "genia", true, "use GENIA (giving its model dir) instead of OpenNLP");
     try {
       cmd = parser.parse(opts, arguments);
     } catch (final ParseException e) {
@@ -65,7 +65,7 @@ public class Preprocessor extends Pipeline {
       splitSentences = "successive";
     }
     // (GENIA) tokenizer
-    final String geniaDir = cmd.getOptionValue('g');
+    final String geniaDir = cmd.getOptionValue('G');
     // output (format)
     final String encoding = Pipeline.outputEncoding(cmd);
     File outputDirectory = Pipeline.outputDirectory(cmd);

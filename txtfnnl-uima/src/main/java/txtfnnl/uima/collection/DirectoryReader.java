@@ -22,8 +22,8 @@ import org.uimafit.component.CasCollectionReader_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.CollectionReaderFactory;
 
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
-import txtfnnl.uima.utils.UIMAUtils;
 
 /**
  * A collection reader from a directory containing the input files, possibly traversing any

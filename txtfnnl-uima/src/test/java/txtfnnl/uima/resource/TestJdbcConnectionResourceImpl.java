@@ -86,7 +86,7 @@ public class TestJdbcConnectionResourceImpl {
     final File tmpDb = File.createTempFile("jdbc_resource_", null);
     tmpDb.deleteOnExit();
     url = "jdbc:h2:" + tmpDb.getCanonicalPath();
-    descriptor = JdbcConnectionResourceImpl.configure(url, "org.h2.Driver");
+    descriptor = JdbcConnectionResourceImpl.configure(url, "org.h2.Driver").create();
   }
 
   @Test

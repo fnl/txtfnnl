@@ -32,11 +32,11 @@ import org.uimafit.factory.AnalysisEngineFactory;
 
 import txtfnnl.subprocess.ReadlineRuntime;
 import txtfnnl.subprocess.RuntimeKiller;
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
-import txtfnnl.uima.utils.Offset;
-import txtfnnl.uima.utils.UIMAUtils;
+import txtfnnl.utils.Offset;
 
 /**
  * A wrapper for the link-parser LinkGrammar executable. For this wrapper to work, the

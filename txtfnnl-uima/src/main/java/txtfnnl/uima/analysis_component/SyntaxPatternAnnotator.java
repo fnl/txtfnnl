@@ -36,6 +36,7 @@ import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
 import org.uimafit.factory.AnalysisEngineFactory;
 
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.pattern.SyntaxPattern;
 import txtfnnl.uima.resource.LineBasedStringArrayResource;
@@ -43,7 +44,6 @@ import txtfnnl.uima.tcas.RelationshipAnnotation;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
-import txtfnnl.uima.utils.UIMAUtils;
 import es.fnl.fsm.Matcher;
 import es.fnl.fsm.Pattern;
 
@@ -101,11 +101,11 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
 
   private class MatchContainer {
     final int[] offsets;
-    final List<String[]> nsidPairs;
+    final List<String[]> nsIdPairs;
 
-    MatchContainer(int[] o, List<String[]> nsids) {
+    MatchContainer(int[] o, List<String[]> nsIds) {
       offsets = o;
-      nsidPairs = nsids;
+      nsIdPairs = nsIds;
     }
 
     @Override
@@ -113,12 +113,12 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
       if (other == null || !(other instanceof MatchContainer)) return false;
       MatchContainer o = (MatchContainer) other;
       if (offsets.length != o.offsets.length) return false;
-      if (nsidPairs.size() != o.nsidPairs.size()) return false;
+      if (nsIdPairs.size() != o.nsIdPairs.size()) return false;
       for (int i = offsets.length - 1; i >= 0; i--)
         if (offsets[i] != o.offsets[i]) return false;
-      for (int i = nsidPairs.size() - 1; i >= 0; i--)
-        if (!nsidPairs.get(i)[0].equals(o.nsidPairs.get(i)[0]) ||
-            !nsidPairs.get(i)[1].equals(o.nsidPairs.get(i)[1])) return false;
+      for (int i = nsIdPairs.size() - 1; i >= 0; i--)
+        if (!nsIdPairs.get(i)[0].equals(o.nsIdPairs.get(i)[0]) ||
+            !nsIdPairs.get(i)[1].equals(o.nsIdPairs.get(i)[1])) return false;
       return true;
     }
 
@@ -127,7 +127,7 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
       int code = 17;
       for (int i : offsets)
         code *= 31 + i;
-      for (String[] nsid : nsidPairs)
+      for (String[] nsid : nsIdPairs)
         for (String i : nsid)
           code *= 31 + i.hashCode();
       return code;
@@ -138,7 +138,7 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
       StringBuilder sb = new StringBuilder();
       sb.append(Arrays.toString(offsets));
       sb.append(":{");
-      for (String[] nsid : nsidPairs) {
+      for (String[] nsid : nsIdPairs) {
         sb.append(nsid[0]);
         sb.append(':');
         sb.append(nsid[1]);
@@ -274,7 +274,8 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
       tokens.clear();
       while (tokenIt.hasNext())
         tokens.add((TokenAnnotation) tokenIt.next());
-      if (!matchOnSequence(matchers, tokens, jcas) && removeUnmatched) removeBuffer.add(sentence);
+      if (!matchOnSequence(matchers, sentence, tokens, jcas) && removeUnmatched)
+        removeBuffer.add(sentence);
     }
     if (removeUnmatched) {
       logger.log(Level.FINE, "removing {0}/{1} unmatched sentence annotations", new Object[] {
@@ -284,13 +285,10 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
     }
   }
 
-  /**
-   * Annotate matches of any of the pattern on the token sequence.
-   * 
-   * @throws AnalysisEngineProcessException
-   */
+  /** Annotate matches of any of the pattern on the token sequence. */
   private boolean matchOnSequence(final Map<String, Matcher<TokenAnnotation>> matchers,
-      final List<TokenAnnotation> tokens, JCas jcas) throws AnalysisEngineProcessException {
+      Annotation sentence, final List<TokenAnnotation> tokens, JCas jcas)
+      throws AnalysisEngineProcessException {
     /* Possible Annotations:
      * 1. match entire pattern and annotate it semantically
      * 2. match pattern and annotate capture groups (only) semantically
@@ -306,6 +304,7 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
       int offset = 0; // detect partial overlaps
       int nextOffset = 0;
       while (matcher.find(offset)) {
+        // normal and greedy passes (two = 0 and two = 1, respectively)
         for (int two = 0; two < 2; two++) {
           if (two == 1) {
             matcher.greedy = true;
@@ -313,14 +312,14 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
           } else {
             nextOffset = matcher.end();
           }
-          patternHits.put(expr, patternHits.get(expr) + 1);
           logger.log(Level.FINE, "''{0}'' matched", expr);
           final List<String[]> annList = annotations.get(expr);
           // skip/continue on already made annotations:
           final MatchContainer mc = new MatchContainer(matcher.groups(), annList);
           if (annotated.contains(mc)) continue;
-          else annotated.add(mc);
+          annotated.add(mc);
           matched = true;
+          patternHits.put(expr, patternHits.get(expr) + 1);
           if (annList.size() == 1) { // annotate case 1.
             semanticAnnotationOfEntirePattern(annList, matcher, tokens, jcas, done);
           } else if (annList.get(0).length == 0) { // annotate case 2.
@@ -333,7 +332,8 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
             }
           } else { // annotate case 3.
             try {
-              semanticRelationshipAnnotationOfPattern(annList, matcher, tokens, jcas, done);
+              semanticRelationshipAnnotationOfPattern(sentence, annList, matcher, tokens, jcas,
+                  done);
             } catch (IndexOutOfBoundsException e) {
               logger.log(Level.SEVERE, "more annotations than capture groups in pattern ''{0}''",
                   expr);
@@ -369,14 +369,16 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
     annotateOrGet(annList.get(0), matcher.start(), matcher.end() - 1, jcas, done, tokens);
   }
 
-  private void semanticRelationshipAnnotationOfPattern(final List<String[]> annList,
-      final Matcher<TokenAnnotation> matcher, final List<TokenAnnotation> tokens, JCas jcas,
-      Map<int[], List<SemanticAnnotation>> done) {
+  private void semanticRelationshipAnnotationOfPattern(Annotation sentence,
+      final List<String[]> annList, final Matcher<TokenAnnotation> matcher,
+      final List<TokenAnnotation> tokens, JCas jcas, Map<int[], List<SemanticAnnotation>> done) {
     final RelationshipAnnotation rel = new RelationshipAnnotation(jcas);
     final FSArray groups = new FSArray(jcas, annList.size() - 1);
+    final FSArray sentenceContainer = new FSArray(jcas, 1);
+    sentenceContainer.set(0, sentence);
     rel.setAnnotator(URI);
-    rel.setIdentifier(annList.get(0)[0]);
-    rel.setNamespace(annList.get(0)[1]);
+    rel.setNamespace(annList.get(0)[0]);
+    rel.setIdentifier(annList.get(0)[1]);
     rel.setConfidence(1);
     for (int i = 1; i < annList.size(); i++) {
       if (matcher.start(i) != matcher.end(i)) { // skip/ignore unmatched groups
@@ -387,25 +389,30 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
                     tokens));
       }
     }
-    rel.setSources(groups);
-    rel.setTargets(groups); // undirected rel: sources == targets
+    rel.setSources(sentenceContainer);
+    rel.setTargets(groups);
+    rel.addToIndexes(jcas);
   }
 
   private SemanticAnnotation annotateOrGet(String[] ns_id, int first, int last, JCas jcas,
       Map<int[], List<SemanticAnnotation>> done, final List<TokenAnnotation> tokens) {
     int[] positions = { first, last };
+    SemanticAnnotation annotation = null;
     if (done.containsKey(positions)) {
-      for (SemanticAnnotation ann : done.get(positions)) {
-        if (ann.getNamespace().equals(ns_id[0]) && ann.getIdentifier().equals(ns_id[1]))
-          return ann;
-      }
+      for (SemanticAnnotation ann : done.get(positions))
+        if (ann.getNamespace().equals(ns_id[0]) && ann.getIdentifier().equals(ns_id[1])) {
+          annotation = ann;
+          break;
+        }
     } else {
       done.put(positions, new LinkedList<SemanticAnnotation>());
     }
-    SemanticAnnotation ann = annotate(ns_id, tokens.get(positions[0]).getBegin(),
-        tokens.get(positions[1]).getEnd(), jcas);
-    done.get(positions).add(ann);
-    return ann;
+    if (annotation == null) {
+      annotation = annotate(ns_id, tokens.get(positions[0]).getBegin(), tokens.get(positions[1])
+          .getEnd(), jcas);
+      done.get(positions).add(annotation);
+    }
+    return annotation;
   }
 
   /** {@link SemanticAnnotation Annotate} a particular match with a namespace and ID. */

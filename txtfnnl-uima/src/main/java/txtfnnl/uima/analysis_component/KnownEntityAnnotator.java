@@ -39,14 +39,14 @@ import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
 import org.uimafit.factory.AnalysisEngineFactory;
 
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.resource.Entity;
 import txtfnnl.uima.resource.EntityStringMapResource;
 import txtfnnl.uima.resource.JdbcConnectionResource;
 import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
 import txtfnnl.uima.tcas.SemanticAnnotation;
-import txtfnnl.uima.utils.Offset;
-import txtfnnl.uima.utils.UIMAUtils;
+import txtfnnl.utils.Offset;
 import txtfnnl.utils.StringLengthComparator;
 
 /**

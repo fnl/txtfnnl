@@ -21,8 +21,8 @@ import org.uimafit.component.CasCollectionReader_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.CollectionReaderFactory;
 
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
-import txtfnnl.uima.utils.UIMAUtils;
 
 /**
  * A collection reader for an array of file paths. The MIME type of the input files can be

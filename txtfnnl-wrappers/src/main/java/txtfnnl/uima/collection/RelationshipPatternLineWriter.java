@@ -38,6 +38,7 @@ import org.apache.uima.util.Level;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.AnalysisEngineFactory;
 
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.KnownRelationshipAnnotator;
 import txtfnnl.uima.analysis_component.LinkGrammarAnnotator;
@@ -45,7 +46,6 @@ import txtfnnl.uima.tcas.RelationshipAnnotation;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
-import txtfnnl.uima.utils.UIMAUtils;
 import txtfnnl.utils.SetUtils;
 
 /**

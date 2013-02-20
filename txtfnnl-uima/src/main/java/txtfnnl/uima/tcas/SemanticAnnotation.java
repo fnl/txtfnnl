@@ -8,7 +8,7 @@ import org.apache.uima.jcas.JCasRegistry;
 import org.apache.uima.jcas.cas.TOP_Type;
 import org.apache.uima.jcas.tcas.Annotation;
 
-import txtfnnl.uima.utils.Offset;
+import txtfnnl.utils.Offset;
 
 /**
  * TextAnnotations of semantic elements (PoS, named entities, etc.). Updated by JCasGen Tue Nov 27
@@ -25,7 +25,7 @@ public class SemanticAnnotation extends TextAnnotation {
    * @param annoatorUri to filter on
    * @param namespaceStr to filter on
    * @param identifierStr to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular semantic annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace,
       String identifier) {
@@ -34,23 +34,23 @@ public class SemanticAnnotation extends TextAnnotation {
   }
 
   /**
-   * Return a specialized filter for sentence annotations.
+   * Return a specialized filter for semantic annotations.
    * 
    * @param jcas to create the constraint for
    * @param annoatorUri to filter on
    * @param namespace to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular semantic annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace) {
     return SemanticAnnotation.makeConstraint(jcas, annotatorUri, namespace, null);
   }
 
   /**
-   * Return a specialized filter for sentence annotations.
+   * Return a specialized filter for semantic annotations.
    * 
    * @param jcas to create the constraint for
    * @param annoatorUri to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular semantic annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri) {
     return SemanticAnnotation.makeConstraint(jcas, annotatorUri, null);
@@ -60,7 +60,7 @@ public class SemanticAnnotation extends TextAnnotation {
    * Return an iterator over the index for this annotation type.
    * 
    * @param jcas providing the index
-   * @return
+   * @return an annotation feature structure iterator
    */
   public static FSIterator<Annotation> getIterator(JCas jcas) {
     return jcas.getAnnotationIndex(SemanticAnnotation.type).iterator();

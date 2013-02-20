@@ -81,6 +81,10 @@ public abstract class LineBasedStringMapResource<V> implements StringMapResource
   public V get(String key) {
     return resourceMap.get(key);
   }
+  
+  public boolean containsKey(String key) {
+    return resourceMap.containsKey(key);
+  }
 
   public int size() {
     return resourceMap.size();
@@ -94,7 +98,7 @@ public abstract class LineBasedStringMapResource<V> implements StringMapResource
     return resourceName;
   }
 
-  public String getResourceUrl() {
+  public String getUrl() {
     return resourceUrl;
   }
 

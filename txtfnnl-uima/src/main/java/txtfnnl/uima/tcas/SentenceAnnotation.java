@@ -8,7 +8,7 @@ import org.apache.uima.jcas.JCasRegistry;
 import org.apache.uima.jcas.cas.TOP_Type;
 import org.apache.uima.jcas.tcas.Annotation;
 
-import txtfnnl.uima.utils.Offset;
+import txtfnnl.utils.Offset;
 
 /**
  * An explicit text annoation type for sentences to simplify their index retrieval. Updated by

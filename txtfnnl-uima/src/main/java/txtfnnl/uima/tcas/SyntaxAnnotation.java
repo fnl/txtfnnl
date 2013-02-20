@@ -8,7 +8,7 @@ import org.apache.uima.jcas.JCasRegistry;
 import org.apache.uima.jcas.cas.TOP_Type;
 import org.apache.uima.jcas.tcas.Annotation;
 
-import txtfnnl.uima.utils.Offset;
+import txtfnnl.utils.Offset;
 
 /**
  * TextAnnotations of syntactic elements (text segements such as sentences, tokens, etc.). Updated
@@ -26,7 +26,7 @@ public class SyntaxAnnotation extends TextAnnotation {
    * @param annoatorUri to filter on
    * @param namespaceStr to filter on
    * @param identifierStr to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular syntax annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace,
       String identifier) {
@@ -35,23 +35,23 @@ public class SyntaxAnnotation extends TextAnnotation {
   }
 
   /**
-   * Return a specialized filter for sentence annotations.
+   * Return a specialized filter for syntax annotations.
    * 
    * @param jcas to create the constraint for
    * @param annoatorUri to filter on
    * @param namespace to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular syntax annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace) {
     return SyntaxAnnotation.makeConstraint(jcas, annotatorUri, namespace, null);
   }
 
   /**
-   * Return a specialized filter for sentence annotations.
+   * Return a specialized filter for syntax annotations.
    * 
    * @param jcas to create the constraint for
    * @param namespace to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular syntax annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String namespace) {
     return SyntaxAnnotation.makeConstraint(jcas, null, namespace);
@@ -61,7 +61,7 @@ public class SyntaxAnnotation extends TextAnnotation {
    * Return an iterator over the index for this annotation type.
    * 
    * @param jcas providing the index
-   * @return
+   * @return an annotation feature structure iterator
    */
   public static FSIterator<Annotation> getIterator(JCas jcas) {
     return jcas.getAnnotationIndex(SyntaxAnnotation.type).iterator();

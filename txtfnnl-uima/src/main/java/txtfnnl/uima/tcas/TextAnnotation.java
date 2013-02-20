@@ -17,7 +17,7 @@ import org.apache.uima.jcas.cas.TOP_Type;
 import org.apache.uima.jcas.tcas.Annotation;
 
 import txtfnnl.uima.cas.Property;
-import txtfnnl.uima.utils.Offset;
+import txtfnnl.utils.Offset;
 
 /**
  * Annotations on a specific text span. Updated by JCasGen Tue Nov 27 14:20:54 CET 2012 XML source:
@@ -61,7 +61,7 @@ public class TextAnnotation extends Annotation {
    * @param annoatorUri to filter on
    * @param namespaceStr to filter on
    * @param identifierStr to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular text annotation constraint
    */
   protected static FSMatchConstraint makeConstraint(String typeName, JCas jcas,
       String annotatorUri, String namespace, String identifier) {
@@ -108,7 +108,7 @@ public class TextAnnotation extends Annotation {
    * @param annoatorUri to filter on
    * @param namespaceStr to filter on
    * @param identifierStr to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular text annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace,
       String identifier) {
@@ -117,23 +117,23 @@ public class TextAnnotation extends Annotation {
   }
 
   /**
-   * Return a specialized filter for sentence annotations.
+   * Return a specialized filter for text annotations.
    * 
    * @param jcas to create the constraint for
    * @param annoatorUri to filter on
    * @param namespace to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular text annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace) {
     return TextAnnotation.makeConstraint(jcas, annotatorUri, namespace, null);
   }
 
   /**
-   * Return a specialized filter for sentence annotations.
+   * Return a specialized filter for text annotations.
    * 
    * @param jcas to create the constraint for
    * @param namespace to filter on
-   * @return a particular sentence annotation constraint
+   * @return a particular text annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String namespace) {
     return TextAnnotation.makeConstraint(jcas, null, namespace);
@@ -143,10 +143,22 @@ public class TextAnnotation extends Annotation {
    * Return an iterator over the index for this annotation type.
    * 
    * @param jcas providing the index
-   * @return
+   * @return an annotation feature structure iterator
    */
   public static FSIterator<Annotation> getIterator(JCas jcas) {
     return jcas.getAnnotationIndex(TextAnnotation.type).iterator();
+  }
+
+  public boolean contains(TextAnnotation other) {
+    return getOffset().contains(other.getOffset());
+  }
+
+  public TextAnnotation(JCas jcas, Offset offset) {
+    super(jcas);
+    setBegin(offset.start());
+    setEnd(offset.end());
+    readObject();
+    this.offset = offset;
   }
 
   private Offset offset = null;
@@ -164,18 +176,15 @@ public class TextAnnotation extends Annotation {
     return offset;
   }
 
-  public boolean contains(TextAnnotation other) {
-    return getOffset().contains(other.getOffset());
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder(getClass().getSimpleName()).append('{');
+    sb.append(getAnnotator()).append('$');
+    sb.append(getNamespace()).append(':').append(getIdentifier());
+    sb.append('#').append(getConfidence());
+    sb.append('@').append(getOffset().toString());
+    return sb.append('}').toString();
   }
-
-  public TextAnnotation(JCas jcas, Offset offset) {
-    super(jcas);
-    setBegin(offset.start());
-    setEnd(offset.end());
-    readObject();
-    this.offset = offset;
-  }
-
   /* ADDITIONS END */
   /**
    * @generated

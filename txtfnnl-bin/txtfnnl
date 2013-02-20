@@ -28,6 +28,7 @@ $MAVEN_REPO/commons-lang/commons-lang/2.4/commons-lang-2.4.jar:\
 $MAVEN_REPO/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar:\
 $MAVEN_REPO/de/l3s/boilerpipe/boilerpipe/1.1.0/boilerpipe-1.1.0.jar:\
 $MAVEN_REPO/dom4j/dom4j/1.6.1/dom4j-1.6.1.jar:\
+$MAVEN_REPO/dk/brics/automaton/automaton/1.11-8/automaton-1.11-8.jar:\
 $MAVEN_REPO/edu/ucar/netcdf/4.2-min/netcdf-4.2-min.jar:\
 $MAVEN_REPO/edu/ucdenver/ccp/biolemmatizer-core/1.1/biolemmatizer-core-1.1.jar:\
 $MAVEN_REPO/edu/northwestern/at/morphadorner/2009-04-30/morphadorner-2009-04-30.jar:\
@@ -92,6 +93,7 @@ help () {
     echo "  pre      - pre-process files to XMI (split, tag, stem and chunk)";
     echo "  tag      - extract tagged plaintext (split, tag, stem and chunk)";
     echo "  grep     - extract semantic patterns (or matching sentences)";
+    echo "  rex      - extract normalized relationships (with evidence sentences)";
     echo "  entities - annotate known entity mentions to XMI";
     echo "  patterns - extract patterns with (potential) entity relationships";
     echo;
@@ -107,6 +109,7 @@ if [ $# -gt 0 ]; then
         pre) java -Xmx2G txtfnnl.pipelines.Preprocessor "$@";;
         tag) java -Xmx2G txtfnnl.pipelines.SentenceTagger "$@";;
         grep) java -Xmx2G txtfnnl.pipelines.PatternExtractor "$@";;
+        rex) java -Xmx2G txtfnnl.pipelines.RelationshipExtractor "$@";;
         entities) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
         patterns) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;
         -v) echo txtfnnl-$VERSION;;

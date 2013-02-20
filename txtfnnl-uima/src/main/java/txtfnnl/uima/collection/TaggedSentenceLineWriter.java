@@ -16,10 +16,10 @@ import org.apache.uima.jcas.tcas.Annotation;
 
 import org.uimafit.factory.AnalysisEngineFactory;
 
+import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
-import txtfnnl.uima.utils.UIMAUtils;
 
 /**
  * A CAS consumer that writes all {@link TokenAnnotation tokens} in a special "markup" format,

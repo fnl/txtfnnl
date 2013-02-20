@@ -9,7 +9,7 @@ import org.apache.uima.resource.SharedResourceObject;
  * 
  * @author Florian Leitner
  */
-public interface StringMapResource<V> extends SharedResourceObject {
+public interface StringMapResource<V> extends SharedResourceObject, Iterable<String> {
   /**
    * Return the mapped value V for a given key.
    * 
@@ -18,6 +18,14 @@ public interface StringMapResource<V> extends SharedResourceObject {
    */
   public V get(String key);
 
+  /**
+   * Check if the given key exists.
+   * 
+   * @param key to check
+   * @return <code>true</code> if the key is known to the resource
+   */
+  public boolean containsKey(String key);
+  
   /**
    * Return the number of keys.
    * 
@@ -44,5 +52,5 @@ public interface StringMapResource<V> extends SharedResourceObject {
    * 
    * @return the resource URL string or <code>null</code>
    */
-  public String getResourceUrl();
+  public String getUrl();
 }

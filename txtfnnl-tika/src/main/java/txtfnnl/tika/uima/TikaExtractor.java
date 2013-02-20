@@ -12,7 +12,7 @@ import org.apache.uima.jcas.JCas;
 import org.uimafit.factory.AnalysisEngineFactory;
 
 import txtfnnl.tika.sax.SimpleUIMAContentHandler;
-import txtfnnl.uima.utils.UIMAUtils;
+import txtfnnl.uima.UIMAUtils;
 
 /**
  * This Tika-based AE extracts text content from an input view of the CAS and sets this text
