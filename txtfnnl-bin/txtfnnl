@@ -9,7 +9,7 @@ VERSION=0.3;
 ## configuration ##
 ###################
 
-MAVEN_REPO=${M2_REPO:-~/.m2/repository};
+MAVEN_REPO=${M2_REPO:-/home/fleitner/.m2/repository};
 
 #################
 ## environment ##
