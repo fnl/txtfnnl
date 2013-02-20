@@ -22,6 +22,7 @@ import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.jcas.cas.TOP;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.AnalysisEngineFactory;
@@ -173,12 +174,15 @@ public class RelationshipWriter extends TextWriter {
     while (relIt.hasNext()) {
       RelationshipAnnotation rel = (RelationshipAnnotation) relIt.next();
       SentenceAnnotation sentence = (SentenceAnnotation) rel.getSources(0);
+      logger.log(Level.FINE, "{0} :: ''{1}''",
+          new Object[] { rel, sentence.getCoveredText() });
       Set<SemanticAnnotation> entities = collectEntities(idx, rel.getTargets());
       try {
         if (extractEvidenceSentences) {
+          String evidence = annotateEvidence(sentence, idx, entities);
           write(String.format("<%s:%s c=%s>", rel.getNamespace(), rel.getIdentifier(),
               decimals.format(rel.getConfidence())));
-          write(annotateEvidence(sentence, idx, entities));
+          write(evidence); // separated "evidence" to first write logs, then the evidence
           write(String.format("</%s:%s>", rel.getNamespace(), rel.getIdentifier()));
           write(fieldSeparator);
         } else {
@@ -262,6 +266,7 @@ public class RelationshipWriter extends TextWriter {
     for (int i = entityArray.size() - 1; i >= 0; i--) {
       SemanticAnnotation ann = (SemanticAnnotation) entityArray.get(i);
       if (normalizedEntities) {
+        logger.log(Level.FINE, "collecting normalizations in ''{0}''", ann.getCoveredText());
         FSIterator<Annotation> subIt = idx.subiterator(ann, true, true);
         while (subIt.hasNext()) {
           ann = (SemanticAnnotation) subIt.next();
