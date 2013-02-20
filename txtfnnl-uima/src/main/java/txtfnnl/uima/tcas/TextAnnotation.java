@@ -178,11 +178,12 @@ public class TextAnnotation extends Annotation {
 
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder(getClass().getSimpleName());
-    sb.append('{').append(getAnnotator()).append(':');
-    sb.append(getNamespace()).append('/').append(getIdentifier());
-    sb.append('#').append(getConfidence()).append('@').append(getOffset().toString());
-    return sb.toString();
+    StringBuilder sb = new StringBuilder(getClass().getSimpleName()).append('{');
+    sb.append(getAnnotator()).append('$');
+    sb.append(getNamespace()).append(':').append(getIdentifier());
+    sb.append('#').append(getConfidence());
+    sb.append('@').append(getOffset().toString());
+    return sb.append('}').toString();
   }
   /* ADDITIONS END */
   /**

@@ -102,11 +102,11 @@ public class SofaAnnotation extends AnnotationBase {
 
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder(getClass().getSimpleName());
-    sb.append('{').append(getAnnotator()).append(':');
-    sb.append(getNamespace()).append('/').append(getIdentifier());
+    StringBuilder sb = new StringBuilder(getClass().getSimpleName()).append('{');
+    sb.append(getAnnotator()).append('$');
+    sb.append(getNamespace()).append(':').append(getIdentifier());
     sb.append('#').append(getConfidence());
-    return sb.toString();
+    return sb.append('}').toString();
   }
   
   /**
