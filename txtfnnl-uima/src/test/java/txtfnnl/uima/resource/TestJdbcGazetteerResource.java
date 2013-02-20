@@ -172,7 +172,7 @@ public class TestJdbcGazetteerResource {
   }
 
   @Test
-  public void testWithIdMatching() throws SQLException, UIMAException, IOException {
+  public void testIdMatchingSetup() throws SQLException, UIMAException, IOException {
     createTable(new String[] { "NAME" });
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
         DummyAnalysisEngine.GAZETTEER, builder.idMatching().create(),
@@ -181,11 +181,20 @@ public class TestJdbcGazetteerResource {
   }
 
   @Test
-  public void testCaseMatching() throws SQLException, UIMAException, IOException {
+  public void testCaseMatchingSetup() throws SQLException, UIMAException, IOException {
     createTable(new String[] { "NAME" });
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
         DummyAnalysisEngine.GAZETTEER, builder.caseMatching().create(),
         DummyAnalysisEngine.TEST_GAZETTEER_SIZE, 2);
+    ae.process(ae.newJCas());
+  }
+
+  @Test
+  public void testCaseInsensitiveMatching() throws SQLException, UIMAException, IOException {
+    createTable(new String[] { "AB-AB" });
+    final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
+        DummyAnalysisEngine.GAZETTEER, builder.create(), DummyAnalysisEngine.TEST_GAZETTEER_SIZE,
+        4, DummyAnalysisEngine.TEST_MATCH_SIZE, 1, DummyAnalysisEngine.TEST_MATCH_VALUE, "abab");
     ae.process(ae.newJCas());
   }
 
