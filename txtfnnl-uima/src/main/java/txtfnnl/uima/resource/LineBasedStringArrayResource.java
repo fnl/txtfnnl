@@ -72,7 +72,12 @@ public class LineBasedStringArrayResource implements StringArrayResource, Extern
     InputStream inStr = null;
     try {
       // open input stream to data
-      inStr = data.getInputStream();
+      try {
+        inStr = data.getInputStream();
+      } catch (NullPointerException e) {
+        throw new ResourceInitializationException(
+            ResourceInitializationException.COULD_NOT_ACCESS_DATA, new Object[] { data });
+      }
       // read each line
       final BufferedReader reader = new BufferedReader(new InputStreamReader(inStr));
       String line;
