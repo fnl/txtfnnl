@@ -63,31 +63,32 @@ public class TestJdbcGazetteerResource {
     @Override
     public void process(JCas aJCas) throws AnalysisEngineProcessException {
       StringBuilder buff = new StringBuilder("'");
+      String sep = Character.toString(JdbcGazetteerResource.SEPARATOR);
       for (String k : gazetteerResource)
-        buff.append(k.replace(JdbcGazetteerResource.SEPARATOR, "-")).append("', '");
+        buff.append(k.replace(sep, "-")).append("', '");
       if (buff.length() > 3) buff.replace(buff.length() - 3, buff.length(), "");
       assertEquals(buff.toString(), gazetteerSize, gazetteerResource.size());
       if (key != null)
         assertNotNull(
-            "'" + key.replace(JdbcGazetteerResource.SEPARATOR, "-") + "' not in " +
+            "'" + key.replace(sep, "-") + "' not in " +
                 buff.toString(), gazetteerResource.get(key));
       String msg = (unknownKey != null && gazetteerResource.get(unknownKey) != null) ? Arrays
           .toString(gazetteerResource.get(unknownKey).toArray()) : "null";
       if (unknownKey != null)
-        assertNull(msg.replace(JdbcGazetteerResource.SEPARATOR, "-"),
+        assertNull(msg.replace(sep, "-"),
             gazetteerResource.get(unknownKey));
       Map<Offset, String> result = gazetteerResource.match("bla Abc Abc bla 1 bla abab bla");
       assertEquals(matchSize, result.size());
       if (matchValue != null) {
         msg = (result.size() > 0) ? Arrays.toString(result.values().toArray()) : "null";
-        assertTrue(msg.replace(JdbcGazetteerResource.SEPARATOR, "-"),
+        assertTrue(msg.replace(sep, "-"),
             result.containsValue(matchValue));
         if (resolutionSize > 0 && !gazetteerResource.containsKey(matchValue)) {
           Set<String> resolvedKeys = gazetteerResource.resolve(matchValue);
           msg = matchValue +
               ": " +
               (resolvedKeys.size() > 0 ? Arrays.toString(resolvedKeys.toArray()).replace(
-                  JdbcGazetteerResource.SEPARATOR, "-") : "null");
+                  sep, "-") : "null");
           assertEquals(msg, resolutionSize, resolvedKeys.size());
           for (String k : resolvedKeys)
             assertTrue(k, gazetteerResource.containsKey(k));
@@ -212,8 +213,8 @@ public class TestJdbcGazetteerResource {
     createTable(new String[] { "abAb", " ab-ab " });
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
         DummyAnalysisEngine.GAZETTEER, builder.create(), DummyAnalysisEngine.TEST_GAZETTEER_SIZE,
-        6, DummyAnalysisEngine.TEST_KEY, JdbcGazetteerResource.NORMAL +
-            JdbcGazetteerResource.LOWERCASE + "abab", DummyAnalysisEngine.TEST_MATCH_VALUE,
+        6, DummyAnalysisEngine.TEST_KEY, Character.toString(JdbcGazetteerResource.NORMAL) +
+            Character.toString(JdbcGazetteerResource.LOWERCASE) + "abab", DummyAnalysisEngine.TEST_MATCH_VALUE,
         "abab", DummyAnalysisEngine.TEST_UNKNOWN_KEY, "abab", DummyAnalysisEngine.TEST_MATCH_SIZE,
         1, DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 2);
     ae.process(ae.newJCas());
@@ -227,7 +228,7 @@ public class TestJdbcGazetteerResource {
         DummyAnalysisEngine.GAZETTEER, builder.caseMatching().create(),
         DummyAnalysisEngine.TEST_GAZETTEER_SIZE, 2, DummyAnalysisEngine.TEST_MATCH_SIZE, 1,
         DummyAnalysisEngine.TEST_MATCH_VALUE, "abab", DummyAnalysisEngine.TEST_KEY, "ab" +
-            JdbcGazetteerResource.SEPARATOR + "ab", DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 1);
+            Character.toString(JdbcGazetteerResource.SEPARATOR) + "ab", DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 1);
     ae.process(ae.newJCas());
   }
 }

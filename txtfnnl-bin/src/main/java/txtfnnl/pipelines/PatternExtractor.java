@@ -14,7 +14,7 @@ import org.apache.uima.UIMAException;
 import txtfnnl.uima.analysis_component.BioLemmatizerAnnotator;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
 import txtfnnl.uima.analysis_component.NOOPAnnotator;
-import txtfnnl.uima.analysis_component.SentenceFilterAnnotator;
+import txtfnnl.uima.analysis_component.SentenceFilter;
 import txtfnnl.uima.analysis_component.SyntaxPatternAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
@@ -101,7 +101,7 @@ public class PatternExtractor extends Pipeline {
       grep.set(1, SentenceAnnotator.configure(splitSentences));
       if (sentenceFilterPatterns == null) grep.set(2, NOOPAnnotator.configure());
       else grep.set(2,
-          SentenceFilterAnnotator.configure(sentenceFilterPatterns, removingSentenceFilter));
+          SentenceFilter.configure(sentenceFilterPatterns, removingSentenceFilter));
       if (geniaDir == null) {
         grep.set(3, TokenAnnotator.configure());
         grep.set(4, BioLemmatizerAnnotator.configure());

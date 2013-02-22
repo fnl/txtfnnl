@@ -174,19 +174,18 @@ public class RelationshipWriter extends TextWriter {
     while (relIt.hasNext()) {
       RelationshipAnnotation rel = (RelationshipAnnotation) relIt.next();
       SentenceAnnotation sentence = (SentenceAnnotation) rel.getSources(0);
-      logger.log(Level.FINE, "{0} :: ''{1}''",
-          new Object[] { rel, sentence.getCoveredText() });
+      logger.log(Level.FINE, "{0} :: ''{1}''", new Object[] { rel, sentence.getCoveredText() });
       Set<SemanticAnnotation> entities = collectEntities(idx, rel.getTargets());
       try {
         if (extractEvidenceSentences) {
           String evidence = annotateEvidence(sentence, idx, entities);
-          write(String.format("<%s:%s c=%s>", rel.getNamespace(), rel.getIdentifier(),
+          write(String.format("<%s:_%s c=\"%s\">", rel.getNamespace(), rel.getIdentifier(),
               decimals.format(rel.getConfidence())));
           write(evidence); // separated "evidence" to first write logs, then the evidence
-          write(String.format("</%s:%s>", rel.getNamespace(), rel.getIdentifier()));
+          write(String.format("</%s:_%s>", rel.getNamespace(), rel.getIdentifier()));
           write(fieldSeparator);
         } else {
-          write(String.format("%s:%s#%s", rel.getNamespace(), rel.getIdentifier(),
+          write(String.format("%s:_%s#%s", rel.getNamespace(), rel.getIdentifier(),
               decimals.format(rel.getConfidence())));
           writeEntities(entities);
         }
@@ -200,6 +199,7 @@ public class RelationshipWriter extends TextWriter {
     } catch (final IOException e) {
       throw new AnalysisEngineProcessException(e);
     }
+    logger.log(Level.INFO, "dumped results for {0}", cas.getSofaDataURI());
   }
 
   private String annotateEvidence(SentenceAnnotation sentence, AnnotationIndex<Annotation> idx,
@@ -226,10 +226,11 @@ public class RelationshipWriter extends TextWriter {
     Integer end = ann.getEnd();
     if (ann.getBegin() > offset)
       offset = expandResult(result, s, offset, base, ann.getBegin(), closeTags);
-    result.append(String.format("<%s:%s c=%s>", ann.getNamespace(), ann.getIdentifier(),
+    result.append(String.format("<%s:_%s c=\"%s\">", ann.getNamespace(), ann.getIdentifier(),
         decimals.format(ann.getConfidence())));
     if (!closeTags.containsKey(end)) closeTags.put(end, new StringBuilder());
-    closeTags.get(end).append(String.format("</%s:%s>", ann.getNamespace(), ann.getIdentifier()));
+    closeTags.get(end).insert(0,
+        String.format("</%s:_%s>", ann.getNamespace(), ann.getIdentifier()));
     return offset;
   }
 
@@ -268,11 +269,13 @@ public class RelationshipWriter extends TextWriter {
       if (normalizedEntities) {
         logger.log(Level.FINE, "collecting normalizations in ''{0}''", ann.getCoveredText());
         FSIterator<Annotation> subIt = idx.subiterator(ann, true, true);
+        String ns = (ann.getNamespace() == null) ? "" : ann.getNamespace();
         while (subIt.hasNext()) {
-          ann = (SemanticAnnotation) subIt.next();
+          SemanticAnnotation inner = (SemanticAnnotation) subIt.next();
+          if (ns.equals(inner.getNamespace())) continue;
           // TODO: configure constraints for these inner semantic annotations
           // if (namespacePattern.matcher(ann.getNamespace()).matches()) entities.add(ann);
-          entities.add(ann);
+          entities.add(inner);
         }
       } else {
         entities.add(ann);

@@ -7,8 +7,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -26,6 +24,7 @@ import org.uimafit.descriptor.ConfigurationParameter;
 
 import dk.brics.automaton.Automaton;
 import dk.brics.automaton.AutomatonMatcher;
+import dk.brics.automaton.BasicOperations;
 import dk.brics.automaton.RegExp;
 import dk.brics.automaton.RunAutomaton;
 
@@ -68,16 +67,22 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   public static final String PARAM_QUERY_SQL = "QuerySQL";
   @ConfigurationParameter(name = PARAM_QUERY_SQL, mandatory = true)
   private String querySql;
+  /** Variants of the whitespace " " character (excl. the whitespace itself). */
+  public static final Pattern SPACES = Pattern
+      .compile("\u00A0|\u2000|\u2001|\u2002|\u2003|\u2004|\u2005|\u2006|\u2007|\u2008|\u2009|\u200A|\u200B|\u202F|\u205F|\u3000|\uFEFF");
+  /** Variants of the dash "-" character (excl. the dash itself). */
+  public static final Pattern DASHES = Pattern
+      .compile("\u1680|\u2010|\u2011|\u2012|\u2013|\u2014|\u2015|\u2212|\uFE58|\uFE63|\uFF0D");
+  /** Default separators: space, dash, slash, dot, comma and the underscore. */
+  public static final String SEPARATORS = " _-.,/";
+  /** A Pattern to detect the {@link GazetterResource#SEPARATOR separator} character. */
+  private static final Pattern SEPARATOR_PATTERN = Pattern.compile("(" + SEPARATOR + ")");
   /**
    * Normalized separator characters between tokens (default: the underscore and all Unicode spaces
    * and dashes).
    */
   public static final String PARAM_SEPARATORS = "Separators";
-  /** Default separators: spaces, dashes, and the underscore. */
-  public static final String DEFAULT_SEPARATORS = " \u00A0\u2000-\u200B\u202F\u205F\u3000\uFEFF_\\-\u1680\u2010-\u2015\u2212\uFE58\uFE63\uFF0D";
-  @ConfigurationParameter(name = PARAM_SEPARATORS,
-      mandatory = false,
-      defaultValue = DEFAULT_SEPARATORS)
+  @ConfigurationParameter(name = PARAM_SEPARATORS, mandatory = false, defaultValue = SEPARATORS)
   private String separators;
   /**
    * The max. length of matchable consecutive separator characters (default: 3).
@@ -96,14 +101,14 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   @ConfigurationParameter(name = PARAM_CASE_MATCHING, mandatory = false, defaultValue = "false")
   private boolean exactCaseMatching;
   // additional private range Unicode characters to identify special key properties:
-  static final String LOWERCASE = "\uE3A8";
-  static final String NORMAL = "\uE3A9";
+  static final char LOWERCASE = '\uE3A8';
+  static final char NORMAL = '\uE3A9';
+  static final Pattern RESERVED_CHARS = Pattern
+      .compile("([\\@\\&\\~\\^\\#\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\<\\>])");
   /** Mappings of regular keys to ID sets and of normalized keys to regular key sets. */
   private Map<String, Set<String>> mappings;
   /** The "meta-pattern" created from all individual names. */
   private RunAutomaton patterns;
-  private Pattern reservedChars = Pattern
-      .compile("([\\@\\&\\~\\^\\#\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\<\\>])");
   /** The pattern used to find token splits. */
   private Pattern split;
 
@@ -173,17 +178,23 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
 
   /** Create a case-insensitive key. */
   private static String makeLower(String key) {
-    return String.format("%s%s", LOWERCASE, key.toLowerCase());
+    return String.format("%c%s", LOWERCASE, key.toLowerCase());
   }
 
   /** Create a separator-agnostic key. */
   private static String makeNormal(String key) {
-    return String.format("%s%s", NORMAL, key.replace(SEPARATOR, ""));
+    return String.format("%c%s", NORMAL, key.replace(Character.toString(SEPARATOR), ""));
   }
 
   /** Create a key that is both case-insensitive and separator-agnostic. */
   private static String makeNormalLower(String key) {
     return makeNormal(makeLower(key));
+  }
+
+  /** Replace space and dash characters with their normalized ASCII version. */
+  private static String normalize(String input) {
+    String tmp = SPACES.matcher(input).replaceAll(" ");
+    return DASHES.matcher(tmp).replaceAll("-");
   }
 
   @Override
@@ -195,36 +206,41 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
 
   /** Create a RegEx from the specified separators, valid up to the defined length. */
   private String separatorRegEx(int minLen) {
-    return String.format("[%s]{%d,%d}", separators, minLen, separatorLength);
+    return String.format("[%s]{%d,%d}", escapeAll(separators), minLen, separatorLength);
   }
 
-  /** Generate the names' regex patterns and the key-to-ID mappings. */
+  /** Escape each character in the String with a backslash. */
+  private String escapeAll(String str) {
+    StringBuilder sb = new StringBuilder();
+    for (char c : str.toCharArray())
+      sb.append('\\').append(c);
+    return sb.toString();
+  }
+
+  /** Generate the keys, the trie and the key-to-ID mappings. */
   @Override
   public void afterResourcesInitialized() {
     // note: "afterResourcesInitialized()" is a sort-of broken uimaFIT API,
     // because it cannot throw a ResourceInitializationException
     // therefore, this code throws a RuntimeException to the same effect...
     super.afterResourcesInitialized();
-    Map<Integer, Automaton> regexes = new HashMap<Integer, Automaton>();
-    String regexSep = separatorRegEx(0);
-    int numPatterns = 0;
+    List<Automaton> automata = new ArrayList<Automaton>(128);
     try {
       Connection conn = getConnection();
       Statement stmt = conn.createStatement();
       ResultSet result = stmt.executeQuery(querySql);
       while (result.next()) {
-        String key = makeKey(result.getString(2));
+        String name = result.getString(2);
+        String key = makeKey(name);
         if (key == null) continue;
         final String dbId = result.getString(1);
-        if (!mappings.containsKey(key))
-          numPatterns += addPattern(key.length(), makePattern(key, regexSep), regexes);
-        processMapping(dbId, key);
+        if (!hasAutomataFor(key)) automata.add(makeAutomaton(key));
+        processMapping(dbId, key); // key-to-ID mapping
         if (idMatching) {
           key = makeKey(dbId);
           if (key == null) continue;
-          if (!mappings.containsKey(key))
-            numPatterns += addPattern(key.length(), makePattern(key, regexSep), regexes);
-          processMapping(dbId, key);
+          if (!hasAutomataFor(key)) automata.add(makeAutomaton(key));
+          processMapping(dbId, key); // key-to-ID mapping
         }
       }
       conn.close();
@@ -235,15 +251,29 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       logger.log(Level.SEVERE, "unknown error", e);
       throw new RuntimeException(e);
     }
-    logger.log(Level.INFO, "defined {0} keys for {1} unique patterns over {2} length groups",
-        new int[] { mappings.size(), numPatterns, regexes.size() });
-    if (logger.isLoggable(Level.FINE)) debugPatterns(regexes.values(), regexSep);
-    patterns = joinPatterns(regexes);
-    logger.log(Level.INFO, "compiled and ready");
+    logger.log(Level.INFO, "defined {0} keys for {1} unique patterns",
+        new Object[] { mappings.size(), automata.size() });
+    Map<Character, Set<Character>> map = new HashMap<Character, Set<Character>>();
+    Set<Character> cset = new HashSet<Character>();
+    for (char c : separators.toCharArray())
+      cset.add(c);
+    map.put(SEPARATOR, cset);
+    Automaton trie = BasicOperations.union(automata);
+    //trie.minimize(); // does not help to reduce RAM usage :(
+    trie = trie.subst(map);
+    patterns = new RunAutomaton(trie);
+    logger.log(Level.INFO, "compiled trie for all names");
   }
 
-  private Automaton makePattern(String key, String sep) {
-    key = reservedChars.matcher(key).replaceAll("\\$1");
+  /** Return <code>true</code> if the Gazetteer already has a patter to match that key. */
+  private boolean hasAutomataFor(String key) {
+    if (exactCaseMatching) return mappings.containsKey(key);
+    else return mappings.containsKey(makeLower(key));
+  }
+
+  /** Create a pattern and Automaton for a given key. */
+  private Automaton makeAutomaton(String key) {
+    String pattern = RESERVED_CHARS.matcher(key).replaceAll("\\\\$1");
     if (!exactCaseMatching) {
       int[] unicode = StringUtils.toCodePointArray(key);
       StringBuilder caseInsensitive = new StringBuilder();
@@ -257,60 +287,17 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
           caseInsensitive.append(Character.toChars(cp));
         }
       }
-      key = caseInsensitive.toString();
+      pattern = caseInsensitive.toString();
     }
-    key = key.replace(SEPARATOR, sep);
-    return new RegExp(key).toAutomaton();
-  }
-
-  private int addPattern(Integer key, Automaton pattern, Map<Integer, Automaton> regexes) {
-    try {
-      regexes.put(key, regexes.get(key).union(pattern));
-    } catch (NullPointerException e) {
-      regexes.put(key, pattern);
-    }
-    return 1;
-  }
-
-  private void debugPatterns(Collection<Automaton> patternGroups, String regexSep) {
-    StringBuilder sb = new StringBuilder();
-    for (Automaton pattern : patternGroups)
-      sb.append(pattern.toString()).append('\n');
-    logger.log(Level.FINE, "patterns:\n{0}", sb.toString().replace(regexSep, "-"));
-  }
-
-  private RunAutomaton joinPatterns(Map<Integer, Automaton> regexMap) {
-    // (2) sort longest patterns first and count the patterns
-    List<Integer> lengths = new ArrayList<Integer>(regexMap.keySet());
-    Collections.sort(lengths);
-    Collections.reverse(lengths);
-    Automaton regex = new Automaton();
-    for (Integer key : lengths)
-      regex = regex.union(regexMap.get(key));
-    return new RunAutomaton(regex);
-  }
-
-  /** Add regular and normal mapping, as well as their case-insensitive versions if requested. */
-  private void processMapping(final String dbId, final String key) {
-    addMapping(key, dbId); // only the regular key maps to the DB ID
-    // all other keys map to the "real" key:
-    addMapping(makeNormal(key), key);
-    if (!exactCaseMatching) {
-      addMapping(makeLower(key), key);
-      addMapping(makeNormalLower(key), key);
-    }
-  }
-
-  /** Add a particular key-value mapping. */
-  private void addMapping(String key, String value) {
-    if (!mappings.containsKey(key)) mappings.put(key, new HashSet<String>());
-    mappings.get(key).add(value);
+    pattern = SEPARATOR_PATTERN.matcher(pattern).replaceAll("$1{0,3}");
+    logger.log(Level.FINE, "{0} -> {1}", new String[] { key, pattern });
+    return (new RegExp(pattern)).toAutomaton();
   }
 
   /** Return the "separated" (regular) key of an entity name. */
   private String makeKey(String name) {
     StringBuilder regex = new StringBuilder();
-    for (String sub : split.split(name)) {
+    for (String sub : split.split(normalize(name))) {
       if (sub.length() > 0) {
         if (regex.length() > 0) regex.append(SEPARATOR);
         regex.append(makeToken(sub));
@@ -321,7 +308,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       logger.log(Level.WARNING, "\"" + name + "\" gives rise to an empty pattern");
       return null;
     }
-    return pattern;
+    return normalize(pattern);
   }
 
   /** Return the Unicode category-separated (regular) sub-key of an entity token. */
@@ -356,17 +343,29 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
         .charCount(token.codePointAt(lastSplit)) + lastSplit == offset);
   }
 
+  /** Add regular and normal mapping, as well as their case-insensitive versions if requested. */
+  private void processMapping(final String dbId, final String key) {
+    addMapping(key, dbId); // only the regular key maps to the DB ID
+    // all other keys map to the "real" key:
+    addMapping(makeNormal(key), key);
+    if (!exactCaseMatching) {
+      addMapping(makeLower(key), key);
+      addMapping(makeNormalLower(key), key);
+    }
+  }
+
+  /** Add a particular key-value mapping. */
+  private void addMapping(String key, String target) {
+    if (!mappings.containsKey(key)) mappings.put(key, new HashSet<String>());
+    mappings.get(key).add(target);
+  }
+
   // GazetteerResource Methods
   public Map<Offset, String> match(String input) {
     Map<Offset, String> result = new HashMap<Offset, String>();
-    int length = input.length(), offset = 0;
-    AutomatonMatcher match = patterns.newMatcher(input, offset, length);
-    while (match.find()) {
-      Offset target = new Offset(match.start(), match.end());
-      result.put(target, makeKey(match.group()));
-      offset = match.start() + Character.charCount(input.codePointAt(match.start()));
-      match = patterns.newMatcher(input, offset, length);
-    }
+    AutomatonMatcher match = patterns.newMatcher(input);
+    while (match.find())
+      result.put(new Offset(match.start(), match.end()), makeKey(match.group()));
     return result;
   }
 
@@ -423,7 +422,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       private String cacheNext() {
         while (it.hasNext()) {
           String candidate = it.next();
-          if (!candidate.startsWith(LOWERCASE) && !candidate.startsWith(NORMAL)) return candidate;
+          if (candidate.charAt(0) != LOWERCASE && candidate.charAt(0) != NORMAL) return candidate;
         }
         return null;
       }

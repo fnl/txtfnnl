@@ -99,56 +99,6 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
       defaultValue = "http://nlp2rdf.lod2.eu/schema/doc/sso/")
   private String defaultNamespace;
 
-  private class MatchContainer {
-    final int[] offsets;
-    final List<String[]> nsIdPairs;
-
-    MatchContainer(int[] o, List<String[]> nsIds) {
-      offsets = o;
-      nsIdPairs = nsIds;
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      if (other == null || !(other instanceof MatchContainer)) return false;
-      MatchContainer o = (MatchContainer) other;
-      if (offsets.length != o.offsets.length) return false;
-      if (nsIdPairs.size() != o.nsIdPairs.size()) return false;
-      for (int i = offsets.length - 1; i >= 0; i--)
-        if (offsets[i] != o.offsets[i]) return false;
-      for (int i = nsIdPairs.size() - 1; i >= 0; i--)
-        if (!nsIdPairs.get(i)[0].equals(o.nsIdPairs.get(i)[0]) ||
-            !nsIdPairs.get(i)[1].equals(o.nsIdPairs.get(i)[1])) return false;
-      return true;
-    }
-
-    @Override
-    public int hashCode() {
-      int code = 17;
-      for (int i : offsets)
-        code *= 31 + i;
-      for (String[] nsid : nsIdPairs)
-        for (String i : nsid)
-          code *= 31 + i.hashCode();
-      return code;
-    }
-
-    @Override
-    public String toString() {
-      StringBuilder sb = new StringBuilder();
-      sb.append(Arrays.toString(offsets));
-      sb.append(":{");
-      for (String[] nsid : nsIdPairs) {
-        sb.append(nsid[0]);
-        sb.append(':');
-        sb.append(nsid[1]);
-        sb.append(',');
-      }
-      sb.setCharAt(sb.length() - 1, '}');
-      return sb.toString();
-    }
-  }
-
   /**
    * Configure a new descriptor with a pattern file resource.
    * 
@@ -186,6 +136,64 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
   public static AnalysisEngineDescription configure(File patterns) throws UIMAException,
       IOException {
     return SyntaxPatternAnnotator.configure(patterns, null, false, null, null);
+  }
+
+  private class MatchContainer {
+    final int[] offsets;
+    final String[][] nsIdPairs;
+
+    MatchContainer(int[] o, List<String[]> nsIds) {
+      offsets = new int[o.length];
+      for (int i = 0; i < o.length; ++i)
+        offsets[i] = o[i];
+      nsIdPairs = new String[nsIds.size()][];
+      for (int i = 0; i < nsIdPairs.length; i++) {
+        nsIdPairs[i] = new String[2];
+        for (int j = 0; j < 2; j++)
+          if (nsIds.get(i)[j] == null) nsIdPairs[i][j] = "";
+          else nsIdPairs[i][j] = nsIds.get(i)[j];
+      }
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other == null || !(other instanceof MatchContainer)) return false;
+      MatchContainer o = (MatchContainer) other;
+      if (offsets.length != o.offsets.length) return false;
+      if (nsIdPairs.length != o.nsIdPairs.length) return false;
+      for (int i = offsets.length - 1; i >= 0; i--)
+        if (offsets[i] != o.offsets[i]) return false;
+      for (int i = nsIdPairs.length - 1; i >= 0; i--)
+        if (!nsIdPairs[i][0].equals(o.nsIdPairs[i][0]) ||
+            !nsIdPairs[i][1].equals(o.nsIdPairs[i][1])) return false;
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      int code = 17;
+      for (int i : offsets)
+        code *= 31 + i;
+      for (String[] nsid : nsIdPairs)
+        for (String i : nsid)
+          code *= 31 + i.hashCode();
+      return code;
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder();
+      sb.append(Arrays.toString(offsets));
+      sb.append(":{");
+      for (String[] nsid : nsIdPairs) {
+        sb.append(nsid[0]);
+        sb.append(':');
+        sb.append(nsid[1]);
+        sb.append(',');
+      }
+      sb.setCharAt(sb.length() - 1, '}');
+      return sb.toString();
+    }
   }
 
   @Override
@@ -282,6 +290,8 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
           removeBuffer.size(), count });
       for (Annotation sentence : removeBuffer)
         sentence.removeFromIndexes();
+    } else {
+      logger.log(Level.INFO, "analyzed {0} sentences", count);
     }
   }
 
@@ -303,26 +313,26 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
       final Matcher<TokenAnnotation> matcher = matchers.get(expr).reset(tokens);
       int offset = 0; // detect partial overlaps
       int nextOffset = 0;
+      matcher.greedy = true; // do greedy matching first
       while (matcher.find(offset)) {
-        // normal and greedy passes (two = 0 and two = 1, respectively)
-        for (int two = 0; two < 2; two++) {
-          if (two == 1) {
-            matcher.greedy = true;
-            matcher.find(matcher.start());
-          } else {
-            nextOffset = matcher.end();
-          }
-          logger.log(Level.FINE, "''{0}'' matched", expr);
+        // greedy and normal passes (pass 1 and pass 2, respectively)
+        for (int pass = 1; pass < 3; pass++) {
           final List<String[]> annList = annotations.get(expr);
-          // skip/continue on already made annotations:
+          // skip/continue on already made annotations
+          // (e.g. if greedy and non-greedy matching detected the same groups)
           final MatchContainer mc = new MatchContainer(matcher.groups(), annList);
           if (annotated.contains(mc)) continue;
           annotated.add(mc);
           matched = true;
           patternHits.put(expr, patternHits.get(expr) + 1);
-          if (annList.size() == 1) { // annotate case 1.
+          logger.log(Level.FINE, "pattern ''{0}'' matched in ''{1}''", new String[] { expr,
+              sentence.getCoveredText() });
+          /* Make Possible Annotation */
+          if (annList.size() == 1) {
+            // 1. match entire pattern and annotate it semantically
             semanticAnnotationOfEntirePattern(annList, matcher, tokens, jcas, done);
-          } else if (annList.get(0).length == 0) { // annotate case 2.
+          } else if (annList.get(0).length == 0) {
+            // 2. match pattern and annotate capture groups (only) semantically
             try {
               semanticAnnotationOfCaptureGroups(annList, matcher, tokens, jcas, done);
             } catch (IndexOutOfBoundsException e) {
@@ -330,7 +340,8 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
                   expr);
               throw new AnalysisEngineProcessException(e);
             }
-          } else { // annotate case 3.
+          } else {
+            // 3. match and annotate groups semantically; put into one relationship (ns:id)
             try {
               semanticRelationshipAnnotationOfPattern(sentence, annList, matcher, tokens, jcas,
                   done);
@@ -339,8 +350,14 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
                   expr);
             }
           }
+          // try non-greedy matching on a second pass
+          if (pass == 1) {
+            matcher.greedy = false;
+            matcher.find(matcher.start());
+            nextOffset = matcher.end();
+          }
         }
-        matcher.greedy = false;
+        matcher.greedy = true;
         offset = matcher.start();
         if (tokens.get(offset).getChunk() != null) {
           String chunk = tokens.get(offset).getChunk();
@@ -418,8 +435,8 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
   /** {@link SemanticAnnotation Annotate} a particular match with a namespace and ID. */
   private SemanticAnnotation annotate(String[] ns_id, int begin, int end, JCas jcas) {
     final SemanticAnnotation ann = new SemanticAnnotation(jcas, begin, end);
-    logger.log(Level.FINE, "annotating {0}:{1} at {2}:{3}", new Object[] { ns_id[0], ns_id[1],
-        begin, end });
+    logger.log(Level.FINE, "annotating {0}:{1} ''{2}''",
+        new Object[] { ns_id[0], ns_id[1], ann.getCoveredText() });
     ann.setAnnotator(URI);
     ann.setConfidence(1);
     ann.setIdentifier(ns_id[1]);

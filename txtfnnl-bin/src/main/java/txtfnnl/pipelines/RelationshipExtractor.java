@@ -18,8 +18,8 @@ import txtfnnl.uima.analysis_component.BioLemmatizerAnnotator;
 import txtfnnl.uima.analysis_component.GazetteerAnnotator;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
 import txtfnnl.uima.analysis_component.NOOPAnnotator;
-import txtfnnl.uima.analysis_component.RelationshipFilterAnnotator;
-import txtfnnl.uima.analysis_component.SentenceFilterAnnotator;
+import txtfnnl.uima.analysis_component.RelationshipFilter;
+import txtfnnl.uima.analysis_component.SentenceFilter;
 import txtfnnl.uima.analysis_component.SyntaxPatternAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
@@ -67,7 +67,10 @@ public class RelationshipExtractor extends Pipeline {
     l.log(Level.INFO, "JDBC URL: {0}", dbUrl);
     // create builder
     JdbcGazetteerResource.Builder b = JdbcGazetteerResource
-        .configure(dbUrl, driverClass, querySql).idMatching();
+        .configure(dbUrl, driverClass, querySql)
+        .idMatching()
+        .setSeparators(
+            JdbcGazetteerResource.SEPARATORS + "\\:\\,\\.\\/\\\\\\[\\]\\{\\}\\(\\)");
     // set username/password options
     if (cmd.hasOption('u')) b.setUsername(cmd.getOptionValue('u'));
     if (cmd.hasOption('p')) b.setPassword(cmd.getOptionValue('p'));
@@ -152,15 +155,14 @@ public class RelationshipExtractor extends Pipeline {
     final File outputDirectory = Pipeline.outputDirectory(cmd);
     final boolean overwriteFiles = Pipeline.outputOverwriteFiles(cmd);
     try {
-      // 0:tika, 1:splitter, 2:filter, 3:tokenizer, 4:lemmatizer,
-      // 5:patternMatcher, 6:actor gazetteer, 7:target gazetteer, 8:filter
-      final Pipeline rex = new Pipeline(9);
+      // 0:tika, 1:splitter, 2:filter, 3:tokenizer, 4:lemmatizer, 5:patternMatcher,
+      // 6:actor gazetteer, 7:target gazetteer, 8:filter regulator 9: filter target
+      final Pipeline rex = new Pipeline(10);
       rex.setReader(cmd);
       rex.configureTika(cmd);
       rex.set(1, SentenceAnnotator.configure(splitSentences));
       if (sentenceFilterPatterns == null) rex.set(2, NOOPAnnotator.configure());
-      else rex.set(2,
-          SentenceFilterAnnotator.configure(sentenceFilterPatterns, removingSentenceFilter));
+      else rex.set(2, SentenceFilter.configure(sentenceFilterPatterns, removingSentenceFilter));
       if (geniaDir == null) {
         rex.set(3, TokenAnnotator.configure());
         rex.set(4, BioLemmatizerAnnotator.configure());
@@ -170,13 +172,16 @@ public class RelationshipExtractor extends Pipeline {
         rex.set(4, NOOPAnnotator.configure());
       }
       rex.set(5, SyntaxPatternAnnotator.configure(patterns, "\t", true, null, null));
-      rex.set(6, GazetteerAnnotator.configure("actor", actorGazetteer).setTextNamespace("entity")
-          .setTextIdentifier("actor").create());
-      rex.set(7, GazetteerAnnotator.configure("target", targetGazetteer)
-          .setTextNamespace("entity").setTextIdentifier("target").create());
-      rex.set(8, RelationshipFilterAnnotator.configure(SyntaxPatternAnnotator.URI, "relation",
-          "binary", SyntaxPatternAnnotator.URI, "entity", null, GazetteerAnnotator.URI, null,
+      rex.set(6, GazetteerAnnotator.configure("UniProt", actorGazetteer).setTextNamespace("actor")
+          .setTextIdentifier("regulator").create());
+      rex.set(7, GazetteerAnnotator.configure("Entrez", targetGazetteer).setTextNamespace("actor")
+          .setTextIdentifier("target").create());
+      rex.set(8, RelationshipFilter.configure(SyntaxPatternAnnotator.URI, "event", "tre",
+          SyntaxPatternAnnotator.URI, "actor", "regulator", GazetteerAnnotator.URI, "UniProt",
           null, false));
+      rex.set(9, RelationshipFilter.configure(SyntaxPatternAnnotator.URI, "event", "tre",
+          SyntaxPatternAnnotator.URI, "actor", "target", GazetteerAnnotator.URI, "Entrez", null,
+          false));
       rex.setConsumer(RelationshipWriter.configure(outputDirectory, encoding,
           outputDirectory == null, overwriteFiles, true, null, true, true));
       rex.run();

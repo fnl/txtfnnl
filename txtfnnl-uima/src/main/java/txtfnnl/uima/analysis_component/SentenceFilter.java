@@ -36,9 +36,9 @@ import txtfnnl.uima.tcas.SentenceAnnotation;
  * 
  * @author Florian Leitner
  */
-public class SentenceFilterAnnotator extends JCasAnnotator_ImplBase {
+public class SentenceFilter extends JCasAnnotator_ImplBase {
   /** The URI of this Annotator. */
-  public static final String URI = SentenceFilterAnnotator.class.getName();
+  public static final String URI = SentenceFilter.class.getName();
   protected Logger logger;
   // TODO: implement token namespace via global NS settings
   /**
@@ -75,13 +75,13 @@ public class SentenceFilterAnnotator extends JCasAnnotator_ImplBase {
       throws UIMAException {
     final ExternalResourceDescription patternResource = LineBasedStringArrayResource.configure(
         "file:" + patterns.getAbsolutePath(), "\n");
-    return AnalysisEngineFactory.createPrimitiveDescription(SentenceFilterAnnotator.class,
+    return AnalysisEngineFactory.createPrimitiveDescription(SentenceFilter.class,
         MODEL_KEY_PATTERN_RESOURCE, patternResource, PARAM_REMOVE_MATCHED, removeMatched);
   }
 
   /** Default configuration only requires the pattern resource file. */
   public static AnalysisEngineDescription configure(File patterns) throws UIMAException {
-    return SentenceFilterAnnotator.configure(patterns, false);
+    return SentenceFilter.configure(patterns, false);
   }
 
   @Override

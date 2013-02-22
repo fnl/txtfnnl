@@ -100,7 +100,7 @@ public class KnownRelationshipAnnotator extends KnownEvidenceAnnotator<List<Set<
   /**
    * Configure an AE description for a pipeline.
    * 
-   * @param namespace of the {@link SemanticAnnotation}s
+   * @param ns of the {@link SemanticAnnotation}s
    * @param queries to use for fetching entity names from the JDBC-connected DB
    * @param entityMap containing filename to entity type, namespace, and ID mappings
    * @param dbUrl of the DB to connect to

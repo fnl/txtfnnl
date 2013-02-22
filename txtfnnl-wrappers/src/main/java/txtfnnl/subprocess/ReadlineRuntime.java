@@ -43,7 +43,7 @@ public abstract class ReadlineRuntime<T> {
       throws IOException {
     if (args == null || args.length == 0)
       throw new RuntimeException("trying to start a runtime without arguments");
-    logger.log(Level.FINE, "starting a {{1}} encoded runtime process for ''{{0}}''", new Object[] {
+    logger.log(Level.FINE, "starting a {1} encoded runtime process for ''{0}''", new Object[] {
         args[0], encoding });
     proc = Runtime.getRuntime().exec(args, envp, dir);
     out = new BufferedReader(new InputStreamReader(proc.getInputStream(), encoding));
