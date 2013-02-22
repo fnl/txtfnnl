@@ -296,24 +296,24 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
 
   /** Return the "separated" (regular) key of an entity name. */
   private String makeKey(String name) {
-    StringBuilder regex = new StringBuilder();
+    StringBuilder sb = new StringBuilder();
     for (String sub : split.split(normalize(name))) {
       if (sub.length() > 0) {
-        if (regex.length() > 0) regex.append(SEPARATOR);
-        regex.append(makeToken(sub));
+        if (sb.length() > 0) sb.append(SEPARATOR);
+        sb.append(makeToken(sub));
       }
     }
-    String pattern = regex.toString();
-    if (pattern.length() == 0) {
+    String key = sb.toString();
+    if (key.length() == 0) {
       logger.log(Level.WARNING, "\"" + name + "\" gives rise to an empty pattern");
       return null;
     }
-    return normalize(pattern);
+    return key;
   }
 
   /** Return the Unicode category-separated (regular) sub-key of an entity token. */
   private String makeToken(String token) {
-    StringBuilder regex = new StringBuilder();
+    StringBuilder sb = new StringBuilder();
     int length = token.length();
     int offset = 0;
     int lastSplit = 0;
@@ -323,17 +323,17 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       charPoint = token.codePointAt(offset);
       if (Character.getType(charPoint) != charType) {
         if (!isCapitalized(token, lastSplit, offset, charType)) {
-          regex.append(SEPARATOR);
+          sb.append(SEPARATOR);
           lastSplit = offset;
         }
         charType = Character.getType(charPoint);
       }
       int charLen = Character.charCount(charPoint);
-      regex
+      sb
           .append(charLen == 1 ? token.charAt(offset) : token.substring(offset, offset + charLen));
       offset += charLen;
     }
-    return regex.toString();
+    return sb.toString();
   }
 
   /** Return <code>true</code> if the current split is a capitalized word. */
@@ -363,7 +363,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   // GazetteerResource Methods
   public Map<Offset, String> match(String input) {
     Map<Offset, String> result = new HashMap<Offset, String>();
-    AutomatonMatcher match = patterns.newMatcher(input);
+    AutomatonMatcher match = patterns.newMatcher(normalize(input));
     while (match.find())
       result.put(new Offset(match.start(), match.end()), makeKey(match.group()));
     return result;
