@@ -101,8 +101,8 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   @ConfigurationParameter(name = PARAM_CASE_MATCHING, mandatory = false, defaultValue = "false")
   private boolean exactCaseMatching;
   // additional private range Unicode characters to identify special key properties:
-  static final char LOWERCASE = '\uE3A8';
-  static final char NORMAL = '\uE3A9';
+  static final String LOWERCASE = "\uE3A8";
+  static final String NORMAL = "\uE3A9";
   static final Pattern RESERVED_CHARS = Pattern
       .compile("([\\@\\&\\~\\^\\#\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\<\\>])");
   /** Mappings of regular keys to ID sets and of normalized keys to regular key sets. */
@@ -178,12 +178,12 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
 
   /** Create a case-insensitive key. */
   private static String makeLower(String key) {
-    return String.format("%c%s", LOWERCASE, key.toLowerCase());
+    return String.format("%s%s", LOWERCASE, key.toLowerCase());
   }
 
   /** Create a separator-agnostic key. */
   private static String makeNormal(String key) {
-    return String.format("%c%s", NORMAL, key.replace(Character.toString(SEPARATOR), ""));
+    return String.format("%s%s", NORMAL, key.replace(SEPARATOR, ""));
   }
 
   /** Create a key that is both case-insensitive and separator-agnostic. */
@@ -257,9 +257,9 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
     Set<Character> cset = new HashSet<Character>();
     for (char c : separators.toCharArray())
       cset.add(c);
-    map.put(SEPARATOR, cset);
+    map.put(SEPARATOR.charAt(0), cset);
     Automaton trie = BasicOperations.union(automata);
-    //trie.minimize(); // does not help to reduce RAM usage :(
+    // trie.minimize(); // does not help to reduce RAM usage :(
     trie = trie.subst(map);
     patterns = new RunAutomaton(trie);
     logger.log(Level.INFO, "compiled trie for all names");
@@ -422,7 +422,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       private String cacheNext() {
         while (it.hasNext()) {
           String candidate = it.next();
-          if (candidate.charAt(0) != LOWERCASE && candidate.charAt(0) != NORMAL) return candidate;
+          if (!candidate.startsWith(LOWERCASE) && !candidate.startsWith(NORMAL)) return candidate;
         }
         return null;
       }
