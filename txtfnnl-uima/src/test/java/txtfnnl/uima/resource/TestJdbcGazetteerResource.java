@@ -75,7 +75,7 @@ public class TestJdbcGazetteerResource {
           .toString(gazetteerResource.get(unknownKey).toArray()) : "null";
       if (unknownKey != null)
         assertNull(msg.replace(sep, "-"), gazetteerResource.get(unknownKey));
-      Map<Offset, String> result = gazetteerResource.match("bla Abc Abc bla 1 bla abab bla");
+      Map<Offset, String> result = gazetteerResource.match("bla Abc Abc bla  1 bla abab bla");
       assertEquals(matchSize, result.size());
       if (matchValue != null) {
         msg = (result.size() > 0) ? Arrays.toString(result.values().toArray()) : "null";
@@ -188,6 +188,15 @@ public class TestJdbcGazetteerResource {
   }
 
   @Test
+  public void testReservedCharacterSetup() throws SQLException, UIMAException, IOException {
+    createTable(new String[] { "p34<CDC2>" });
+    final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
+        DummyAnalysisEngine.GAZETTEER, builder.create(), DummyAnalysisEngine.TEST_GAZETTEER_SIZE,
+        4);
+    ae.process(ae.newJCas());
+  }
+
+  @Test
   public void testCaseInsensitiveMatching() throws SQLException, UIMAException, IOException {
     createTable(new String[] { "unmatched", "AB-AB" });
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
@@ -214,6 +223,18 @@ public class TestJdbcGazetteerResource {
             JdbcGazetteerResource.LOWERCASE + "abab", DummyAnalysisEngine.TEST_MATCH_VALUE,
         "abab", DummyAnalysisEngine.TEST_UNKNOWN_KEY, "abab", DummyAnalysisEngine.TEST_MATCH_SIZE,
         1, DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 2);
+    ae.process(ae.newJCas());
+  }
+
+  @Test
+  public void testSeparatorLength() throws SQLException, UIMAException, IOException {
+    createTable(new String[] { "BLA1" });
+    final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
+        DummyAnalysisEngine.GAZETTEER, builder.setSeparatorLengths(3).create(),
+        DummyAnalysisEngine.TEST_GAZETTEER_SIZE, 4, DummyAnalysisEngine.TEST_KEY,
+        JdbcGazetteerResource.NORMAL + JdbcGazetteerResource.LOWERCASE + "bla1",
+        DummyAnalysisEngine.TEST_MATCH_VALUE, "bla" + JdbcGazetteerResource.SEPARATOR + "1",
+        DummyAnalysisEngine.TEST_MATCH_SIZE, 1, DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 1);
     ae.process(ae.newJCas());
   }
 

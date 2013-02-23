@@ -90,7 +90,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
    * Should not be less than one.
    */
   public static final String PARAM_SEPARATOR_LENGTH = "SeparatorLength";
-  @ConfigurationParameter(name = PARAM_SEPARATOR_LENGTH, mandatory = false, defaultValue = "3")
+  @ConfigurationParameter(name = PARAM_SEPARATOR_LENGTH, mandatory = false, defaultValue = "1")
   private int separatorLength;
   /** Whether to match the DB IDs themselves, too (default: <code>false</code>). */
   public static final String PARAM_ID_MATCHING = "IDMatching";
@@ -149,7 +149,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       return this;
     }
 
-    /** Define max. number of consecutive separator characters (default: 3; must be > 0). */
+    /** Define max. number of consecutive separator characters (must be > 0). */
     public Builder setSeparatorLengths(int length) {
       if (length < 1) throw new IllegalArgumentException("length must be positive");
       setOptionalParameter(PARAM_SEPARATOR_LENGTH, length);
@@ -201,12 +201,9 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   public void load(DataResource dataResource) throws ResourceInitializationException {
     super.load(dataResource);
     mappings = new HashMap<String, Set<String>>(1024);
-    split = Pattern.compile(separatorRegEx(1));
-  }
-
-  /** Create a RegEx from the specified separators, valid up to the defined length. */
-  private String separatorRegEx(int minLen) {
-    return String.format("[%s]{%d,%d}", escapeAll(separators), minLen, separatorLength);
+    if (separatorLength > 1) split = Pattern.compile(String.format("[%s]{1,%d}",
+        escapeAll(separators), separatorLength));
+    else split = Pattern.compile(String.format("[%s]", escapeAll(separators)));
   }
 
   /** Escape each character in the String with a backslash. */
@@ -275,7 +272,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   private Automaton makeAutomaton(String key) {
     String pattern = RESERVED_CHARS.matcher(key).replaceAll("\\\\$1");
     if (!exactCaseMatching) {
-      int[] unicode = StringUtils.toCodePointArray(key);
+      int[] unicode = StringUtils.toCodePointArray(pattern);
       StringBuilder caseInsensitive = new StringBuilder();
       for (int cp : unicode) {
         if (Character.isLetter(cp)) {
@@ -289,7 +286,9 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       }
       pattern = caseInsensitive.toString();
     }
-    pattern = SEPARATOR_PATTERN.matcher(pattern).replaceAll("$1{0,3}");
+    if (separatorLength > 1) pattern = SEPARATOR_PATTERN.matcher(pattern).replaceAll(
+        String.format("$1{0,%d}", separatorLength));
+    else pattern = SEPARATOR_PATTERN.matcher(pattern).replaceAll("$1?");
     logger.log(Level.FINE, "{0} -> {1}", new String[] { key, pattern });
     return (new RegExp(pattern)).toAutomaton();
   }
@@ -329,8 +328,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
         charType = Character.getType(charPoint);
       }
       int charLen = Character.charCount(charPoint);
-      sb
-          .append(charLen == 1 ? token.charAt(offset) : token.substring(offset, offset + charLen));
+      sb.append(charLen == 1 ? token.charAt(offset) : token.substring(offset, offset + charLen));
       offset += charLen;
     }
     return sb.toString();
