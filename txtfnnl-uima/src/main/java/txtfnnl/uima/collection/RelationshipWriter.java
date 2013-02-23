@@ -199,7 +199,8 @@ public class RelationshipWriter extends TextWriter {
     } catch (final IOException e) {
       throw new AnalysisEngineProcessException(e);
     }
-    logger.log(Level.INFO, "dumped results for {0}", cas.getSofaDataURI());
+    logger.log(Level.INFO, "dumped results for {0}", cas.getView(Views.CONTENT_RAW.toString())
+        .getSofaDataURI());
   }
 
   private String annotateEvidence(SentenceAnnotation sentence, AnnotationIndex<Annotation> idx,
