@@ -29,6 +29,7 @@ import txtfnnl.uima.Views;
 import txtfnnl.uima.resource.GazetteerResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
+import txtfnnl.uima.tcas.TokenAnnotation;
 import txtfnnl.utils.Offset;
 import txtfnnl.utils.stringsim.LeitnerLevenshtein;
 import txtfnnl.utils.stringsim.Similarity;
@@ -139,7 +140,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       Map<Offset, String> matches = gazetteer.match(jcas.getDocumentText());
       for (Offset offset : matches.keySet())
         for (SemanticAnnotation ann : annotateEntities(jcas, annotated, matches.get(offset),
-            offset.start(), offset.end()))
+            offset))
           ann.addToIndexes();
     } else {
       FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, sourceNamespace,
@@ -169,10 +170,25 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     int base = annotation.getBegin();
     logger.log(Level.FINE, "scanning for {0} in ''{1}''", new String[] { entityNamespace,
         annotation.getCoveredText() });
+    FSIterator<Annotation> tokenIt = jcas.getAnnotationIndex(TokenAnnotation.type).subiterator(
+        annotation);
+    List<Annotation> tokens = new LinkedList<Annotation>();
+    while (tokenIt.hasNext())
+      tokens.add(tokenIt.next());
     Map<Offset, String> matches = gazetteer.match(annotation.getCoveredText());
     for (Offset offset : matches.keySet())
-      coll.addAll(annotateEntities(jcas, annotated, matches.get(offset), base + offset.start(),
-          base + offset.end()));
+      coll.addAll(annotateEntities(jcas, annotated, matches.get(offset),
+          makeOffset(base, offset, tokens)));
+  }
+
+  private Offset makeOffset(int base, Offset offset, List<Annotation> tokens) {
+    int begin = base + offset.start();
+    int end = base + offset.end();
+    for (Annotation t : tokens) {
+      if (t.getBegin() <= begin && t.getEnd() >= begin) begin = t.getBegin();
+      if (t.getBegin() <= end && t.getEnd() >= end) end = t.getEnd();
+    }
+    return new Offset(begin, end);
   }
 
   /**
@@ -181,31 +197,35 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    * annotation confidence.
    */
   private List<SemanticAnnotation> annotateEntities(JCas jcas,
-      Set<UniqueTextAnnotation> annotated, String entityKey, int begin, int end) {
+      Set<UniqueTextAnnotation> annotated, String matchName, Offset offset) {
     List<SemanticAnnotation> coll = new LinkedList<SemanticAnnotation>();
-    if (gazetteer.containsKey(entityKey)) {
-      Set<String> dbIds = gazetteer.get(entityKey);
-      double confidence = 1.0 / dbIds.size();
+    String txtName = (sourceNamespace == null) ? matchName : jcas.getDocumentText().substring(
+        offset.start(), offset.end());
+    if (gazetteer.containsKey(matchName)) {
+      Set<String> dbIds = gazetteer.get(matchName);
+      double confidence = measure.similarity(txtName, matchName) / dbIds.size();
       for (String dbId : dbIds) {
-        UniqueTextAnnotation cta = new UniqueTextAnnotation(begin, end, entityNamespace, dbId, URI);
+        UniqueTextAnnotation cta = new UniqueTextAnnotation(offset.start(), offset.end(),
+            entityNamespace, dbId, URI);
         if (annotated.contains(cta)) continue;
-        coll.add(annotate(dbId, jcas, begin, end, confidence));
+        coll.add(annotate(dbId, jcas, offset, confidence));
         annotated.add(cta);
       }
     } else {
       Map<String, Double> dbIdToSim = new HashMap<String, Double>();
-      Set<String> targets = gazetteer.resolve(entityKey);
+      Set<String> targets = gazetteer.resolve(matchName);
       double numTargets = targets.size();
-      for (String targetKey : targets) {
-        double sim = measure.similarity(entityKey, targetKey) / numTargets;
-        for (String dbId : gazetteer.get(targetKey)) {
+      for (String targetName : targets) {
+        double sim = measure.similarity(txtName, targetName) / numTargets;
+        for (String dbId : gazetteer.get(targetName)) {
           if (!dbIdToSim.containsKey(dbId) || dbIdToSim.get(dbId) < sim) dbIdToSim.put(dbId, sim);
         }
       }
       for (String dbId : dbIdToSim.keySet()) {
-        UniqueTextAnnotation cta = new UniqueTextAnnotation(begin, end, entityNamespace, dbId, URI);
+        UniqueTextAnnotation cta = new UniqueTextAnnotation(offset.start(), offset.end(),
+            entityNamespace, dbId, URI);
         if (annotated.contains(cta)) continue;
-        coll.add(annotate(dbId, jcas, begin, end, dbIdToSim.get(dbId)));
+        coll.add(annotate(dbId, jcas, offset, dbIdToSim.get(dbId)));
         annotated.add(cta);
       }
     }
@@ -216,8 +236,8 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    * Add a {@link SemanticAnnotation semantic annotation} for a DB ID with a given confidence
    * value.
    */
-  private SemanticAnnotation annotate(String id, JCas jcas, int begin, int end, double confidence) {
-    SemanticAnnotation entity = new SemanticAnnotation(jcas, begin, end);
+  private SemanticAnnotation annotate(String id, JCas jcas, Offset offset, double confidence) {
+    SemanticAnnotation entity = new SemanticAnnotation(jcas, offset);
     entity.setAnnotator(URI);
     entity.setConfidence(confidence);
     entity.setIdentifier(id);

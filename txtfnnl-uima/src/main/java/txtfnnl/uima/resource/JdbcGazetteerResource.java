@@ -192,7 +192,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   }
 
   /** Replace space and dash characters with their normalized ASCII version. */
-  private static String normalize(String input) {
+  private static String normalizeSpaceDash(String input) {
     String tmp = SPACES.matcher(input).replaceAll(" ");
     return DASHES.matcher(tmp).replaceAll("-");
   }
@@ -227,17 +227,17 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
       Statement stmt = conn.createStatement();
       ResultSet result = stmt.executeQuery(querySql);
       while (result.next()) {
-        String name = result.getString(2);
+        String name = normalizeSpaceDash(result.getString(2));
         String key = makeKey(name);
         if (key == null) continue;
         final String dbId = result.getString(1);
         if (!hasAutomataFor(key)) automata.add(makeAutomaton(key));
-        processMapping(dbId, key); // key-to-ID mapping
+        processMapping(dbId, name, key); // key-to-ID mapping
         if (idMatching) {
           key = makeKey(dbId);
           if (key == null) continue;
           if (!hasAutomataFor(key)) automata.add(makeAutomaton(key));
-          processMapping(dbId, key); // key-to-ID mapping
+          processMapping(dbId, dbId, key); // key-to-ID mapping
         }
       }
       conn.close();
@@ -296,7 +296,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   /** Return the "separated" (regular) key of an entity name. */
   private String makeKey(String name) {
     StringBuilder sb = new StringBuilder();
-    for (String sub : split.split(normalize(name))) {
+    for (String sub : split.split(name)) {
       if (sub.length() > 0) {
         if (sb.length() > 0) sb.append(SEPARATOR);
         sb.append(makeToken(sub));
@@ -341,14 +341,18 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
         .charCount(token.codePointAt(lastSplit)) + lastSplit == offset);
   }
 
-  /** Add regular and normal mapping, as well as their case-insensitive versions if requested. */
-  private void processMapping(final String dbId, final String key) {
-    addMapping(key, dbId); // only the regular key maps to the DB ID
+  /**
+   * Add regular and normal mapping, as well as their case-insensitive versions if required.
+   * 
+   * @param key
+   */
+  private void processMapping(final String dbId, final String name, String key) {
+    addMapping(name, dbId); // only the regular key maps to the DB ID
     // all other keys map to the "real" key:
-    addMapping(makeNormal(key), key);
+    addMapping(makeNormal(key), name);
     if (!exactCaseMatching) {
-      addMapping(makeLower(key), key);
-      addMapping(makeNormalLower(key), key);
+      addMapping(makeLower(name), name);
+      addMapping(makeNormalLower(key), name);
     }
   }
 
@@ -361,20 +365,22 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   // GazetteerResource Methods
   public Map<Offset, String> match(String input) {
     Map<Offset, String> result = new HashMap<Offset, String>();
-    AutomatonMatcher match = patterns.newMatcher(normalize(input));
+    AutomatonMatcher match = patterns.newMatcher(normalizeSpaceDash(input));
     while (match.find())
-      result.put(new Offset(match.start(), match.end()), makeKey(match.group()));
+      result.put(new Offset(match.start(), match.end()),
+          input.substring(match.start(), match.end()));
     return result;
   }
 
-  public Set<String> resolve(String key) {
+  public Set<String> resolve(String name) {
+    String key = makeKey(name);
     Set<String> result = new HashSet<String>();
     if (mappings.containsKey(makeNormal(key))) {
       for (String target : mappings.get(makeNormal(key)))
         result.add(target);
     }
-    if (!exactCaseMatching && mappings.containsKey(makeLower(key))) {
-      for (String target : mappings.get(makeLower(key)))
+    if (!exactCaseMatching && mappings.containsKey(makeLower(name))) {
+      for (String target : mappings.get(makeLower(name)))
         result.add(target);
     }
     if (!exactCaseMatching && mappings.containsKey(makeNormalLower(key))) {
@@ -390,12 +396,12 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
     return mappings.get(key);
   }
 
-  /** Return the number of <b>all</b> (normalized, regular, and/or case-insensitive) keys. */
+  /** Return the number of <b>all</b> (name, normalized, and/or case-insensitive) keys. */
   public int size() {
     return mappings.size();
   }
 
-  /** Iterate over the <b>regular</b> keys (only). */
+  /** Iterate over the regular name keys (only). */
   public Iterator<String> iterator() {
     return new Iterator<String>() {
       private Iterator<String> it = mappings.keySet().iterator();
@@ -431,7 +437,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
     };
   }
 
-  /** Check if the (regular, normalized, and/or case-insensitive) key has a mapping. */
+  /** Check if the (name, normalized, and/or case-insensitive) key has a mapping. */
   public boolean containsKey(String key) {
     return mappings.containsKey(key);
   }

@@ -34,7 +34,6 @@ import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.resource.JdbcGazetteerResource.Builder;
 import txtfnnl.utils.Offset;
-import txtfnnl.utils.StringUtils;
 
 public class TestJdbcGazetteerResource {
   public static class DummyAnalysisEngine extends JCasAnnotator_ImplBase {
@@ -65,11 +64,12 @@ public class TestJdbcGazetteerResource {
       StringBuilder buff = new StringBuilder("'");
       String sep = JdbcGazetteerResource.SEPARATOR;
       for (String k : gazetteerResource)
-        buff.append(k.replace(sep, "-")).append("', '");
+        buff.append(k.replace("'", "\\'")).append("', '");
       if (buff.length() > 3) buff.replace(buff.length() - 3, buff.length(), "");
       assertEquals(buff.toString(), gazetteerSize, gazetteerResource.size());
       if (key != null)
-        assertNotNull("'" + key.replace(sep, "-") + "' not in " + buff.toString(),
+        assertNotNull(
+            "'" + key.replace(sep, "-").replace("'", "\\'") + "' not in " + buff.toString(),
             gazetteerResource.get(key));
       String msg = (unknownKey != null && gazetteerResource.get(unknownKey) != null) ? Arrays
           .toString(gazetteerResource.get(unknownKey).toArray()) : "null";
@@ -79,7 +79,8 @@ public class TestJdbcGazetteerResource {
       assertEquals(matchSize, result.size());
       if (matchValue != null) {
         msg = (result.size() > 0) ? Arrays.toString(result.values().toArray()) : "null";
-        assertTrue(msg.replace(sep, "-"), result.containsValue(matchValue));
+        assertTrue("'" + matchValue + "' not in " + msg.replace(sep, "-"),
+            result.containsValue(matchValue));
         if (resolutionSize > 0 && !gazetteerResource.containsKey(matchValue)) {
           Set<String> resolvedKeys = gazetteerResource.resolve(matchValue);
           msg = matchValue +
@@ -145,18 +146,13 @@ public class TestJdbcGazetteerResource {
     ae.process(ae.newJCas());
   }
 
-  private static String makeKey(String... tokens) {
-    return StringUtils.join(JdbcGazetteerResource.SEPARATOR, tokens);
-  }
-
   @Test
   public void testBasicFunctionality() throws SQLException, UIMAException, IOException {
     createTable(new String[] { "\u2000AbcAbc\u2010" });
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
         DummyAnalysisEngine.GAZETTEER, builder.create(), DummyAnalysisEngine.TEST_GAZETTEER_SIZE,
-        4, DummyAnalysisEngine.TEST_KEY, makeKey("Abc", "Abc"),
-        DummyAnalysisEngine.TEST_MATCH_SIZE, 1, DummyAnalysisEngine.TEST_MATCH_VALUE,
-        makeKey("Abc", "Abc"));
+        4, DummyAnalysisEngine.TEST_KEY, " AbcAbc-", DummyAnalysisEngine.TEST_MATCH_SIZE, 1,
+        DummyAnalysisEngine.TEST_MATCH_VALUE, "Abc Abc");
     ae.process(ae.newJCas());
   }
 
@@ -219,7 +215,7 @@ public class TestJdbcGazetteerResource {
     createTable(new String[] { "abAb", " ab-ab " });
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
         DummyAnalysisEngine.GAZETTEER, builder.create(), DummyAnalysisEngine.TEST_GAZETTEER_SIZE,
-        6, DummyAnalysisEngine.TEST_KEY, JdbcGazetteerResource.NORMAL +
+        7, DummyAnalysisEngine.TEST_KEY, JdbcGazetteerResource.NORMAL +
             JdbcGazetteerResource.LOWERCASE + "abab", DummyAnalysisEngine.TEST_MATCH_VALUE,
         "abab", DummyAnalysisEngine.TEST_UNKNOWN_KEY, "abab", DummyAnalysisEngine.TEST_MATCH_SIZE,
         1, DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 2);
@@ -233,8 +229,8 @@ public class TestJdbcGazetteerResource {
         DummyAnalysisEngine.GAZETTEER, builder.setSeparatorLengths(3).create(),
         DummyAnalysisEngine.TEST_GAZETTEER_SIZE, 4, DummyAnalysisEngine.TEST_KEY,
         JdbcGazetteerResource.NORMAL + JdbcGazetteerResource.LOWERCASE + "bla1",
-        DummyAnalysisEngine.TEST_MATCH_VALUE, "bla" + JdbcGazetteerResource.SEPARATOR + "1",
-        DummyAnalysisEngine.TEST_MATCH_SIZE, 1, DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 1);
+        DummyAnalysisEngine.TEST_MATCH_VALUE, "bla  1", DummyAnalysisEngine.TEST_MATCH_SIZE, 1,
+        DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 1);
     ae.process(ae.newJCas());
   }
 
@@ -245,8 +241,8 @@ public class TestJdbcGazetteerResource {
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
         DummyAnalysisEngine.GAZETTEER, builder.caseMatching().create(),
         DummyAnalysisEngine.TEST_GAZETTEER_SIZE, 2, DummyAnalysisEngine.TEST_MATCH_SIZE, 1,
-        DummyAnalysisEngine.TEST_MATCH_VALUE, "abab", DummyAnalysisEngine.TEST_KEY, "ab" +
-            JdbcGazetteerResource.SEPARATOR + "ab", DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 1);
+        DummyAnalysisEngine.TEST_MATCH_VALUE, "abab", DummyAnalysisEngine.TEST_KEY, "ab_ab",
+        DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 1);
     ae.process(ae.newJCas());
   }
 }
