@@ -83,7 +83,7 @@ public class TestGazetteerAnnotator {
           "1".equals(ann.getIdentifier()) || "0".equals(ann.getIdentifier()));
       assertEquals(0, ann.getBegin());
       assertEquals(4, ann.getEnd());
-      assertEquals("1".equals(ann.getIdentifier()) ? (1 - 1.0 / 8) / 2 : 0.25,
+      assertEquals("1".equals(ann.getIdentifier()) ? 1 - 1.0 / 8 : 0.5,
           ann.getConfidence(), 0.0);
       ++count;
     }
