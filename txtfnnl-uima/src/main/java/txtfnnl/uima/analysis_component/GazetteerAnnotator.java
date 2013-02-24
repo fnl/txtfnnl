@@ -202,9 +202,8 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     String txtName = (sourceNamespace == null) ? matchName : jcas.getDocumentText().substring(
         offset.start(), offset.end());
     if (gazetteer.containsKey(matchName)) {
-      Set<String> dbIds = gazetteer.get(matchName);
-      double confidence = measure.similarity(txtName, matchName) / dbIds.size();
-      for (String dbId : dbIds) {
+      double confidence = measure.similarity(txtName, matchName);
+      for (String dbId : gazetteer.get(matchName)) {
         UniqueTextAnnotation cta = new UniqueTextAnnotation(offset.start(), offset.end(),
             entityNamespace, dbId, URI);
         if (annotated.contains(cta)) continue;
@@ -214,9 +213,8 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     } else {
       Map<String, Double> dbIdToSim = new HashMap<String, Double>();
       Set<String> targets = gazetteer.resolve(matchName);
-      double numTargets = targets.size();
       for (String targetName : targets) {
-        double sim = measure.similarity(txtName, targetName) / numTargets;
+        double sim = measure.similarity(txtName, targetName);
         for (String dbId : gazetteer.get(targetName)) {
           if (!dbIdToSim.containsKey(dbId) || dbIdToSim.get(dbId) < sim) dbIdToSim.put(dbId, sim);
         }
