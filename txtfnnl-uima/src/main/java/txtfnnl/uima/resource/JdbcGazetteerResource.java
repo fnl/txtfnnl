@@ -67,19 +67,22 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   public static final String PARAM_QUERY_SQL = "QuerySQL";
   @ConfigurationParameter(name = PARAM_QUERY_SQL, mandatory = true)
   private String querySql;
-  /** Variants of the whitespace " " character (excl. the whitespace itself). */
+  /** Variants of the whitespace " " character (excl. the whitespace itself, incl. newline). */
   public static final Pattern SPACES = Pattern
-      .compile("\u00A0|\u2000|\u2001|\u2002|\u2003|\u2004|\u2005|\u2006|\u2007|\u2008|\u2009|\u200A|\u200B|\u202F|\u205F|\u3000|\uFEFF");
+      .compile("\n|\u00A0|\u2000|\u2001|\u2002|\u2003|\u2004|\u2005|\u2006|\u2007|\u2008|\u2009|\u200A|\u200B|\u202F|\u205F|\u3000|\uFEFF");
   /** Variants of the dash "-" character (excl. the dash itself). */
   public static final Pattern DASHES = Pattern
       .compile("\u1680|\u2010|\u2011|\u2012|\u2013|\u2014|\u2015|\u2212|\uFE58|\uFE63|\uFF0D");
-  /** Default separators: space, dash, slash, dot, comma and the underscore. */
-  public static final String SEPARATORS = " _-.,/";
+  /** Default separators: dash, slash, dot, comma and the underscore (excl. space!). */
+  public static final String SEPARATORS = "_-.,/";
   /** A Pattern to detect the {@link GazetterResource#SEPARATOR separator} character. */
   private static final Pattern SEPARATOR_PATTERN = Pattern.compile("(" + SEPARATOR + ")");
   /**
-   * Normalized separator characters between tokens (default: the underscore and all Unicode spaces
-   * and dashes).
+   * Normalized separator characters between tokens (default:
+   * {@link JdbcGazetteerResource#SEPARATORS}) except space (always treated as separator).
+   * <p>
+   * Note that spaces and dashes are all normalized to their canonical (ASCII) versions, so it
+   * is not necessary to list all (Unicode) dashes or spaces as possible, different separators.
    */
   public static final String PARAM_SEPARATORS = "Separators";
   @ConfigurationParameter(name = PARAM_SEPARATORS, mandatory = false, defaultValue = SEPARATORS)
@@ -87,10 +90,10 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   /**
    * The max. length of matchable consecutive separator characters (default: 3).
    * <p>
-   * Should not be less than one.
+   * Should never be less than one.
    */
   public static final String PARAM_SEPARATOR_LENGTH = "SeparatorLength";
-  @ConfigurationParameter(name = PARAM_SEPARATOR_LENGTH, mandatory = false, defaultValue = "1")
+  @ConfigurationParameter(name = PARAM_SEPARATOR_LENGTH, mandatory = false, defaultValue = "3")
   private int separatorLength;
   /** Whether to match the DB IDs themselves, too (default: <code>false</code>). */
   public static final String PARAM_ID_MATCHING = "IDMatching";
@@ -100,10 +103,12 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   public static final String PARAM_CASE_MATCHING = "CaseMatching";
   @ConfigurationParameter(name = PARAM_CASE_MATCHING, mandatory = false, defaultValue = "false")
   private boolean exactCaseMatching;
-  // additional private range Unicode characters to identify special key properties:
+  /** A special private range Unicode character to mark case-insensitive keys. */
   static final String LOWERCASE = "\uE3A8";
+  /** A special private range Unicode character to mark separator-insensitive keys. */
   static final String NORMAL = "\uE3A9";
-  static final Pattern RESERVED_CHARS = Pattern
+  /** Special characters reserved for dk.brics.automaton patterns. */
+  private static final Pattern RESERVED_CHARS = Pattern
       .compile("([\\@\\&\\~\\^\\#\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\<\\>])");
   /** Mappings of regular keys to ID sets and of normalized keys to regular key sets. */
   private Map<String, Set<String>> mappings;
@@ -111,6 +116,8 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   private RunAutomaton patterns;
   /** The pattern used to find token splits. */
   private Pattern split;
+  /** The pattern used to replace separators with the normal {@link GazetteerResource#SEPARATOR}. */
+  private Pattern replace;
 
   public static class Builder extends JdbcConnectionResourceImpl.Builder {
     Builder(String url, String driverClass, String querySql) {
@@ -131,7 +138,8 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
     }
 
     /**
-     * Define name token separator characters (default: spaces, hyphens, and the underscore).
+     * Define name token separator characters except space (defaults:
+     * {@link JdbcGazetteerResource#SEPARATORS}).
      * <p>
      * Separator characters are not allowed within the matched target tokens, while only characters
      * defined as separators may be matched between tokens. This means that if any of these
@@ -145,13 +153,15 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
      * and slashes.
      */
     public Builder setSeparators(String separators) {
+      if (separators != null && separators.length() == 0)
+        throw new IllegalArgumentException("at least one separator char has to be defined");
       setOptionalParameter(PARAM_SEPARATORS, separators);
       return this;
     }
 
     /** Define max. number of consecutive separator characters (must be > 0). */
     public Builder setSeparatorLengths(int length) {
-      if (length < 1) throw new IllegalArgumentException("length must be positive");
+      if (length < 1) throw new IllegalArgumentException("separator lengths must be positive");
       setOptionalParameter(PARAM_SEPARATOR_LENGTH, length);
       return this;
     }
@@ -201,17 +211,10 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   public void load(DataResource dataResource) throws ResourceInitializationException {
     super.load(dataResource);
     mappings = new HashMap<String, Set<String>>(1024);
-    if (separatorLength > 1) split = Pattern.compile(String.format("[%s]{1,%d}",
+    if (separatorLength > 1) split = Pattern.compile(String.format("[ %s]{1,%d}",
         escapeAll(separators), separatorLength));
-    else split = Pattern.compile(String.format("[%s]", escapeAll(separators)));
-  }
-
-  /** Escape each character in the String with a backslash. */
-  private String escapeAll(String str) {
-    StringBuilder sb = new StringBuilder();
-    for (char c : str.toCharArray())
-      sb.append('\\').append(c);
-    return sb.toString();
+    else split = Pattern.compile(String.format("[ %s]", escapeAll(separators)));
+    replace = Pattern.compile(String.format("[%s]", escapeAll(separators)));
   }
 
   /** Generate the keys, the trie and the key-to-ID mappings. */
@@ -250,16 +253,21 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
     }
     logger.log(Level.INFO, "defined {0} keys for {1} unique patterns",
         new Object[] { mappings.size(), automata.size() });
-    Map<Character, Set<Character>> map = new HashMap<Character, Set<Character>>();
-    Set<Character> cset = new HashSet<Character>();
-    for (char c : separators.toCharArray())
-      cset.add(c);
-    map.put(SEPARATOR.charAt(0), cset);
-    Automaton trie = BasicOperations.union(automata);
-    // trie.minimize(); // does not help to reduce RAM usage :(
-    trie = trie.subst(map);
-    patterns = new RunAutomaton(trie);
+    patterns = new RunAutomaton(BasicOperations.union(automata));
     logger.log(Level.INFO, "compiled trie for all names");
+  }
+
+  /** Escape each character in the String with a backslash. */
+  private String escapeAll(String str) {
+    StringBuilder sb = new StringBuilder();
+    for (char c : str.toCharArray())
+      sb.append('\\').append(c);
+    return sb.toString();
+  }
+
+  /** Replace space and dash characters with their normalized ASCII version. */
+  private String normalizeSeparator(String input) {
+    return replace.matcher(input).replaceAll(SEPARATOR);
   }
 
   /** Return <code>true</code> if the Gazetteer already has a patter to match that key. */
@@ -289,7 +297,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
     if (separatorLength > 1) pattern = SEPARATOR_PATTERN.matcher(pattern).replaceAll(
         String.format("$1{0,%d}", separatorLength));
     else pattern = SEPARATOR_PATTERN.matcher(pattern).replaceAll("$1?");
-    logger.log(Level.FINE, "{0} -> {1}", new String[] { key, pattern });
+    logger.log(Level.FINE, "''{0}'' -> /{1}/", new String[] { key, pattern });
     return (new RegExp(pattern)).toAutomaton();
   }
 
@@ -321,7 +329,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
     while (offset < length) {
       charPoint = token.codePointAt(offset);
       if (Character.getType(charPoint) != charType) {
-        if (!isCapitalized(token, lastSplit, offset, charType)) {
+        if (sb.length() > 0 && !isCapitalized(token, lastSplit, offset, charType)) {
           sb.append(SEPARATOR);
           lastSplit = offset;
         }
@@ -365,7 +373,7 @@ public class JdbcGazetteerResource extends JdbcConnectionResourceImpl implements
   // GazetteerResource Methods
   public Map<Offset, String> match(String input) {
     Map<Offset, String> result = new HashMap<Offset, String>();
-    AutomatonMatcher match = patterns.newMatcher(normalizeSpaceDash(input));
+    AutomatonMatcher match = patterns.newMatcher(normalizeSeparator(normalizeSpaceDash(input)));
     while (match.find())
       result.put(new Offset(match.start(), match.end()),
           input.substring(match.start(), match.end()));

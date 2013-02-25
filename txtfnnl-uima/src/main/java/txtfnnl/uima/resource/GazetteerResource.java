@@ -19,7 +19,7 @@ import txtfnnl.utils.Offset;
  */
 public interface GazetteerResource<V> extends StringMapResource<V> {
   /** A private range character to normalize the representation of token boundaries. */
-  public static final String SEPARATOR = "\uE3A7";
+  public static final String SEPARATOR = " ";//"\uE3A7";
 
   /**
    * Scan the input with the Gazetteer, returning the {@link Offset Offsets} of all matches
