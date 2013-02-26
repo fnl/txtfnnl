@@ -126,13 +126,11 @@ public class TestJdbcGazetteerResource {
 
   @Test
   public void testFullConfigure() throws ResourceInitializationException {
-    builder.idMatching().caseMatching().setSeparatorLengths(65873)
-        .setSeparators("separatorsDummy");
+    builder.idMatching().caseMatching().setSeparators("separatorsDummy");
     final String config = builder.create().toString();
     assertTrue(config.contains(url));
     assertTrue(config.contains("SELECT id, name FROM entities"));
     assertTrue(config.contains("separatorsDummy"));
-    assertTrue(config.contains("65873"));
   }
 
   @Test
@@ -223,10 +221,10 @@ public class TestJdbcGazetteerResource {
   }
 
   @Test
-  public void testSeparatorLength() throws SQLException, UIMAException, IOException {
+  public void testSeparatorKleene() throws SQLException, UIMAException, IOException {
     createTable(new String[] { "BLA1" });
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
-        DummyAnalysisEngine.GAZETTEER, builder.setSeparatorLengths(3).create(),
+        DummyAnalysisEngine.GAZETTEER, builder.create(),
         DummyAnalysisEngine.TEST_GAZETTEER_SIZE, 4, DummyAnalysisEngine.TEST_KEY,
         JdbcGazetteerResource.NORMAL + JdbcGazetteerResource.LOWERCASE + "bla1",
         DummyAnalysisEngine.TEST_MATCH_VALUE, "bla  1", DummyAnalysisEngine.TEST_MATCH_SIZE, 1,
