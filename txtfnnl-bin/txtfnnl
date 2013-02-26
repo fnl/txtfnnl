@@ -109,7 +109,7 @@ if [ $# -gt 0 ]; then
         pre) java -Xmx2G txtfnnl.pipelines.Preprocessor "$@";;
         tag) java -Xmx2G txtfnnl.pipelines.SentenceTagger "$@";;
         grep) java -Xmx2G txtfnnl.pipelines.PatternExtractor "$@";;
-        rex) java -Xmx12G txtfnnl.pipelines.RelationshipExtractor "$@";;
+        rex) java -Xmx16G txtfnnl.pipelines.RelationshipExtractor "$@";;
         entities) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
         patterns) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;
         -v) echo txtfnnl-$VERSION;;
