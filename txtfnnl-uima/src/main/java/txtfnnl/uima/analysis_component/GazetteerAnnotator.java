@@ -109,9 +109,11 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   }
 
   /**
+   * Create a new gazetteer configuration builder with a pre-configured gazetteer resource.
+   * 
    * @param entityNamespace to use for the {@link SemanticAnnotation SemanticAnnotations} of the
    *        entity DB IDs
-   * @param gazetteerResourceDescription a preconfigured {@link GazetteerResource} description.
+   * @param gazetteerResourceDescription a pre-configured {@link GazetteerResource} description.
    */
   public static Builder configure(String entityNamespace,
       ExternalResourceDescription gazetteerResourceDescription) {
