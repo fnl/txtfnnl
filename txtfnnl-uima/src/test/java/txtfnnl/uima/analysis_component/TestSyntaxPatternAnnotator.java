@@ -24,6 +24,7 @@ import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.Views;
+import txtfnnl.uima.resource.LineBasedStringArrayResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
@@ -47,7 +48,9 @@ public class TestSyntaxPatternAnnotator {
       out.write('\n');
     }
     out.close();
-    annotator = SyntaxPatternAnnotator.configure(patternResource);
+    annotator = SyntaxPatternAnnotator.configure(
+        LineBasedStringArrayResource.configure("file:" + patternResource.toString()).create())
+        .create();
     engine = AnalysisEngineFactory.createPrimitive(annotator);
   }
 

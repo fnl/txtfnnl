@@ -1,10 +1,5 @@
-/**
- * 
- */
 package txtfnnl.uima.analysis_component;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -15,9 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.PatternSyntaxException;
 
-import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
@@ -34,15 +27,15 @@ import org.apache.uima.util.Logger;
 import org.uimafit.component.JCasAnnotator_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
-import org.uimafit.factory.AnalysisEngineFactory;
 
-import txtfnnl.uima.UIMAUtils;
+import txtfnnl.uima.AnalysisComponentBuilder;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.pattern.SyntaxPattern;
 import txtfnnl.uima.resource.LineBasedStringArrayResource;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.SentenceAnnotation;
+import txtfnnl.uima.tcas.TextAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
 import es.fnl.fsm.Matcher;
 import es.fnl.fsm.Pattern;
@@ -72,7 +65,7 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
   /** The URI of this Annotator (namespace and ID are defined dynamically). */
   public static final String URI = SyntaxPatternAnnotator.class.getName();
   protected Logger logger;
-  // TODO: implement token namespace via global NS settings
+  // TODO: replace the token namespace via a txtfnnl-wide NS configuration implementation
   private String tokenNamespace = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
   /** The key used for the LineBasedStringArrayResource. */
   public static final String MODEL_KEY_PATTERN_RESOURCE = "SyntaxPatterns";
@@ -99,43 +92,50 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
       defaultValue = "http://nlp2rdf.lod2.eu/schema/doc/sso/")
   private String defaultNamespace;
 
-  /**
-   * Configure a new descriptor with a pattern file resource.
-   * 
-   * @param patterns to match
-   * @param separator between values in the pattern resource
-   * @param removeUnmatched remove sentence annotations where none of the patterns matched
-   * @param namespace default namespace for the semantic annotations
-   * @param identifier default identifier for the semantic annotations
-   * @return a configured AE description
-   * @throws UIMAException
-   * @throws IOException
-   */
-  @SuppressWarnings("serial")
-  public static AnalysisEngineDescription configure(File patterns, String separator,
-      final boolean removeUnmatched, final String namespace, final String identifier)
-      throws UIMAException, IOException {
-    final ExternalResourceDescription patternResource = LineBasedStringArrayResource.configure(
-        "file:" + patterns.getAbsolutePath(), separator);
-    return AnalysisEngineFactory.createPrimitiveDescription(SyntaxPatternAnnotator.class,
-        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-          {
-            put(MODEL_KEY_PATTERN_RESOURCE, patternResource);
-            put(PARAM_REMOVE_UNMATCHED, removeUnmatched);
-            put(PARAM_DEFAULT_NAMESPACE, namespace);
-            put(PARAM_DEFAULT_IDENTIFIER, identifier);
-          }
-        }));
+  public static class Builder extends AnalysisComponentBuilder {
+    Builder(ExternalResourceDescription patternResourceDescription) {
+      super(SyntaxPatternAnnotator.class);
+      setRequiredParameter(MODEL_KEY_PATTERN_RESOURCE, patternResourceDescription);
+    }
+
+    /** Remove {@link SentenceAnnotation SentenceAnnotations} that did not match to any pattern. */
+    public Builder removeUnmatched() {
+      setOptionalParameter(PARAM_REMOVE_UNMATCHED, true);
+      return this;
+    }
+
+    /**
+     * Define the default {@link TextAnnotation TextAnnotation} identifier used when none is given
+     * in the pattern resource.
+     * 
+     * @param defaultIdentifier to use when the pattern resource does not define one
+     */
+    public Builder setIdentifier(String defaultIdentifier) {
+      setOptionalParameter(PARAM_DEFAULT_IDENTIFIER, defaultIdentifier);
+      return this;
+    }
+
+    /**
+     * Define the default {@link TextAnnotation TextAnnotation} namespace used when none is given
+     * in the pattern resource.
+     * 
+     * @param defaultNamespace to use when the pattern resource does not define one
+     */
+    public Builder setNamespace(String defaultNamespace) {
+      setOptionalParameter(PARAM_DEFAULT_NAMESPACE, defaultNamespace);
+      return this;
+    }
   }
 
   /**
-   * Default configuration only requires the pattern resource file.
+   * Configure a new descriptor with a pattern file resource.
    * 
-   * @throws IOException
+   * @param patternResourceDescription a {@link LineBasedStringArrayResource} with the patterns to
+   *        match
+   * @return an AE description builder
    */
-  public static AnalysisEngineDescription configure(File patterns) throws UIMAException,
-      IOException {
-    return SyntaxPatternAnnotator.configure(patterns, null, false, null, null);
+  public static Builder configure(ExternalResourceDescription patternResourceDescription) {
+    return new Builder(patternResourceDescription);
   }
 
   private class MatchContainer {

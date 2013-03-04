@@ -10,6 +10,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.uima.UIMAException;
+import org.apache.uima.resource.ExternalResourceDescription;
 
 import txtfnnl.uima.analysis_component.BioLemmatizerAnnotator;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
@@ -20,6 +21,7 @@ import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
 import txtfnnl.uima.collection.SemanticAnnotationWriter;
 import txtfnnl.uima.collection.SentenceLineWriter;
+import txtfnnl.uima.resource.LineBasedStringArrayResource;
 
 /**
  * A plaintext extractor for (nearly arbitrary) input files to extract sentences or phrases based
@@ -94,14 +96,15 @@ public class PatternExtractor extends Pipeline {
     final File outputDirectory = Pipeline.outputDirectory(cmd);
     final boolean overwriteFiles = Pipeline.outputOverwriteFiles(cmd);
     try {
+      ExternalResourceDescription patternResource = LineBasedStringArrayResource.configure(
+          "file:" + patterns.getCanonicalPath()).create();
       // 0:tika, 1:splitter, 2:filter, 3:tokenizer, 4:lemmatizer, 5:patternMatcher
       final Pipeline grep = new Pipeline(6);
       grep.setReader(cmd);
       grep.configureTika(cmd);
       grep.set(1, SentenceAnnotator.configure(splitSentences));
       if (sentenceFilterPatterns == null) grep.set(2, NOOPAnnotator.configure());
-      else grep.set(2,
-          SentenceFilter.configure(sentenceFilterPatterns, removingSentenceFilter));
+      else grep.set(2, SentenceFilter.configure(sentenceFilterPatterns, removingSentenceFilter));
       if (geniaDir == null) {
         grep.set(3, TokenAnnotator.configure());
         grep.set(4, BioLemmatizerAnnotator.configure());
@@ -110,11 +113,15 @@ public class PatternExtractor extends Pipeline {
         // the GENIA Tagger already lemmatizes; nothing to do
         grep.set(4, NOOPAnnotator.configure());
       }
-      grep.set(5, SyntaxPatternAnnotator.configure(patterns, "\t", completeSentence, null, null));
-      if (completeSentence) grep.setConsumer(SentenceLineWriter.configure(outputDirectory,
-          encoding, outputDirectory == null, overwriteFiles, true, false));
-      else grep.setConsumer(SemanticAnnotationWriter.configure(outputDirectory, encoding,
-          outputDirectory == null, overwriteFiles, true, "\t"));
+      if (completeSentence) {
+        grep.set(5, SyntaxPatternAnnotator.configure(patternResource).removeUnmatched().create());
+        grep.setConsumer(SentenceLineWriter.configure(outputDirectory, encoding,
+            outputDirectory == null, overwriteFiles, true, false));
+      } else {
+        grep.set(5, SyntaxPatternAnnotator.configure(patternResource).create());
+        grep.setConsumer(SemanticAnnotationWriter.configure(outputDirectory, encoding,
+            outputDirectory == null, overwriteFiles, true, "\t"));
+      }
       grep.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

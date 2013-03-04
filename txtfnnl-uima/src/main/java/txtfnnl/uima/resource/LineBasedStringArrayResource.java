@@ -10,13 +10,14 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.uima.resource.DataResource;
-import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 
 import org.uimafit.component.ExternalResourceAware;
 import org.uimafit.component.initialize.ConfigurationParameterInitializer;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.ExternalResourceFactory;
+
+import txtfnnl.uima.SharedResourceBuilder;
 
 /**
  * A generic implementation of a StringArrayResource that reads data from a line-based stream with
@@ -38,29 +39,29 @@ public class LineBasedStringArrayResource implements StringArrayResource, Extern
   protected String separator;
   protected List<String[]> resource = new ArrayList<String[]>();
 
-  /**
-   * Configure a new resource. In the case of a file, make sure that the (data) resource URL is
-   * prefixed with the "file:" schema prefix.
-   * 
-   * @param resourceUrl the URL where this resource is located
-   * @param separator the regex used to separate the values (if <code>null</code> or empty, use
-   *        default - see {@link #PARAM_SEPARATOR} )
-   */
-  public static ExternalResourceDescription configure(String resourceUrl, String separator) {
-    if (separator == null || separator.length() == 0) return ExternalResourceFactory
-        .createExternalResourceDescription(LineBasedStringArrayResource.class, resourceUrl);
-    else return ExternalResourceFactory.createExternalResourceDescription(
-        LineBasedStringArrayResource.class, resourceUrl, PARAM_SEPARATOR, separator);
+  public static class Builder extends SharedResourceBuilder {
+    protected Builder(String url) {
+      super(LineBasedStringArrayResource.class, url);
+    }
+
+    /**
+     * The field separator to use. May be any regular expression and defaults to a tab. Input lines
+     * are then split into fields using this regular expression.
+     */
+    public Builder setFieldSeparator(String separator) {
+      setOptionalParameter(PARAM_SEPARATOR, separator);
+      return this;
+    }
   }
 
   /**
-   * Configure a new resource using the default separator.
+   * Return a resource configuration builder for a line-based, separated values String Array
+   * resource.
    * 
-   * @param resourceUrl the URL where this resource is located
-   * @return a configured resource description
+   * @param resourceUrl where the line-based stream will be coming from.
    */
-  public static ExternalResourceDescription configure(String resourceUrl) {
-    return LineBasedStringArrayResource.configure(resourceUrl, null);
+  public static Builder configure(String resourceUrl) {
+    return new Builder(resourceUrl);
   }
 
   public void load(DataResource data) throws ResourceInitializationException {

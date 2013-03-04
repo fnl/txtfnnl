@@ -74,7 +74,7 @@ public class SentenceFilter extends JCasAnnotator_ImplBase {
   public static AnalysisEngineDescription configure(File patterns, boolean removeMatched)
       throws UIMAException {
     final ExternalResourceDescription patternResource = LineBasedStringArrayResource.configure(
-        "file:" + patterns.getAbsolutePath(), "\n");
+        "file:" + patterns.getAbsolutePath()).create();
     return AnalysisEngineFactory.createPrimitiveDescription(SentenceFilter.class,
         MODEL_KEY_PATTERN_RESOURCE, patternResource, PARAM_REMOVE_MATCHED, removeMatched);
   }
