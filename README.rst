@@ -30,7 +30,9 @@ In addition, the following direct dependencies exist:
   for txtfnnl furthermore use the `H2 <http://www.h2database.com/>`_ in-memory
   DB.
 - for the syntactic grep facilities (via the ``grep`` pipeline), libfsmg_ has
-  to be in your local Maven repository. 
+  to be in your local Maven repository.
+- for the Gazetteer Annotator in **txtfnnl-uima**, the
+  `Brics Automaton <http://www.brics.dk/automaton/>`_ is used
 - for the **txtfnnl-wrappers** module, the relevant external tools need to be
   downloaded, installed, and visible on the system ``$PATH``.
   Supported external tools are listed in the section Installation below.
