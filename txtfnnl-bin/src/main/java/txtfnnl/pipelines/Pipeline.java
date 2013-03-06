@@ -2,6 +2,7 @@ package txtfnnl.pipelines;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
@@ -150,11 +151,14 @@ public class Pipeline {
       System.out.println("\n(c) Florian Leitner 2012. All rights reserved.");
       System.exit(0); // == EXIT (normally) ==
     }
-    // set up the logging facilities
+    // otherwise, set up the logging facilities
+    URL loggingProperties = null;
     try {
       if (System.getProperty("java.util.logging.config.file") == null) {
+        Class<? extends Thread> threadClass = Thread.currentThread().getClass();
         LogManager.getLogManager().readConfiguration(
-            Thread.currentThread().getClass().getResourceAsStream("/logging.properties"));
+            threadClass.getResourceAsStream("/logging.properties"));
+        loggingProperties = threadClass.getResource("/logging.properties");
       }
     } catch (final SecurityException ex) {
       System.err.println("SecurityException while configuring logging");
@@ -173,7 +177,8 @@ public class Pipeline {
     } else if (!cmd.hasOption('i')) {
       rootLogger.setLevel(Level.WARNING);
     }
-    l.fine("logging setup complete");
+    l.log(Level.INFO, "logging setup using {0} complete", loggingProperties == null
+        ? "an undefined logging.properties resource" : loggingProperties.toString());
     return l;
   }
 
