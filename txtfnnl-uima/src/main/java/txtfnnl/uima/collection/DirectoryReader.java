@@ -164,7 +164,7 @@ public class DirectoryReader extends CasCollectionReader_ImplBase {
     final CAS rawDocument = aCAS.createView(Views.CONTENT_RAW.toString());
     // set the new SOFA's data URI and MIME type
     final File file = fileIter.next();
-    final String uri = file.getAbsoluteFile().toURI().toString();
+    final String uri = file.getCanonicalFile().toURI().toString();
     rawDocument.setSofaDataURI(uri, mimeType == null ? tika.detect(file) : mimeType);
     /* TODO: set document language
     if (language != null) {

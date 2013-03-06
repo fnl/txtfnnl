@@ -116,7 +116,7 @@ public class FileReader extends CasCollectionReader_ImplBase {
     }
     // set the new SOFA's data URI and MIME type
     final File file = files[counter];
-    final String uri = file.getAbsoluteFile().toURI().toString();
+    final String uri = file.getCanonicalFile().toURI().toString();
     String fileMime = mimeType;
     if (mimeType == null) {
       fileMime = tika.detect(file);
