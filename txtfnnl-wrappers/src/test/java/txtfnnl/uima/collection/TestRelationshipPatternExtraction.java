@@ -20,6 +20,7 @@ import java.util.logging.Level;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.apache.uima.UIMAException;
@@ -40,6 +41,7 @@ import txtfnnl.uima.analysis_component.KnownRelationshipAnnotator;
 import txtfnnl.uima.analysis_component.LinkGrammarAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 
+@Ignore("probably will be killed...")
 public class TestRelationshipPatternExtraction {
   static AnalysisEngine sentenceAE, entityAE, relationshipAE, parserAE, patternAE;
   AnalysisEngineDescription entityAEDesc, relationshipAEDesc;
