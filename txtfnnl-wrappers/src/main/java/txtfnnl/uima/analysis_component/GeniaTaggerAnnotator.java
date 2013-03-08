@@ -121,7 +121,7 @@ class GeniaTagger extends ReadlineRuntime<List<Token>> {
  */
 public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
   /** The annotator's URI (for the annotations) set by this AE. */
-  public static final String URI = "http://www.nactem.ac.uk/tsujii/GENIA/tagger/";
+  public static final String URI = "http://www.nactem.ac.uk/tsujii/GENIA/tagger";
   /** The namespace used for all annotations. */
   public static final String NAMESPACE = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
   /** The identifier used for all annotations. */
