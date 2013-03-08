@@ -8,7 +8,7 @@ Introduction
 ------------
 
 A text mining framework encapsulating content extraction, language processing
-and content analysis functionality.
+and content analysis functionality with a strong focus on BioNLP.
 
 Dependencies
 ------------
@@ -162,6 +162,13 @@ License, Author and Copyright Notice
 **txtfnnl** is free, open software provided via a
 `Apache 2.0 License <http://www.apache.org/licenses/LICENSE-2.0.html>`_ -
 see ``LICENSE.txt`` in this directory for details.
+
+The only part of this framework that cannot be freely applied in a commercial
+application is the GENIA Tagger (itself; i.e., not the wrapper distributed
+with the framework here, but the tagger itself that is optionally available
+as an external install). If all you need is a good PoS tagger, however,
+training a OpenNLP tagger for biomedical or scientific texts is one option.
+As another alternative, a MedPost wrapper could be added, too.
 
 Copyright 2012, 2013 - Florian Leitner (fnl). All rights reserved.
 
