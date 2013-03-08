@@ -1,196 +1,215 @@
 package txtfnnl.uima.analysis_component;
 
+import java.io.File;
 import java.io.IOException;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
-import org.apache.uima.UIMAException;
 import org.apache.uima.analysis_engine.AnalysisEngine;
 import org.apache.uima.analysis_engine.AnalysisEngineDescription;
-import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
-import org.apache.uima.cas.FSIterator;
-import org.apache.uima.cas.text.AnnotationIndex;
-import org.apache.uima.cas.text.AnnotationTreeNode;
+import org.apache.uima.impl.ChildUimaContext_impl;
 import org.apache.uima.jcas.JCas;
-import org.apache.uima.jcas.tcas.Annotation;
+import org.apache.uima.jcas.impl.JCasImpl;
+import org.apache.uima.util.Level;
+import org.apache.uima.util.Logger;
 
+import org.easymock.EasyMock;
+import org.powermock.api.easymock.PowerMock;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 import org.uimafit.factory.AnalysisEngineFactory;
+import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.Views;
+import txtfnnl.uima.analysis_component.LinkGrammarAnnotator.Builder;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
-import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
-import txtfnnl.uima.tcas.TextAnnotation;
+import txtfnnl.utils.Offset;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({ LinkParser.class, LinkGrammarAnnotator.class, ChildUimaContext_impl.class,
+    AnalysisEngineFactory.class, SyntaxAnnotation.class, JCasImpl.class })
 public class TestLinkGrammarAnnotator {
-  private static AnalysisEngineDescription annotatorDesc;
-  private static AnalysisEngine sentenceAnnotator;
-  private static AnalysisEngine linkGrammarAnnotator;
-  private JCas baseJCas;
-  private JCas textJCas;
+  static Builder aeBuilder;
+  static AnalysisEngine sentenceAnnotator;
+  JCas baseJCas;
+  JCas textJCas;
+  static final String SENTENCE = "ARL, a regulator of cell death localized inside the "
+      + "nucleus, has been shown to bind the p53 promoter.";
+  // output for testSentence as produced with default settings using LGP 4.7.6:
+  // link-parser -constituents=3 -verbosity=0 -timeout=15
+  static final String RESULT = "(S (NP (NP ARL) , (NP (NP a regulator) (PP (NP of cell "
+      + "death) (VP localized (PP inside (NP the nucleus))))) ,) (VP has (VP been (VP shown "
+      + "(S (VP to (VP bind (NP the p53 promoter))))))) .)";
 
   @Before
   public void setUp() throws Exception {
+    DisableLogging.disableLogging();
     // set up AE descriptor under test
+    PowerMock.createPartialMock(JCasImpl.class, "addFsToIndexes");
     if (sentenceAnnotator == null)
       sentenceAnnotator = AnalysisEngineFactory.createAnalysisEngine(
           SentenceAnnotator.configure(), Views.CONTENT_TEXT.toString());
-    if (annotatorDesc == null) annotatorDesc = LinkGrammarAnnotator.configure();
-    if (linkGrammarAnnotator == null)
-      linkGrammarAnnotator = AnalysisEngineFactory.createAnalysisEngine(annotatorDesc,
-          Views.CONTENT_TEXT.toString());
+    aeBuilder = LinkGrammarAnnotator.configure();
     baseJCas = sentenceAnnotator.newJCas();
     textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
   }
 
-  @Test
-  public void producesConstituents() throws AnalysisEngineProcessException {
-    textJCas
-        .setDocumentText("ARL, a regulator of cell death localized inside the nucleus, has been shown to bind the p53 promoter.");
-    sentenceAnnotator.process(baseJCas.getCas());
-    linkGrammarAnnotator.process(baseJCas.getCas());
-    final AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
-    final FSIterator<Annotation> it = SyntaxAnnotation.getIterator(textJCas);
-    final String[][] annotations = new String[][] {
-        // {
-        // "S",
-        // "ARL, a regulator of cell death localized inside the nucleus, has been shown to bind the p53 promoter."
-        // },
-        { "NP", "ARL, a regulator of cell death localized inside the nucleus," }, { "NP", "ARL" },
-        { "NP", "a regulator of cell death localized inside the nucleus" },
-        { "NP", "a regulator" }, { "PP", "of cell death localized inside the nucleus" },
-        { "NP", "of cell death" }, { "VP", "localized inside the nucleus" },
-        { "PP", "inside the nucleus" }, { "NP", "the nucleus" },
-        { "VP", "has been shown to bind the p53 promoter" },
-        { "VP", "been shown to bind the p53 promoter" },
-        { "VP", "shown to bind the p53 promoter" }, { "VP", "to bind the p53 promoter" },
-        { "VP", "bind the p53 promoter" }, { "NP", "the p53 promoter" }, };
-    int a = 0;
-    while (it.hasNext()) {
-      final SyntaxAnnotation ann = (SyntaxAnnotation) it.next();
-      if (LinkGrammarAnnotator.URI.equals(ann.getAnnotator())) {
-        Assert.assertEquals(annotations[a][0], ann.getIdentifier());
-        Assert.assertEquals(annotations[a++][1], ann.getCoveredText());
-      } else {
-        ensureTreeStructure(idx, (SentenceAnnotation) ann);
-      }
-    }
-    Assert.assertEquals(annotations.length, a);
+  @After
+  public void tearDown() {
+    DisableLogging.enableLogging(java.util.logging.Level.WARNING);
   }
 
   @Test
-  public void withBrackets() throws AnalysisEngineProcessException, CASException {
-    for (final String brackets : new String[] { "()", "[]", "{}" }) {
-      final String open = brackets.substring(0, 1);
-      final String close = brackets.substring(1, 2);
-      final String npInBrackets = open + "a reg\u00FClator of cell death" + close;
-      textJCas.setDocumentText("ARL " + npInBrackets + " binds to the p53 promoter.");
-      sentenceAnnotator.process(baseJCas.getCas());
-      linkGrammarAnnotator.process(baseJCas.getCas());
-      final AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
-      final FSIterator<Annotation> it = SyntaxAnnotation.getIterator(textJCas);
-      final String[][] annotations = new String[][] {
-          // { "S", "ARL " + npInBrackets +
-          // " binds to the p53 promoter." },
-          { "NP", "ARL " + npInBrackets }, { "NP", "ARL" }, { "NP", npInBrackets },
-          { "NP", open + "a reg\u00FClator" }, { "PP", "of cell death" },
-          { "VP", "binds to the p53 promoter" }, { "PP", "to the p53 promoter" },
-          { "NP", "the p53 promoter" }, };
-      int a = 0;
-      while (it.hasNext()) {
-        final SyntaxAnnotation ann = (SyntaxAnnotation) it.next();
-        if (LinkGrammarAnnotator.URI.equals(ann.getAnnotator())) {
-          Assert.assertEquals(
-              brackets + " a=" + a + ": " + annotations[a][0] + " != " + ann.getIdentifier() +
-                  " in '" + annotations[a][1] + "' found '" + ann.getCoveredText() + "' [" +
-                  ann.getBegin() + ":" + ann.getEnd() + "]", annotations[a][0],
-              ann.getIdentifier());
-          Assert.assertEquals(brackets + " a=" + a, annotations[a++][1], ann.getCoveredText());
-        } else {
-          ensureTreeStructure(idx, (SentenceAnnotation) ann);
-        }
-      }
-      Assert.assertEquals(annotations.length, a);
-      textJCas.reset();
-      baseJCas.reset();
-      textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
-    }
+  public void testConfigure() throws Exception {
+    PowerMock.mockStaticPartial(AnalysisEngineFactory.class, "createPrimitiveDescription");
+    AnalysisEngineDescription mock = PowerMock.createMock(AnalysisEngineDescription.class);
+    EasyMock.expect(AnalysisEngineFactory.createPrimitiveDescription(LinkGrammarAnnotator.class))
+        .andReturn(mock);
+    PowerMock.replay(AnalysisEngineFactory.class);
+    Assert.assertEquals(mock, aeBuilder.create());
+    PowerMock.verify(AnalysisEngineFactory.class);
   }
 
   @Test
-  public void onALongSentence() throws AnalysisEngineProcessException {
-    final String testString = "Here, we identify the c-Myc transcription factor as a direct mediator of telomerase activation in primary human fibroblasts through its ability to specifically induce TERT gene expression.";
-    textJCas.setDocumentText(testString);
-    sentenceAnnotator.process(baseJCas.getCas());
-    linkGrammarAnnotator.process(baseJCas.getCas());
-    final AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
-    final FSIterator<Annotation> it = SentenceAnnotation.getIterator(textJCas);
-    int count = 0;
-    while (it.hasNext()) {
-      ensureTreeStructure(idx, (SentenceAnnotation) it.next());
-      ++count;
-    }
-    Assert.assertEquals(1, count);
+  public void testConfigureWithDirectory() throws Exception {
+    File dummy = File.createTempFile("dummy", "file").getParentFile();
+    PowerMock.mockStaticPartial(AnalysisEngineFactory.class, "createPrimitiveDescription");
+    AnalysisEngineDescription mock = PowerMock.createMock(AnalysisEngineDescription.class);
+    EasyMock.expect(
+        AnalysisEngineFactory.createPrimitiveDescription(LinkGrammarAnnotator.class,
+            LinkGrammarAnnotator.PARAM_DICTIONARIES_PATH, dummy.getCanonicalPath())).andReturn(
+        mock);
+    PowerMock.replay(AnalysisEngineFactory.class);
+    Assert.assertEquals(mock, aeBuilder.setDictionaryPath(dummy).create());
+    PowerMock.verify(AnalysisEngineFactory.class);
   }
 
   @Test
-  public void onAnotherLongSentence() throws UIMAException, IOException {
-    final String testString = "The inability of TERT overexpression to substitute for Myc in the REF cooperation "
-        + "assay suggests that the oncogenic actions of c-Myc extend beyond the "
-        + "activation of TERT gene expression and telomerase activity.";
-    annotatorDesc = LinkGrammarAnnotator.configure(30);
-    linkGrammarAnnotator = AnalysisEngineFactory.createAnalysisEngine(annotatorDesc,
+  public void testConfigureWithTimeout() throws Exception {
+    PowerMock.mockStaticPartial(AnalysisEngineFactory.class, "createPrimitiveDescription");
+    AnalysisEngineDescription mock = PowerMock.createMock(AnalysisEngineDescription.class);
+    EasyMock.expect(
+        AnalysisEngineFactory.createPrimitiveDescription(LinkGrammarAnnotator.class,
+            LinkGrammarAnnotator.PARAM_TIMEOUT_SECONDS, 123)).andReturn(mock);
+    PowerMock.replay(AnalysisEngineFactory.class);
+    Assert.assertEquals(mock, aeBuilder.setTimeout(123).create());
+    PowerMock.verify(AnalysisEngineFactory.class);
+  }
+
+  @Test
+  public void testIntialize() throws Exception {
+    File path = File.createTempFile("linkparser.", "dir").getParentFile();
+    Logger logger = PowerMock.createMock(Logger.class);
+    LinkParser parser = PowerMock.createMock(LinkParser.class);
+    mockParser(parser, path, 15, logger);
+    PowerMock.replay(parser, LinkParser.class);
+    PowerMock.replay(logger, Logger.class);
+    AnalysisEngineDescription description = aeBuilder.setDictionaryPath(path).setTimeout(15)
+        .create();
+    AnalysisEngineFactory.createAnalysisEngine(description, Views.CONTENT_TEXT.toString());
+    PowerMock.verify(parser, LinkParser.class);
+    PowerMock.verify(logger, Logger.class);
+  }
+
+  @Test
+  public void testProcess() throws Exception {
+    textJCas.setDocumentText(SENTENCE);
+    sentenceAnnotator.process(baseJCas);
+    File path = File.createTempFile("linkparser.", "dir").getParentFile();
+    Logger logger = PowerMock.createMock(Logger.class);
+    LinkParser parser = PowerMock.createMock(LinkParser.class);
+    mockParser(parser, path, 15, logger);
+    mockProcess(parser, logger, SENTENCE, RESULT);
+    logger.log(EasyMock.eq(Level.FINE),
+        EasyMock.eq("dropping outer constituent {0} of {1} on span ''{2}''"),
+        EasyMock.aryEq(new Object[] { "S", "VP", "to bind the p53 promoter" }));
+    // replay!
+    PowerMock.replay(parser, LinkParser.class);
+    PowerMock.replay(logger, Logger.class);
+    AnalysisEngineDescription description = aeBuilder.setDictionaryPath(path).setTimeout(15)
+        .create();
+    AnalysisEngine ae = AnalysisEngineFactory.createAnalysisEngine(description,
         Views.CONTENT_TEXT.toString());
-    baseJCas = sentenceAnnotator.newJCas();
-    textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
-    textJCas.setDocumentText(testString);
-    sentenceAnnotator.process(baseJCas.getCas());
-    linkGrammarAnnotator.process(baseJCas.getCas());
-    final AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
-    final FSIterator<Annotation> it = SentenceAnnotation.getIterator(textJCas);
-    int count = 0;
-    while (it.hasNext()) {
-      ensureTreeStructure(idx, (SentenceAnnotation) it.next());
-      ++count;
-    }
-    Assert.assertEquals(1, count);
+    ae.process(baseJCas);
+    PowerMock.verify(parser, LinkParser.class);
+    PowerMock.verify(logger, Logger.class);    // OLD
   }
 
   @Test
-  public void doesNotHangForever() throws UIMAException, IOException {
-    AnalysisEngine lga = AnalysisEngineFactory.createPrimitive(LinkGrammarAnnotator.configure(1));
-    baseJCas = sentenceAnnotator.newJCas();
-    textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
-    textJCas
-        .setDocumentText("Original article Telomerase reverse transcriptase gene is a direct target of c-Myc but is not functionally equivalent in cellular transformation Roger A Greenberg 1,b , Rónán C O'Hagan 2,b , Hongyu Deng 1 , Qiurong Xiao 5 , Steven R Hann 5 , Robert R Adams 6 , Serge Lichtsteiner 6 , Lynda Chin 2,4 , Gregg B Morin 6 and Ronald A DePinho 2,3,a 1 Department of Microbiology & Immunology, Albert Einstein College of Medicine, 1300 Morris Park Avenue, Bronx, New York 10461, USA.");
-    sentenceAnnotator.process(baseJCas.getCas());
-    lga.process(baseJCas.getCas());
-    final AnnotationIndex<Annotation> idx = textJCas.getAnnotationIndex(SyntaxAnnotation.type);
-    final FSIterator<Annotation> it = SentenceAnnotation.getIterator(textJCas);
-    int count = 0;
-    while (it.hasNext()) {
-      final SentenceAnnotation ann = (SentenceAnnotation) it.next();
-      final AnnotationTreeNode<Annotation> root = idx.tree(ann).getRoot();
-      final Annotation rootAnn = root.get();
-      Assert.assertEquals("Sentence", ((TextAnnotation) rootAnn).getIdentifier());
-      Assert.assertEquals(ann.getBegin(), rootAnn.getBegin());
-      Assert.assertEquals(ann.getEnd(), rootAnn.getEnd());
-      ++count;
-    }
-    Assert.assertEquals(1, count);
+  public void testAnnotate() throws Exception {
+    textJCas.setDocumentText("A word.");
+    sentenceAnnotator.process(baseJCas);
+    File path = File.createTempFile("linkparser.", "dir").getParentFile();
+    Logger logger = PowerMock.createMock(Logger.class);
+    LinkParser parser = PowerMock.createMock(LinkParser.class);
+    mockParser(parser, path, 15, logger);
+    SyntaxAnnotation ann = mockAnnotation(0, 6, "NP");
+    EasyMock.expect(ann.getIdentifier()).andReturn("NP");
+    EasyMock.expect(ann.getCoveredText()).andReturn("A word");
+    ann.setIdentifier("VP");
+    mockProcess(parser, logger, "A word.", "(S (NP (VP A word)).)");
+    logger.log(EasyMock.eq(Level.FINE),
+        EasyMock.eq("dropping outer constituent {0} of {1} on span ''{2}''"),
+        EasyMock.aryEq(new Object[] { "NP", "VP", "A word" }));
+    // replay!
+    PowerMock.replay(parser, LinkParser.class);
+    PowerMock.replay(ann, SyntaxAnnotation.class);
+    PowerMock.replay(logger, Logger.class);
+    AnalysisEngineDescription description = aeBuilder.setDictionaryPath(path).setTimeout(15)
+        .create();
+    AnalysisEngine ae = AnalysisEngineFactory.createAnalysisEngine(description,
+        Views.CONTENT_TEXT.toString());
+    ae.process(baseJCas);
+    PowerMock.verify(parser, LinkParser.class);
+    PowerMock.verify(ann, SyntaxAnnotation.class);
+    PowerMock.verify(logger, Logger.class);
   }
 
-  private void ensureTreeStructure(AnnotationIndex<Annotation> idx, SentenceAnnotation ann) {
-    final AnnotationTreeNode<Annotation> root = idx.tree(ann).getRoot();
-    final Annotation rootAnn = root.get();
-    Assert.assertEquals("Sentence", ((TextAnnotation) rootAnn).getIdentifier());
-    Assert.assertEquals(ann.getBegin(), rootAnn.getBegin());
-    Assert.assertEquals(ann.getEnd(), rootAnn.getEnd());
-    Assert.assertNotSame("sentence '" + ann.getCoveredText() +
-        "' has no child nodes / node count = 0 (" + root.getChildCount() + ")", 0,
-        root.getChildCount());
+  private void mockProcess(LinkParser parser, Logger logger, String sentence, String result)
+      throws IOException {
+    logger.logrb(Level.FINE, "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl",
+        "process", "org.apache.uima.impl.log_messages",
+        "UIMA_analysis_engine_process_begin__FINE",
+        "txtfnnl.uima.analysis_component.LinkGrammarAnnotator");
+    EasyMock.expect(parser.process(sentence)).andReturn(result);
+    logger.log(Level.FINE, "sentence: ''{0}''", sentence);
+    logger.log(Level.FINE, "constituents: {0}", result);
+    logger.log(Level.FINER, "ignoring full-sentence length constituent {0}", "S");
+    logger.logrb(Level.FINE, "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl",
+        "process", "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_process_end__FINE",
+        "txtfnnl.uima.analysis_component.LinkGrammarAnnotator");
+  }
+
+  private void mockParser(LinkParser parser, File path, int timeout, Logger logger)
+      throws Exception, IOException {
+    PowerMock.stub(PowerMock.method(ChildUimaContext_impl.class, "getLogger")).toReturn(logger);
+    PowerMock.expectNew(LinkParser.class, path.getCanonicalPath(), timeout, logger).andReturn(
+        parser);
+    logger.logrb(Level.CONFIG,
+        "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl", "initialize",
+        "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_init_begin__CONFIG",
+        "txtfnnl.uima.analysis_component.LinkGrammarAnnotator");
+    logger.log(Level.INFO, "initialized LinkGrammar parser");
+    logger.logrb(Level.CONFIG,
+        "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl", "initialize",
+        "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_init_successful__CONFIG",
+        "txtfnnl.uima.analysis_component.LinkGrammarAnnotator");
+  }
+
+  private SyntaxAnnotation mockAnnotation(int start, int end, String tag) throws Exception {
+    SyntaxAnnotation ann = PowerMock.createMockAndExpectNew(SyntaxAnnotation.class, textJCas,
+        new Offset(start, end));
+    ann.setAnnotator(LinkGrammarAnnotator.URI);
+    ann.setConfidence(1.0);
+    ann.setNamespace(LinkGrammarAnnotator.NAMESPACE);
+    ann.setIdentifier(tag);
+    EasyMock.expect(ann.getView()).andReturn(textJCas.getCas());
+    EasyMock.expect(ann.getAddress()).andReturn(1);
+    return ann;
   }
 }

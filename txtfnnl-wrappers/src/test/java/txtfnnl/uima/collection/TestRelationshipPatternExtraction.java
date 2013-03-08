@@ -114,7 +114,7 @@ public class TestRelationshipPatternExtraction {
   }
 
   void setUpParserAE() throws UIMAException, IOException {
-    final AnalysisEngineDescription annotatorDesc = LinkGrammarAnnotator.configure();
+    final AnalysisEngineDescription annotatorDesc = LinkGrammarAnnotator.configure().create();
     parserAE = AnalysisEngineFactory.createPrimitive(annotatorDesc);
   }
 

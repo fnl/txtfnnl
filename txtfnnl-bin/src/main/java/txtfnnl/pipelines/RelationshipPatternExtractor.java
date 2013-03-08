@@ -164,7 +164,7 @@ public class RelationshipPatternExtractor extends Pipeline {
       pipeline.set(1, SentenceAnnotator.configure(splitSentences));
       pipeline.set(2, KnownEntityAnnotator.configure(namespace, queries, entityMap, jdbcResource));
       pipeline.set(3, KnownRelationshipAnnotator.configure(namespace, relNamespace, relMap, true));
-      pipeline.set(4, LinkGrammarAnnotator.configure());
+      pipeline.set(4, LinkGrammarAnnotator.configure().create());
       pipeline.setConsumer(RelationshipPatternLineWriter.configure(relNamespace, outputDirectory,
           encoding, outputDirectory == null, overwriteFiles, 1000));
       pipeline.run();

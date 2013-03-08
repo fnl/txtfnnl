@@ -32,6 +32,7 @@ import org.uimafit.factory.AnalysisEngineFactory;
 
 import txtfnnl.subprocess.ReadlineRuntime;
 import txtfnnl.subprocess.RuntimeKiller;
+import txtfnnl.uima.AnalysisComponentBuilder;
 import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
@@ -393,7 +394,7 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
   }
 
   /**
-   * All Penn Treebank tags that can be used to annotate constituent spans.
+   * All valid Penn Treebank tags that can be used to annotate constituent spans.
    */
   @SuppressWarnings("serial")
   public static final Map<String, String> CONSTITUENT_TAGS = Collections
@@ -471,6 +472,40 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
   /** The wrapper for the LinkGrammar parser runtime executable. */
   LinkParser parser;
 
+  public static class Builder extends AnalysisComponentBuilder {
+    public Builder() {
+      super(LinkGrammarAnnotator.class);
+    }
+
+    public Builder setDictionaryPath(File path) throws IOException {
+      if (path != null) {
+        String p = path.getAbsolutePath();
+        if (!path.exists()) throw new IOException("'" + p + "' does not exist");
+        if (!path.isDirectory())
+          throw new IllegalArgumentException("'" + p + "' is not a directory");
+        if (!path.canRead()) throw new IllegalArgumentException("'" + p + "' cannot be read");
+      }
+      setOptionalParameter(PARAM_DICTIONARIES_PATH, path.getCanonicalPath());
+      return this;
+    }
+
+    /**
+     * The number of seconds the parser may <em>approximately</em> spend analyzing a sentence
+     * before the algorithm tries stops itself. After twice this time has passed, the AE kills the
+     * parser if it still is working on the same sentence.
+     * <p>
+     * By default, this parameter is set at 15 seconds. This means, the hard cap is at 30 seconds
+     * (twice times the timeout value), at which point the link-parser gets killed and the AE moves
+     * on. If you expect very long, "tough" sentences, try settings this parameter higher (30-60
+     * seconds).
+     */
+    public Builder setTimeout(int seconds) {
+      if (seconds < 1) throw new IllegalArgumentException("non-positive timeout value");
+      setOptionalParameter(PARAM_TIMEOUT_SECONDS, seconds);
+      return this;
+    }
+  }
+
   /**
    * Configure a LinkGrammarAnnotator description.
    * 
@@ -521,15 +556,9 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
     return LinkGrammarAnnotator.configure(null, timeout);
   }
 
-  /**
-   * Configure a default LinkGrammarAnnotator description.
-   * 
-   * @return an AE description
-   * @throws UIMAException
-   * @throws IOException
-   */
-  public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-    return LinkGrammarAnnotator.configure(null);
+  /** Configure a {@link LinkGrammarAnnotator} description builder. */
+  public static Builder configure() throws UIMAException, IOException {
+    return new Builder();
   }
 
   @Override
@@ -539,14 +568,15 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
     try {
       parser = new LinkParser(dictionariesPath, timeout, logger);
     } catch (final IOException e) {
-      logger.log(Level.SEVERE, "link-parser setup failed");
+      logger.log(Level.SEVERE, "LinkGrammar parser setup failed");
       throw new ResourceInitializationException(e);
     }
+    logger.log(Level.INFO, "initialized LinkGrammar parser");
   }
 
   @Override
   public void process(JCas jcas) throws AnalysisEngineProcessException {
-    // TODO: use default view
+    // TODO use default view
     JCas textCas;
     try {
       textCas = jcas.getView(Views.CONTENT_TEXT.toString());
@@ -610,7 +640,7 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
     }
     if (constituentExpression != null) {
       logger.log(Level.FINE, "constituents: {0}", constituentExpression);
-      // de-normalize parenthesis to curly brackets, just as LGP
+      // normalize parenthesis to curly brackets, just as LGP itself does
       sentence = sentence.replace('(', '{').replace(')', '}');
       final ConstituentNode root = ConstituentNode.parse(constituentExpression);
       final Iterator<ConstituentNode> walker = ConstituentNode.walk(root);
@@ -704,11 +734,12 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
           logger.log(Level.FINER, "ignoring full-sentence length constituent {0}", n.data);
           continue;
         }
-        // XXX: TreeAnnotation type? (w/ pointer to parent annotation)
+        // XXX TreeAnnotation type? (w/ pointer to parent annotation)
+        // TODO graph-based relationship annotations combined with text annotations
         // (see comments above, too)
         ann = new SyntaxAnnotation(jcas, n.getOffset());
         ann.setAnnotator(URI);
-        ann.setConfidence(1.0); // XXX: confidence score?
+        ann.setConfidence(1.0); // TODO get LGP confidence score?
         ann.setNamespace(NAMESPACE);
         ann.setIdentifier(n.data);
         phrases.add(ann);
