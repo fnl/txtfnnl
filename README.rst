@@ -13,6 +13,8 @@ and content analysis functionality.
 Dependencies
 ------------
 
+Java 1.6+.
+
 **txtfnnl** currently integrates the following Apache projects:
 
 - `Maven <http://maven.apache.org>`_ 2.2
@@ -24,26 +26,27 @@ In addition, the following direct dependencies exist:
 
 - `uimaFIT <http://code.google.com/p/uimafit/>`_ 1.4 for configuration and
   testing
-- for making gene mention annotations (via the ``entities`` pipeline), a
+- for making gene mention and normalization annotations, the
   gnamed_ DB has to be available on the network, which in turn (by default)
-  requires `PostgreSQL <http://www.postgresql.org/>`_ 8.4+; SQL-realted tests
-  for txtfnnl furthermore use the `H2 <http://www.h2database.com/>`_ in-memory
+  requires `PostgreSQL <http://www.postgresql.org/>`_ 8.4+; the SQL-realted tests
+  for txtfnnl however use the `H2 <http://www.h2database.com/>`_ in-memory
   DB.
 - for the syntactic grep facilities (via the ``grep`` pipeline), libfsmg_ has
   to be in your local Maven repository.
 - for the Gazetteer Annotator in **txtfnnl-uima**, the
   `Brics Automaton <http://www.brics.dk/automaton/>`_ is used
-- for the **txtfnnl-wrappers** module, the relevant external tools need to be
-  downloaded, installed, and visible on the system ``$PATH``.
-  Supported external tools are listed in the section Installation below.
 - `BioLemmatizer <http://biolemmatizer.sourceforge.net/>`_ 1.1 in
   **txtfnnl-wrappers**
+- for the **txtfnnl-wrappers** module, the relevant external tools need to be
+  downloaded, installed, and visible on the system ``$PATH``. All
+  supported external NLP tools are listed in the section Installation below.
 
 Installation
 ------------
 
 Before installing **txtfnnl** itself, the additional (independent) tools
-should be installed. The following NLP tools are supported by **txtfnnl**:
+should be installed (only libfsmg_ *must* be installed). The following
+NLP tools are supported by **txtfnnl**:
 
 `LinkGrammar <http://www.abisource.com/projects/link-grammar/>`_
   After downloading, unpacking, building, and installation (usually, just a
@@ -69,8 +72,9 @@ libfsmg_
 
 All Java dependencies should be resolved by Maven (if you have a working
 Internet connection). To "install" **txtfnnl** itself, execute ``mvn install``
-in the TLD. **txtfnnl** is known to work on Apple OSX, Ubuntu and CentOS.
-The framework requires the use of Java 1.5 or later (tested on 1.5 and 1.6).
+in the TLD (after installing libfsmg_ in a similary way). **txtfnnl** is known
+to work on Apple OSX, Ubuntu and CentOS. The framework requires the use of
+Java 1.6 or later.
 
 After installing the Maven project, the ``txtfnnl`` shell script in the
 **txtfnnl-bin** module can be put anywhere on the system ``$PATH``.
