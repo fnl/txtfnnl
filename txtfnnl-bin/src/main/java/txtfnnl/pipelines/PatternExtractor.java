@@ -109,7 +109,7 @@ public class PatternExtractor extends Pipeline {
         grep.set(3, TokenAnnotator.configure());
         grep.set(4, BioLemmatizerAnnotator.configure());
       } else {
-        grep.set(3, GeniaTaggerAnnotator.configure(new File(geniaDir)));
+        grep.set(3, GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir)).create());
         // the GENIA Tagger already lemmatizes; nothing to do
         grep.set(4, NOOPAnnotator.configure());
       }

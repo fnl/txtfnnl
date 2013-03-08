@@ -83,7 +83,7 @@ public class Preprocessor extends Pipeline {
         tagger.set(2, TokenAnnotator.configure());
         tagger.set(3, BioLemmatizerAnnotator.configure());
       } else {
-        tagger.set(2, GeniaTaggerAnnotator.configure(new File(geniaDir)));
+        tagger.set(2, GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir)).create());
         // the GENIA Tagger already stems - nothing more to do
         tagger.set(3, NOOPAnnotator.configure());
       }

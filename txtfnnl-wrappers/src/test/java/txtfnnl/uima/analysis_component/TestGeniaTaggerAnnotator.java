@@ -14,7 +14,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import org.easymock.EasyMock;
 
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -29,6 +31,7 @@ import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 
 import txtfnnl.uima.Views;
+import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator.Builder;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 
 /**
@@ -38,43 +41,52 @@ import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 @PrepareForTest({ GeniaTaggerAnnotator.class, GeniaTagger.class, ChildUimaContext_impl.class,
     AnalysisEngineFactory.class })
 public class TestGeniaTaggerAnnotator {
+  Builder aeBuilder;
+
+  @Before
+  public void setUp() {
+    DisableLogging.disableLogging();
+    aeBuilder = GeniaTaggerAnnotator.configure();
+  }
+  
+  @After
+  public void tearDown() {
+    DisableLogging.enableLogging(java.util.logging.Level.WARNING);
+  }
+
   @Test
   public void testConfigure() throws Exception {
-    DisableLogging.enableLogging(java.util.logging.Level.SEVERE);
     PowerMock.mockStaticPartial(AnalysisEngineFactory.class, "createPrimitiveDescription");
     AnalysisEngineDescription mock = PowerMock.createMock(AnalysisEngineDescription.class);
     EasyMock.expect(AnalysisEngineFactory.createPrimitiveDescription(GeniaTaggerAnnotator.class))
         .andReturn(mock);
     PowerMock.replay(AnalysisEngineFactory.class);
-    Assert.assertEquals(mock, GeniaTaggerAnnotator.configure());
+    Assert.assertEquals(mock, aeBuilder.create());
     PowerMock.verify(AnalysisEngineFactory.class);
   }
 
   @Test
   public void testConfigureWithPath() throws Exception {
-    DisableLogging.enableLogging(java.util.logging.Level.SEVERE);
-    File dummy = File.createTempFile("dummy", "file");
+    File dummy = File.createTempFile("dummy", "file").getParentFile();
     PowerMock.mockStaticPartial(AnalysisEngineFactory.class, "createPrimitiveDescription");
     AnalysisEngineDescription mock = PowerMock.createMock(AnalysisEngineDescription.class);
     EasyMock.expect(
         AnalysisEngineFactory.createPrimitiveDescription(GeniaTaggerAnnotator.class,
-            GeniaTaggerAnnotator.PARAM_DICTIONARIES_PATH, dummy.getCanonicalPath())).andReturn(
-        mock);
+            GeniaTaggerAnnotator.PARAM_DIRECTORY, dummy.getCanonicalPath())).andReturn(mock);
     PowerMock.replay(AnalysisEngineFactory.class);
-    Assert.assertEquals(mock, GeniaTaggerAnnotator.configure(dummy));
+    Assert.assertEquals(mock, aeBuilder.setDirectory(dummy).create());
     PowerMock.verify(AnalysisEngineFactory.class);
   }
 
   @Test
   public void testIntialize() throws Exception {
-    DisableLogging.enableLogging(java.util.logging.Level.SEVERE);
     File dictionariesPath = File.createTempFile("geniatagger.", "dir").getParentFile();
     Logger logger = PowerMock.createMock(Logger.class);
     GeniaTagger tagger = PowerMock.createMock(GeniaTagger.class);
     mockTagger(tagger, dictionariesPath, logger);
     PowerMock.replay(tagger, GeniaTagger.class);
     PowerMock.replay(logger, Logger.class);
-    AnalysisEngineDescription description = GeniaTaggerAnnotator.configure(dictionariesPath);
+    AnalysisEngineDescription description = aeBuilder.setDirectory(dictionariesPath).create();
     AnalysisEngineFactory.createAnalysisEngine(description, Views.CONTENT_TEXT.toString());
     PowerMock.verify(tagger, GeniaTagger.class);
     PowerMock.verify(logger, Logger.class);
@@ -82,7 +94,6 @@ public class TestGeniaTaggerAnnotator {
 
   @Test
   public void testProcess() throws Exception {
-    DisableLogging.enableLogging(java.util.logging.Level.SEVERE);
     String sentence = "dummy phrase.";
     File dictionariesPath = File.createTempFile("geniatagger.", "dir").getParentFile();
     Logger logger = PowerMock.createMock(Logger.class);
@@ -96,7 +107,7 @@ public class TestGeniaTaggerAnnotator {
     // replay!
     PowerMock.replay(tagger, GeniaTagger.class);
     PowerMock.replay(logger, Logger.class);
-    AnalysisEngineDescription description = GeniaTaggerAnnotator.configure(dictionariesPath);
+    AnalysisEngineDescription description = aeBuilder.setDirectory(dictionariesPath).create();
     AnalysisEngine geniaAE = AnalysisEngineFactory.createAnalysisEngine(description,
         Views.CONTENT_TEXT.toString());
     AnalysisEngine sentenceAE = AnalysisEngineFactory.createPrimitive(SentenceAnnotator

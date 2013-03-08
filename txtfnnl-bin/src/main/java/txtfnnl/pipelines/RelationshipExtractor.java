@@ -173,7 +173,7 @@ public class RelationshipExtractor extends Pipeline {
         rex.set(3, TokenAnnotator.configure());
         rex.set(4, BioLemmatizerAnnotator.configure());
       } else {
-        rex.set(3, GeniaTaggerAnnotator.configure(new File(geniaDir)));
+        rex.set(3, GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir)).create());
         // the GENIA Tagger already lemmatizes; nothing to do
         rex.set(4, NOOPAnnotator.configure());
       }

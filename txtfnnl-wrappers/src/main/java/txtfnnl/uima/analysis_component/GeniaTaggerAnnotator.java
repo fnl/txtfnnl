@@ -5,9 +5,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
@@ -19,9 +17,9 @@ import org.apache.uima.util.Logger;
 
 import org.uimafit.component.JCasAnnotator_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
-import org.uimafit.factory.AnalysisEngineFactory;
 
 import txtfnnl.subprocess.ReadlineRuntime;
+import txtfnnl.uima.AnalysisComponentBuilder;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
@@ -127,33 +125,46 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
   /** The identifier used for all annotations. */
   public static final String IDENTIFIER = "Word";
   /**
-   * The path to the dictionaries used by the GENIA Tagger. If in their default location (
-   * <code>/usr/local/share/geniatagger/</code> ), it is not necessary to set this parameter.
+   * The directory path used by the GENIA Tagger. If in their default location at
+   * <code>/usr/local/share/geniatagger/</code>, it is not necessary to set this parameter.
    */
-  public static final String PARAM_DICTIONARIES_PATH = "DictionariesPath";
-  @ConfigurationParameter(name = PARAM_DICTIONARIES_PATH,
+  public static final String PARAM_DIRECTORY = "DirectoryPath";
+  @ConfigurationParameter(name = PARAM_DIRECTORY,
       defaultValue = "/usr/local/share/geniatagger/",
       description = "Path to the directory with the model files.")
   private String dictionariesPath;
   protected Logger logger;
   private GeniaTagger tagger;
 
-  /**
-   * Configure a Genia Tagger AE for a pipeline using a specific directory where the GENIA
-   * dictionaries are located.
-   */
-  public static AnalysisEngineDescription configure(File dictPath) throws UIMAException,
-      IOException {
-    return AnalysisEngineFactory.createPrimitiveDescription(GeniaTaggerAnnotator.class,
-        PARAM_DICTIONARIES_PATH, dictPath.getCanonicalPath());
+  public static class Builder extends AnalysisComponentBuilder {
+    public Builder() {
+      super(GeniaTaggerAnnotator.class);
+    }
+
+    /**
+     * Configure the directory where the tagger and the dictionaries are located. By default, these
+     * would be in <code>/usr/local/share/geniatagger/</code>.
+     * 
+     * @param path of the directory
+     */
+    public Builder setDirectory(File path) throws IOException {
+      if (path != null) {
+        String p = path.getAbsolutePath();
+        if (!path.exists()) throw new IOException("'" + p + "' does not exist");
+        if (!path.isDirectory())
+          throw new IllegalArgumentException("'" + p + "' is not a directory");
+        if (!path.canRead()) throw new IllegalArgumentException("'" + p + "' cannot be read");
+      }
+      setOptionalParameter(PARAM_DIRECTORY, path.getCanonicalPath());
+      return this;
+    }
   }
 
   /**
-   * Configure a Genia Tagger AE for a pipeline using the default location of the GENIA
-   * dictionaries.
+   * Configure a Genia Tagger AE Builder.
    */
-  public static AnalysisEngineDescription configure() throws UIMAException {
-    return AnalysisEngineFactory.createPrimitiveDescription(GeniaTaggerAnnotator.class);
+  public static Builder configure() {
+    return new Builder();
   }
 
   @Override
@@ -163,7 +174,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
     try {
       tagger = new GeniaTagger(dictionariesPath, logger);
     } catch (final IOException e) {
-      logger.log(Level.SEVERE, "geniatagger setup failed (dict path: ''{0}'')", dictionariesPath);
+      logger.log(Level.SEVERE, "geniatagger setup failed (dir: ''{0}'')", dictionariesPath);
       throw new ResourceInitializationException(e);
     }
     logger.log(Level.INFO, "initialized GENIA tagger");

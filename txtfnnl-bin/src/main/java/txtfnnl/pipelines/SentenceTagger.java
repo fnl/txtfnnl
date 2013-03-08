@@ -76,7 +76,7 @@ public class SentenceTagger extends Pipeline {
         tagger.set(2, TokenAnnotator.configure());
         tagger.set(3, BioLemmatizerAnnotator.configure());
       } else {
-        tagger.set(2, GeniaTaggerAnnotator.configure(new File(geniaDir)));
+        tagger.set(2, GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir)).create());
         // the GENIA Tagger already lemmatizes; nothing to do
         tagger.set(3, NOOPAnnotator.configure());
       }
