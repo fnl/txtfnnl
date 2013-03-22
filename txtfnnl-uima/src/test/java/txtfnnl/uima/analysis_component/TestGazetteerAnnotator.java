@@ -69,9 +69,9 @@ public class TestGazetteerAnnotator {
 
   @Test
   public void testProcess() throws SQLException, UIMAException {
-    createTable("NAME", "Name");
+    createTable("NAME1", "Name2");
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(descriptor);
-    final JCas baseCas = makeCas(ae, "name");
+    final JCas baseCas = makeCas(ae, "that has name 2 in it");
     ae.process(baseCas);
     FSIterator<Annotation> it = baseCas.getView(Views.CONTENT_TEXT.toString())
         .getAnnotationIndex(SemanticAnnotation.type).iterator();
@@ -79,14 +79,13 @@ public class TestGazetteerAnnotator {
     while (it.hasNext()) {
       SemanticAnnotation ann = (SemanticAnnotation) it.next();
       assertEquals("entityNS", ann.getNamespace());
-      assertTrue(ann.getIdentifier(),
-          "1".equals(ann.getIdentifier()) || "0".equals(ann.getIdentifier()));
-      assertEquals(0, ann.getBegin());
-      assertEquals(4, ann.getEnd());
-      assertEquals("1".equals(ann.getIdentifier()) ? 1 - 1.0 / 8 : 0.5,
-          ann.getConfidence(), 0.0);
+      assertTrue(ann.getIdentifier(), "1".equals(ann.getIdentifier()));
+      assertEquals(9, ann.getBegin());
+      assertEquals(15, ann.getEnd());
+      assertTrue(Double.toString(ann.getConfidence()),
+          ann.getConfidence() >= 3.0 / 5 && ann.getConfidence() != 1.0);
       ++count;
     }
-    assertEquals(2, count);
+    assertEquals(1, count);
   }
 }

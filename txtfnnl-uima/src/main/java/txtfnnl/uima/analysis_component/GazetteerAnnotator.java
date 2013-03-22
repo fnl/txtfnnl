@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.uima.UimaContext;
+import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
@@ -31,7 +32,7 @@ import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
 import txtfnnl.utils.Offset;
-import txtfnnl.utils.stringsim.LeitnerLevenshtein;
+import txtfnnl.utils.stringsim.JaroWinkler;
 import txtfnnl.utils.stringsim.Similarity;
 
 /**
@@ -56,14 +57,14 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   /** The <b>required</b> namespace for the {@link SemanticAnnotation entity annotations}. */
   public static final String PARAM_ENTITY_NAMESPACE = "EntityNamespace";
   @ConfigurationParameter(name = PARAM_ENTITY_NAMESPACE, mandatory = true)
-  private String entityNamespace;
+  protected String entityNamespace;
   /**
    * The (optional) namespace of {@link TextAnnotation annotations} containing the text to match
    * against the Gazetteer (default: match all text).
    */
   public static final String PARAM_TEXT_NAMESPACE = "TextNamespace";
   @ConfigurationParameter(name = PARAM_TEXT_NAMESPACE, mandatory = false)
-  private String sourceNamespace;
+  protected String sourceNamespace;
   /**
    * The (optional) identifier of the {@link TextAnnotation annotations} containing the relevant
    * text.
@@ -72,16 +73,23 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    */
   public static final String PARAM_TEXT_IDENTIFIER = "TextIdentifier";
   @ConfigurationParameter(name = PARAM_TEXT_IDENTIFIER, mandatory = false)
-  private String sourceIdentifier = null;
+  protected String sourceIdentifier = null;
   /** The GazetteerResource used for entity matching. */
   public static final String MODEL_KEY_GAZETTEER = "Gazetteer";
   @ExternalResource(key = MODEL_KEY_GAZETTEER)
-  private GazetteerResource<Set<String>> gazetteer;
-  private Similarity measure = LeitnerLevenshtein.INSTANCE; // TODO: make configurable?
+  protected GazetteerResource gazetteer;
+  private Similarity measure = JaroWinkler.INSTANCE; // TODO: make configurable?
   private Logger logger;
   private int count;
 
   public static class Builder extends AnalysisComponentBuilder {
+    protected Builder(Class<? extends AnalysisComponent> klass, String entityNamespace,
+        ExternalResourceDescription gazetteerResourceDescription) {
+      super(klass);
+      setRequiredParameter(PARAM_ENTITY_NAMESPACE, entityNamespace);
+      setRequiredParameter(MODEL_KEY_GAZETTEER, gazetteerResourceDescription);
+    }
+
     Builder(String entityNamespace, ExternalResourceDescription gazetteerResourceDescription) {
       super(GazetteerAnnotator.class);
       setRequiredParameter(PARAM_ENTITY_NAMESPACE, entityNamespace);
@@ -141,6 +149,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     if (sourceNamespace == null) {
       Map<Offset, String> matches = gazetteer.match(jcas.getDocumentText());
       for (Offset offset : matches.keySet())
+        // annotateEntities
         for (SemanticAnnotation ann : annotateEntities(jcas, annotated, matches.get(offset),
             offset))
           ann.addToIndexes();
@@ -149,38 +158,36 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
           sourceIdentifier);
       FSIterator<Annotation> it = TextAnnotation.getIterator(jcas);
       it = jcas.createFilteredIterator(it, cons);
-      List<SemanticAnnotation> coll = new LinkedList<SemanticAnnotation>();
-      while (it.hasNext())
-        findEntities(jcas, annotated, it.next(), coll);
-      for (SemanticAnnotation ann : coll)
+      List<SemanticAnnotation> buffer = new LinkedList<SemanticAnnotation>();
+      while (it.hasNext()) {
+        Annotation ann = it.next();
+        // findEntities -> annotateEntities
+        findEntities(jcas, annotated, ann.getCoveredText(), ann, buffer);
+      }
+      for (SemanticAnnotation ann : buffer)
         ann.addToIndexes();
     }
   }
 
-  @Override
-  public void destroy() {
-    logger.log(Level.INFO, "tagged {0} {1} entities", new String[] { Integer.toString(count),
-        entityNamespace });
-  }
-
   /**
-   * Iterate over the entity keys and offsets of all Gazetteer matches in the text of the
-   * <code>annotation</code>.
+   * Iterate over the entity keys and offsets of all Gazetteer matches in the <code>text</code> of
+   * the <code>annotation</code>.
    */
-  private void findEntities(JCas jcas, Set<UniqueTextAnnotation> annotated, Annotation annotation,
-      List<SemanticAnnotation> coll) {
+  protected void findEntities(JCas jcas, Set<UniqueTextAnnotation> annotated, String text,
+      Annotation annotation, List<SemanticAnnotation> buffer) {
     int base = annotation.getBegin();
-    logger.log(Level.FINE, "scanning for {0} in ''{1}''", new String[] { entityNamespace,
-        annotation.getCoveredText() });
-    FSIterator<Annotation> tokenIt = jcas.getAnnotationIndex(TokenAnnotation.type).subiterator(
-        annotation);
-    List<Annotation> tokens = new LinkedList<Annotation>();
-    while (tokenIt.hasNext())
-      tokens.add(tokenIt.next());
-    Map<Offset, String> matches = gazetteer.match(annotation.getCoveredText());
-    for (Offset offset : matches.keySet())
-      coll.addAll(annotateEntities(jcas, annotated, matches.get(offset),
-          makeOffset(base, offset, tokens)));
+    logger.log(Level.FINE, "scanning for {0} in ''{1}''", new String[] { entityNamespace, text });
+    Map<Offset, String> matches = gazetteer.match(text);
+    if (matches.size() > 0) {
+      FSIterator<Annotation> tokenIt = jcas.getAnnotationIndex(TokenAnnotation.type).subiterator(
+          annotation);
+      List<Annotation> tokens = new LinkedList<Annotation>();
+      while (tokenIt.hasNext())
+        tokens.add(tokenIt.next());
+      for (Offset offset : matches.keySet())
+        buffer.addAll(annotateEntities(jcas, annotated, matches.get(offset),
+            makeOffset(base, offset, tokens)));
+    }
   }
 
   private Offset makeOffset(int base, Offset offset, List<Annotation> tokens) {
@@ -194,39 +201,40 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   }
 
   /**
-   * Determine if the match is exact, or requires resolving the entity key, and calculate the
-   * (normalized) {@link Similarity#similarity(String, String) string similarity} for the
-   * annotation confidence.
+   * Determine if the match <code>key</code> is exact, or requires resolving the entity
+   * <code>key</code>, and calculate the (normalized) {@link Similarity#similarity(String, String)
+   * string similarity} for the annotation confidence.
    */
-  private List<SemanticAnnotation> annotateEntities(JCas jcas,
-      Set<UniqueTextAnnotation> annotated, String matchName, Offset offset) {
+  protected List<SemanticAnnotation> annotateEntities(JCas jcas,
+      Set<UniqueTextAnnotation> annotated, String key, Offset offset) {
     List<SemanticAnnotation> coll = new LinkedList<SemanticAnnotation>();
-    String txtName = (sourceNamespace == null) ? matchName : jcas.getDocumentText().substring(
-        offset.start(), offset.end());
-    if (gazetteer.containsKey(matchName)) {
-      double confidence = measure.similarity(txtName, matchName);
-      for (String dbId : gazetteer.get(matchName)) {
-        UniqueTextAnnotation cta = new UniqueTextAnnotation(offset.start(), offset.end(),
+    String name = jcas.getDocumentText().substring(offset.start(), offset.end());
+    if (gazetteer.containsKey(key)) {
+      double confidence = measure.similarity(name, key);
+      for (String dbId : gazetteer.get(key)) {
+        UniqueTextAnnotation uta = new UniqueTextAnnotation(offset.start(), offset.end(),
             entityNamespace, dbId, URI);
-        if (annotated.contains(cta)) continue;
-        coll.add(annotate(dbId, jcas, offset, confidence));
-        annotated.add(cta);
+        if (!annotated.contains(uta)) {
+          coll.add(annotate(dbId, jcas, offset, confidence));
+          annotated.add(uta);
+        }
       }
     } else {
       Map<String, Double> dbIdToSim = new HashMap<String, Double>();
-      Set<String> targets = gazetteer.resolve(matchName);
-      for (String targetName : targets) {
-        double sim = measure.similarity(txtName, targetName);
-        for (String dbId : gazetteer.get(targetName)) {
+      Set<String> targets = gazetteer.resolve(key);
+      for (String resolvedKey : targets) {
+        double sim = measure.similarity(name, resolvedKey);
+        for (String dbId : gazetteer.get(resolvedKey)) {
           if (!dbIdToSim.containsKey(dbId) || dbIdToSim.get(dbId) < sim) dbIdToSim.put(dbId, sim);
         }
       }
       for (String dbId : dbIdToSim.keySet()) {
-        UniqueTextAnnotation cta = new UniqueTextAnnotation(offset.start(), offset.end(),
+        UniqueTextAnnotation uta = new UniqueTextAnnotation(offset.start(), offset.end(),
             entityNamespace, dbId, URI);
-        if (annotated.contains(cta)) continue;
-        coll.add(annotate(dbId, jcas, offset, dbIdToSim.get(dbId)));
-        annotated.add(cta);
+        if (!annotated.contains(uta)) {
+          coll.add(annotate(dbId, jcas, offset, dbIdToSim.get(dbId)));
+          annotated.add(uta);
+        }
       }
     }
     return coll;
@@ -236,7 +244,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    * Add a {@link SemanticAnnotation semantic annotation} for a DB ID with a given confidence
    * value.
    */
-  private SemanticAnnotation annotate(String id, JCas jcas, Offset offset, double confidence) {
+  protected SemanticAnnotation annotate(String id, JCas jcas, Offset offset, double confidence) {
     SemanticAnnotation entity = new SemanticAnnotation(jcas, offset);
     entity.setAnnotator(URI);
     entity.setConfidence(confidence);
@@ -246,5 +254,11 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         new String[] { entityNamespace, id, Double.toString(confidence) });
     count++;
     return entity;
+  }
+
+  @Override
+  public void destroy() {
+    logger.log(Level.INFO, "tagged {0} {1} entities", new String[] { Integer.toString(count),
+        entityNamespace });
   }
 }

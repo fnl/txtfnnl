@@ -39,7 +39,7 @@ public class TestJdbcGazetteerResource {
   public static class DummyAnalysisEngine extends JCasAnnotator_ImplBase {
     static final String GAZETTEER = "JdbcGazetteerResource";
     @ExternalResource(key = GAZETTEER, mandatory = true)
-    private GazetteerResource<Set<String>> gazetteerResource;
+    private GazetteerResource gazetteerResource;
     static final String TEST_GAZETTEER_SIZE = "TestGazetteerSize";
     @ConfigurationParameter(name = TEST_GAZETTEER_SIZE, mandatory = true)
     private int gazetteerSize;
@@ -145,16 +145,6 @@ public class TestJdbcGazetteerResource {
   }
 
   @Test
-  public void testBasicFunctionality() throws SQLException, UIMAException, IOException {
-    createTable(new String[] { "\u2000AbcAbc\u2010" });
-    final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
-        DummyAnalysisEngine.GAZETTEER, builder.create(), DummyAnalysisEngine.TEST_GAZETTEER_SIZE,
-        4, DummyAnalysisEngine.TEST_KEY, " AbcAbc-", DummyAnalysisEngine.TEST_MATCH_SIZE, 1,
-        DummyAnalysisEngine.TEST_MATCH_VALUE, "Abc Abc");
-    ae.process(ae.newJCas());
-  }
-
-  @Test
   public void testSingleCharacterNames() throws SQLException, UIMAException, IOException {
     createTable(new String[] { "x", "1" }); // NB: "1" could shadow its own ID key!
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
@@ -213,7 +203,7 @@ public class TestJdbcGazetteerResource {
     createTable(new String[] { "abAb", " ab-ab " });
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
         DummyAnalysisEngine.GAZETTEER, builder.create(), DummyAnalysisEngine.TEST_GAZETTEER_SIZE,
-        7, DummyAnalysisEngine.TEST_KEY, JdbcGazetteerResource.NORMAL +
+        6, DummyAnalysisEngine.TEST_KEY, JdbcGazetteerResource.NORMAL +
             JdbcGazetteerResource.LOWERCASE + "abab", DummyAnalysisEngine.TEST_MATCH_VALUE,
         "abab", DummyAnalysisEngine.TEST_UNKNOWN_KEY, "abab", DummyAnalysisEngine.TEST_MATCH_SIZE,
         1, DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 2);
@@ -224,10 +214,10 @@ public class TestJdbcGazetteerResource {
   public void testSeparatorKleene() throws SQLException, UIMAException, IOException {
     createTable(new String[] { "BLA1" });
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
-        DummyAnalysisEngine.GAZETTEER, builder.create(),
-        DummyAnalysisEngine.TEST_GAZETTEER_SIZE, 4, DummyAnalysisEngine.TEST_KEY,
-        JdbcGazetteerResource.NORMAL + JdbcGazetteerResource.LOWERCASE + "bla1",
-        DummyAnalysisEngine.TEST_MATCH_VALUE, "bla  1", DummyAnalysisEngine.TEST_MATCH_SIZE, 1,
+        DummyAnalysisEngine.GAZETTEER, builder.create(), DummyAnalysisEngine.TEST_GAZETTEER_SIZE,
+        4, DummyAnalysisEngine.TEST_KEY, JdbcGazetteerResource.NORMAL +
+            JdbcGazetteerResource.LOWERCASE + "bla1", DummyAnalysisEngine.TEST_MATCH_VALUE, "bla" +
+            GazetteerResource.SEPARATOR + "1", DummyAnalysisEngine.TEST_MATCH_SIZE, 1,
         DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 1);
     ae.process(ae.newJCas());
   }
@@ -239,8 +229,8 @@ public class TestJdbcGazetteerResource {
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(DummyAnalysisEngine.class,
         DummyAnalysisEngine.GAZETTEER, builder.caseMatching().create(),
         DummyAnalysisEngine.TEST_GAZETTEER_SIZE, 2, DummyAnalysisEngine.TEST_MATCH_SIZE, 1,
-        DummyAnalysisEngine.TEST_MATCH_VALUE, "abab", DummyAnalysisEngine.TEST_KEY, "ab_ab",
-        DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 1);
+        DummyAnalysisEngine.TEST_MATCH_VALUE, "abab", DummyAnalysisEngine.TEST_KEY, "ab" +
+            GazetteerResource.SEPARATOR + "ab", DummyAnalysisEngine.TEST_RESOLUTION_SIZE, 1);
     ae.process(ae.newJCas());
   }
 }

@@ -17,21 +17,22 @@ import txtfnnl.utils.Offset;
  * 
  * @author Florian Leitner
  */
-public interface GazetteerResource<V> extends StringMapResource<V> {
+public interface GazetteerResource extends StringMapResource<Set<String>> {
   /** A private range character to normalize the representation of token boundaries. */
   public static final String SEPARATOR = "\uE3A7";
 
   /**
    * Scan the input with the Gazetteer, returning the {@link Offset Offsets} of all matches
-   * together with the resource key (the "normalized" entity) associated to each hit.
+   * together with the entity key (the normalized entity name) associated to each hit.
    * 
-   * @param input to compare against the Gazetteer
-   * @return A mapping of {@link Offset}, key values for all matches.
+   * @param input to match the Gazetteer against
+   * @return A mapping of {@link Offset Offsets} to entity key values for all matches.
    */
   public Map<Offset, String> match(String input);
 
   /**
-   * Return a all valid (existing) keys for a match key that does not exist in the Gazetteer.
+   * Return all valid, existing entity keys (normalized entity names) for an entity key that does
+   * not exist in the Gazetteer but was found by {@link #match(String)}.
    * 
    * @param key to resolve against the known Gazetteer keys
    * @return A set of existing Gazetteer keys for the resolved key.
