@@ -22,7 +22,7 @@ import txtfnnl.utils.stringsim.Similarity;
  * @author Florian Leitner
  */
 public class JaroWinkler implements Similarity {
-  public final static JaroWinkler DEFAULT_INSTANCE = new JaroWinkler();
+  public final static JaroWinkler INSTANCE = new JaroWinkler();
   /** The Winkler boost factor. */
   final double winkler;
   /** The max. prefix length to consider for Winkler boosting. */

@@ -8,6 +8,7 @@ import txtfnnl.utils.stringsim.JaroWinkler;
  * @author Florian Leitner
  */
 public class Jaro extends JaroWinkler {
+  @SuppressWarnings("hiding")
   public static final Jaro INSTANCE = new Jaro();
 
   protected Jaro() {

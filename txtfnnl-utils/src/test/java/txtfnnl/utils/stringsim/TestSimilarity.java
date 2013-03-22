@@ -15,7 +15,7 @@ public class TestSimilarity {
   public void testEqualString() {
     assertEquals(1.0, DamerauLevenshtein.INSTANCE.similarity("abc", "abc"), 0.0);
     assertEquals(1.0, Jaro.INSTANCE.similarity("abc", "abc"), 0.0);
-    assertEquals(1.0, JaroWinkler.DEFAULT_INSTANCE.similarity("abc", "abc"), 0.0);
+    assertEquals(1.0, JaroWinkler.INSTANCE.similarity("abc", "abc"), 0.0);
     assertEquals(1.0, LeitnerLevenshtein.INSTANCE.similarity("abc", "abc"), 0.0);
   }
 
@@ -23,7 +23,7 @@ public class TestSimilarity {
   public void testNotEqualString() {
     assertEquals(0.0, DamerauLevenshtein.INSTANCE.similarity("abc", "def"), 0.0);
     assertEquals(0.0, Jaro.INSTANCE.similarity("abc", "def"), 0.0);
-    assertEquals(0.0, JaroWinkler.DEFAULT_INSTANCE.similarity("abc", "def"), 0.0);
+    assertEquals(0.0, JaroWinkler.INSTANCE.similarity("abc", "def"), 0.0);
     assertEquals(0.0, LeitnerLevenshtein.INSTANCE.similarity("abc", "def"), 0.0);
   }
 
@@ -31,7 +31,7 @@ public class TestSimilarity {
   public void testZeroString() {
     assertEquals(1.0, DamerauLevenshtein.INSTANCE.similarity("", ""), 0.0);
     assertEquals(1.0, Jaro.INSTANCE.similarity("", ""), 0.0);
-    assertEquals(1.0, JaroWinkler.DEFAULT_INSTANCE.similarity("", ""), 0.0);
+    assertEquals(1.0, JaroWinkler.INSTANCE.similarity("", ""), 0.0);
     assertEquals(1.0, LeitnerLevenshtein.INSTANCE.similarity("", ""), 0.0);
   }
 
@@ -41,8 +41,8 @@ public class TestSimilarity {
     assertEquals(0.0, DamerauLevenshtein.INSTANCE.similarity("", "abc"), 0.0);
     assertEquals(0.0, Jaro.INSTANCE.similarity("abc", ""), 0.0);
     assertEquals(0.0, Jaro.INSTANCE.similarity("", "abc"), 0.0);
-    assertEquals(0.0, JaroWinkler.DEFAULT_INSTANCE.similarity("abc", ""), 0.0);
-    assertEquals(0.0, JaroWinkler.DEFAULT_INSTANCE.similarity("", "abc"), 0.0);
+    assertEquals(0.0, JaroWinkler.INSTANCE.similarity("abc", ""), 0.0);
+    assertEquals(0.0, JaroWinkler.INSTANCE.similarity("", "abc"), 0.0);
     assertEquals(0.0, LeitnerLevenshtein.INSTANCE.similarity("abc", ""), 0.0);
     assertEquals(0.0, LeitnerLevenshtein.INSTANCE.similarity("", "abc"), 0.0);
   }
@@ -57,9 +57,9 @@ public class TestSimilarity {
     assertEquals(1 - 4.0 / 15, Jaro.INSTANCE.similarity("crate", "trace"), 0.0); // NB: c's and t's
                                                                                  // don't match
                                                                                  // (window!)
-    assertEquals(0.961, JaroWinkler.DEFAULT_INSTANCE.similarity("martha", "marhta"), 0.001);
-    assertEquals(0.840, JaroWinkler.DEFAULT_INSTANCE.similarity("dwayne", "duane"), 0.001);
-    assertEquals(0.813, JaroWinkler.DEFAULT_INSTANCE.similarity("dixon", "dicksonx"), 0.001);
+    assertEquals(0.961, JaroWinkler.INSTANCE.similarity("martha", "marhta"), 0.001);
+    assertEquals(0.840, JaroWinkler.INSTANCE.similarity("dwayne", "duane"), 0.001);
+    assertEquals(0.813, JaroWinkler.INSTANCE.similarity("dixon", "dicksonx"), 0.001);
   }
 
   @Test
