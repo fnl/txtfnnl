@@ -34,21 +34,21 @@ public final class StringUtils {
   }
 
   public static final String join(String... strings) {
-    final StringBuffer b = new StringBuffer();
+    final StringBuilder b = new StringBuilder();
     for (String s : strings)
       b.append(s);
     return b.toString();
   }
 
   public static final String join(Iterator<String> stringIt) {
-    final StringBuffer b = new StringBuffer();
+    final StringBuilder b = new StringBuilder();
     while (stringIt.hasNext())
       b.append(stringIt.next());
     return b.toString();
   }
 
   public static final String join(String using, String... strings) {
-    final StringBuffer b = new StringBuffer();
+    final StringBuilder b = new StringBuilder();
     final int last = strings.length - 1;
     for (int i = 0; i < last; ++i) {
       b.append(strings[i]);
@@ -59,7 +59,7 @@ public final class StringUtils {
   }
 
   public static final String join(String using, Iterator<String> stringIt) {
-    final StringBuffer b = new StringBuffer();
+    final StringBuilder b = new StringBuilder();
     while (stringIt.hasNext()) {
       b.append(stringIt.next());
       if (stringIt.hasNext()) b.append(using);
@@ -68,7 +68,7 @@ public final class StringUtils {
   }
 
   public static final String join(char using, String... strings) {
-    final StringBuffer b = new StringBuffer();
+    final StringBuilder b = new StringBuilder();
     final int last = strings.length - 1;
     for (int i = 0; i < last; ++i) {
       b.append(strings[i]);
@@ -79,7 +79,7 @@ public final class StringUtils {
   }
 
   public static final String join(char using, Iterator<String> stringIt) {
-    final StringBuffer b = new StringBuffer();
+    final StringBuilder b = new StringBuilder();
     while (stringIt.hasNext()) {
       b.append(stringIt.next());
       b.append(using);
