@@ -87,8 +87,7 @@ public class GeneRelationshipExtractor extends Pipeline {
     // create builder
     GnamedGazetteerResource.Builder b = GnamedGazetteerResource.configure(dbUrl, driverClass,
         querySql);
-    b.idMatching().setSeparators(
-        GnamedGazetteerResource.SEPARATORS + "\\:\\,\\.\\/\\\\\\[\\]\\{\\}\\(\\)");
+    b.idMatching();
     // set username/password options
     if (cmd.hasOption('u')) b.setUsername(cmd.getOptionValue('u'));
     if (cmd.hasOption('p')) b.setPassword(cmd.getOptionValue('p'));

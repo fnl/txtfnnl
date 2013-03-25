@@ -3,6 +3,7 @@
 package txtfnnl.uima.resource;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.uima.UIMAFramework;
@@ -24,14 +26,9 @@ import org.uimafit.component.initialize.ConfigurationParameterInitializer;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.ExternalResourceFactory;
 
-import dk.brics.automaton.Automaton;
-import dk.brics.automaton.AutomatonMatcher;
-import dk.brics.automaton.BasicOperations;
-import dk.brics.automaton.RegExp;
-import dk.brics.automaton.RunAutomaton;
-
 import txtfnnl.uima.SharedResourceBuilder;
 import txtfnnl.utils.Offset;
+import txtfnnl.utils.StringLengthComparator;
 import txtfnnl.utils.StringUtils;
 
 /**
@@ -64,33 +61,18 @@ import txtfnnl.utils.StringUtils;
  */
 public abstract class AbstractGazetteerResource implements GazetteerResource,
     ExternalResourceAware {
-  /** Variants of the whitespace " " character (excl. the whitespace itself, incl. newline). */
-  public static final Pattern SPACES = Pattern
-      .compile("\n|\u00A0|\u2000|\u2001|\u2002|\u2003|\u2004|\u2005|\u2006|\u2007|\u2008|\u2009|\u200A|\u200B|\u202F|\u205F|\u3000|\uFEFF");
-  /** Variants of the dash "-" character (excl. the dash itself). */
-  public static final Pattern DASHES = Pattern
-      .compile("\u1680|\u2010|\u2011|\u2012|\u2013|\u2014|\u2015|\u2212|\uFE58|\uFE63|\uFF0D");
-  /**
-   * Default separators: space, dash, slash, dot, comma and the underscore. Note that the
-   * whitespace should always be treated a separator.
-   */
-  public static final String SEPARATORS = " _-.,/";
+  // resource-internal configuration
+  /** The pattern used to find token splits. */
+  private static final Pattern NOT_LETTER_OR_DIGIT = Pattern.compile("[^\\p{L}\\p{N}]+");
+  /** The size of the initial HashMap for this resource. */
+  static final int INIT_MAP_SIZE = 1024;
+  /** A character to mark case-insensitive keys. */
+  static final String LOWERCASE = "~";
+  /** A character to mark separator-insensitive keys. */
+  static final String NORMAL = "_";
+  // public configuration fields
   @ConfigurationParameter(name = ExternalResourceFactory.PARAM_RESOURCE_NAME)
   protected String resourceName;
-  /** The data resource' URI. */
-  protected String resourceUri = null;
-  /** A Pattern to detect the {@link GazetterResource#SEPARATOR separator}. */
-  private static final Pattern SEPARATOR_PATTERN = Pattern.compile("(" + SEPARATOR + ")");
-  /**
-   * Normalized separator characters between tokens (default:
-   * {@link AbstractGazetteerResource#SEPARATORS}) except space (always treated as separator).
-   * <p>
-   * Note that spaces and dashes are all normalized to their canonical (ASCII) versions, so it is
-   * not necessary to list all (Unicode) dashes or spaces as possible, different separators.
-   */
-  public static final String PARAM_SEPARATORS = "Separators";
-  @ConfigurationParameter(name = PARAM_SEPARATORS, mandatory = false, defaultValue = SEPARATORS)
-  private String separators;
   /** Whether to match the DB IDs themselves, too (default: <code>false</code>). */
   public static final String PARAM_ID_MATCHING = "IDMatching";
   @ConfigurationParameter(name = PARAM_ID_MATCHING, mandatory = false, defaultValue = "false")
@@ -99,24 +81,20 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
   public static final String PARAM_CASE_MATCHING = "CaseMatching";
   @ConfigurationParameter(name = PARAM_CASE_MATCHING, mandatory = false, defaultValue = "false")
   private boolean exactCaseMatching;
-  /** The size of the initial HashMap for this resource. */
-  static final int INIT_MAP_SIZE = 1024;
-  /** A special private range Unicode character to mark case-insensitive keys. */
-  static final String LOWERCASE = "\uE3A8";
-  /** A special private range Unicode character to mark separator-insensitive keys. */
-  static final String NORMAL = "\uE3A9";
-  /** Special characters reserved for dk.brics.automaton patterns. */
-  private static final Pattern RESERVED_CHARS = Pattern
-      .compile("([\\@\\&\\~\\^\\#\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\<\\>])");
-  /** Mappings of regular keys to ID sets and of normalized keys to regular key sets. */
-  private Map<String, Set<String>> mappings;
-  /** List of automata (before being compiled). */
-  private List<Automaton> automata;
-  /** The "meta-pattern" created from all individual names. */
-  private RunAutomaton patterns;
-  /** The pattern used to find token splits. */
-  private Pattern split;
+  // resource-internal state
+  /** The logger for this Resource. */
   protected Logger logger = null;
+  /** The data resource' URI. */
+  protected String resourceUri = null;
+  /**
+   * Mappings of (regular, normal, and/or lower-case) keys to sets of IDs or, for normal and/or
+   * lower-case keys, to sets of regular keys.
+   */
+  private Map<String, Set<String>> mappings;
+  /** The list of all regular expressions for the pattern (before being compiled). */
+  private List<String> regularExpressions;
+  /** The final pattern created from all individual names. */
+  private Pattern pattern;
 
   public static class Builder extends SharedResourceBuilder {
     /** Protected constructor that must be extended by concrete implementations. */
@@ -135,30 +113,6 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
       setOptionalParameter(PARAM_CASE_MATCHING, Boolean.TRUE);
       return this;
     }
-
-    /**
-     * Define other name token separator characters (for the default characters see
-     * {@link AbstractGazetteerResource#SEPARATORS}).
-     * <p>
-     * Separator characters are not allowed within the matched target tokens, while only characters
-     * defined as separators may be matched between tokens. This means that if any of these
-     * separator characters are encountered within a token of the entity name, the match will fail.
-     * <p>
-     * Consecutive character ranges <b>cannot</b> be grouped as in a regular expression (like "A-Z"
-     * for all upper-case ASCII letters) - each character must be given separately.
-     */
-    public Builder setSeparators(String separators) {
-      if (separators != null && separators.length() == 0)
-        throw new IllegalArgumentException("at least one separator char has to be defined");
-      setOptionalParameter(PARAM_SEPARATORS, separators);
-      return this;
-    }
-  }
-
-  /** Replace space and dash characters with their normalized ASCII version. */
-  private static String normalizeSpaceDash(String input) {
-    String tmp = SPACES.matcher(input).replaceAll(" ");
-    return DASHES.matcher(tmp).replaceAll("-");
   }
 
   /** Create a case-insensitive key. */
@@ -189,26 +143,22 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
   public synchronized void load(DataResource dataResource) throws ResourceInitializationException {
     if (mappings == null) {
       ConfigurationParameterInitializer.initialize(this, dataResource);
-      automata = new ArrayList<Automaton>(128);
-      mappings = new HashMap<String, Set<String>>(INIT_MAP_SIZE);
-      split = Pattern.compile(String.format("[%s]+", escapeAll(separators)));
       logger = UIMAFramework.getLogger(this.getClass());
       resourceUri = dataResource.getUri().toString();
+      mappings = new HashMap<String, Set<String>>(INIT_MAP_SIZE);
+      regularExpressions = new ArrayList<String>(INIT_MAP_SIZE);
+      pattern = null;
       logger.log(Level.INFO, "{0} resource loaded", resourceUri);
     }
   }
 
-  /** Escape each character in the String with a backslash. */
-  private String escapeAll(String str) {
-    StringBuilder sb = new StringBuilder();
-    for (char c : str.toCharArray())
-      sb.append('\\').append(c);
-    return sb.toString();
-  }
-
+  /**
+   * This method implements the particular method of generating the pattern given the resource
+   * type.
+   */
   public abstract void afterResourcesInitialized();
 
-  // methods for building a NFA from the name-id pairs
+  // methods for building a pattern from the name-id pairs
   /**
    * Generate the "separated" (regularized) key for an entity name.
    * <p>
@@ -224,7 +174,7 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
    */
   protected String makeKey(String name) {
     StringBuilder sb = new StringBuilder();
-    for (String sub : split.split(normalizeSpaceDash(name))) {
+    for (String sub : NOT_LETTER_OR_DIGIT.split(name)) {
       if (sub.length() > 0) {
         if (sb.length() > 0) sb.append(SEPARATOR);
         sb.append(makeToken(sub));
@@ -232,7 +182,7 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
     }
     String key = sb.toString();
     if (key.length() == 0) {
-      logger.log(Level.WARNING, "\"" + name + "\" gives rise to an empty pattern");
+      logger.log(Level.WARNING, "\"" + name + "\" has no matching letters or digits");
       return null;
     }
     return key;
@@ -270,20 +220,22 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
   }
 
   /**
-   * Add the DB ID mapping and the patterns for the name using the normaized key.
+   * Add the ID mapping and the patterns for the given key.
    * <p>
-   * Takes care of all patterns given the Annotators configuration. After all names have been
-   * processed, the DFA can be {@link #compile() compiled} (only needs to be called once).
+   * Takes care of generating all keys and patterns given the configuration. After all names have
+   * been processed, the pattern can be {@link #compile() compiled} (only needs to be called once).
    * 
-   * @param id of entity to normalize
-   * @param name of the entity to detect
-   * @param key of the entity to use for generating the pattern
+   * @param id of entity name to normalize
+   * @param key of the entity name to normalize
    */
-  protected void processMapping(final String id, String key) {
+  protected void processMapping(final String id, final String key) {
     if (key == null) throw new IllegalArgumentException("NULL key for ID '" + id + "'");
-    if (!containsKey(key)) automata.add(makeAutomaton(key));
+    if (!containsKey(key)) {
+      if (exactCaseMatching || !containsKey(makeLower(key)))
+        regularExpressions.add(makeRegularExpression(key));
+    }
     addMapping(key, id); // only the regular key maps to the DB ID
-    // all other keys map to the "real" key:
+    // all other keys only map to the regular key:
     addMapping(makeNormal(key), key);
     if (!exactCaseMatching) {
       addMapping(makeLower(key), key);
@@ -292,63 +244,41 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
   }
 
   /** Add a particular key-value mapping. */
-  private void addMapping(String key, String target) {
+  private void addMapping(final String key, final String target) {
     if (!mappings.containsKey(key)) mappings.put(key, new HashSet<String>());
     mappings.get(key).add(target);
   }
 
   /** Create a pattern and Automaton for a given key. */
-  private Automaton makeAutomaton(String key) {
-    String pattern = RESERVED_CHARS.matcher(key).replaceAll("\\\\$1");
-    if (!exactCaseMatching) {
-      int[] unicode = StringUtils.toCodePointArray(pattern);
-      StringBuilder caseInsensitive = new StringBuilder();
-      for (int cp : unicode) {
-        if (Character.isLetter(cp)) {
-          caseInsensitive.append('[');
-          caseInsensitive.append(Character.toChars(Character.toLowerCase(cp)));
-          caseInsensitive.append(Character.toChars(Character.toUpperCase(cp)));
-          caseInsensitive.append(']');
-        } else {
-          caseInsensitive.append(Character.toChars(cp));
-        }
-      }
-      pattern = caseInsensitive.toString();
-    }
-    pattern = SEPARATOR_PATTERN.matcher(pattern).replaceAll("$1*");
-    logger.log(Level.FINE, "''{0}'' -> /{1}/",
-        new String[] { key, pattern.replace(SEPARATOR, "_") });
+  private String makeRegularExpression(final String key) {
+    final String regex = key.replace(SEPARATOR, "[^\\p{L}\\p{N}]*");
+    logger.log(Level.FINE, "''{0}'' -> /{1}/", new String[] { key, regex });
     // make sure a separator must be at the end or beginning of the pattern
-    return (new RegExp(String.format("%s%s|%s%s", pattern, SEPARATOR, SEPARATOR, pattern)))
-        .toAutomaton();
+    return String.format("%s[^\\p{L}\\{N}]|[^\\p{L}\\{N}]%s", regex, regex);
   }
 
   /**
-   * Generate the DFA from all processed key-to-ID mappings.
+   * Compile the pattern from all processed key-to-ID mappings.
    * <p>
    * This method needs to be called by the implementing resource only once, after all Gazetteer
    * names have been converted to keys and processed.
    */
   protected void compile() {
-    logger.log(Level.INFO, "compiling DFA from {0} keys for {1} unique patterns", new Object[] {
-        mappings.size(), automata.size() });
-    Automaton dfa = BasicOperations.union(automata);
-    Map<Character, Set<Character>> map = new HashMap<Character, Set<Character>>();
-    Set<Character> cset = new HashSet<Character>();
-    for (char c : separators.toCharArray())
-      cset.add(c);
-    map.put(SEPARATOR.charAt(0), cset);
-    // NB: this next step can take quite some time...
-    patterns = new RunAutomaton(dfa.subst(map));
-    logger.log(Level.INFO, "the DFA has been compiled");
+    logger.log(Level.INFO, "compiling a pattern for {0} keys of {1} regular expressions",
+        new Object[] { mappings.size(), regularExpressions.size() });
+    Collections.sort(regularExpressions, StringLengthComparator.INSTANCE);
+    String regex = StringUtils.join('|', regularExpressions.iterator());
+    int flags = exactCaseMatching ? 0 : Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE;
+    pattern = Pattern.compile(regex, flags);
+    logger.log(Level.INFO, "the pattern has been compiled");
   }
 
   // GazetteerResource Methods
   /** {@inheritDoc} */
   public Map<Offset, String> match(String input) {
     Map<Offset, String> result = new HashMap<Offset, String>();
-    input = String.format(" %s ", normalizeSpaceDash(input));
-    AutomatonMatcher match = patterns.newMatcher(input);
+    input = String.format(" %s ", input); // pad with spaces (matching border)
+    Matcher match = pattern.matcher(input);
     while (match.find()) {
       int startShift = input.charAt(match.start()) == ' ' ? 1 : 0;
       int endShift = (match.end() > 0 && input.charAt(match.end() - 1) == ' ') ? -1 : 0;
@@ -372,7 +302,9 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
         for (String target : mappings.get(makeLower(key)))
           result.add(target);
       }
-      if (!exactCaseMatching && mappings.containsKey(makeNormalLower(key))) {
+      // add normal, lower key mappings only if no other mapping has been found
+      else if (!exactCaseMatching && result.size() == 0 &&
+          mappings.containsKey(makeNormalLower(key))) {
         for (String target : mappings.get(makeNormalLower(key)))
           result.add(target);
       }
@@ -381,7 +313,7 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
   }
 
   // StringMapResource Methods
-  /** Return the Set of known ID mappings for any key. */
+  /** Return the Set of known mappings for any key. */
   public Set<String> get(String key) {
     return mappings.get(key);
   }
@@ -429,8 +361,6 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
 
   /** Check if the (name, normalized, and/or case-insensitive) key has a mapping. */
   public boolean containsKey(String key) {
-    // if (exactCaseMatching)
     return mappings.containsKey(key);
-    // else return mappings.containsKey(makeLower(key));
   }
 }

@@ -79,10 +79,9 @@ public class TestLineBasedGazetteerResource {
 
   @Test
   public void testConfiguration() throws ResourceInitializationException {
-    builder.idMatching().caseMatching().setSeparators("separatorsDummy");
+    builder.idMatching().caseMatching();
     final String config = builder.create().toString();
     assertTrue(config.contains(url));
-    assertTrue(config.contains("separatorsDummy"));
   }
 
   @Test
@@ -92,7 +91,7 @@ public class TestLineBasedGazetteerResource {
     for (String key : gr)
       assertEquals(expected, key);
     assertTrue(gr.containsKey(expected));
-    assertEquals(1 * 4, gr.size()); // regular, lc, normal, lc+normal
+    assertEquals(1 * 4, gr.size()); // regular, lower, normal, lower+normal
     assertArrayEquals(new String[] { "id" }, gr.get(expected).toArray(new String[1]));
   }
 
@@ -104,7 +103,7 @@ public class TestLineBasedGazetteerResource {
     for (String key : gr)
       assertEquals(expected, key);
     assertTrue(gr.containsKey(expected));
-    assertEquals(1 * 4, gr.size()); // regular, lc, normal, lc+normal
+    assertEquals(1 * 4, gr.size()); // regular, lower, normal, lower+normal
     String[] results = gr.get(expected).toArray(new String[1]);
     Arrays.sort(results);
     assertArrayEquals(new String[] { "id1", "id2" }, results);
@@ -138,23 +137,23 @@ public class TestLineBasedGazetteerResource {
   public void testCaseSensitiveMatching() throws UIMAException, IOException {
     builder.caseMatching();
     GazetteerResource gr = newGazetteer(new String[] { "id" }, new String[] { "name" });
-    Map<Offset, String> matches = gr.match("NAME");
-    assertEquals(0, matches.size());
+    assertEquals(0, gr.match("NAME").size());
+    assertEquals(1, gr.match("name").size());
   }
 
   @Test
   public void testIdMatching() throws UIMAException, IOException {
     builder.idMatching();
     GazetteerResource gr = newGazetteer(new String[] { "id" }, new String[] { "name" });
-    Map<Offset, String> matches = gr.match("id");
-    assertEquals(1, matches.size());
+    assertEquals(1, gr.match("id").size());
+    assertEquals(1, gr.match("name").size());
   }
 
   @Test
   public void testNoIdMatching() throws UIMAException, IOException {
     GazetteerResource gr = newGazetteer(new String[] { "id" }, new String[] { "name" });
-    Map<Offset, String> matches = gr.match("id");
-    assertEquals(0, matches.size());
+    assertEquals(0, gr.match("id").size());
+    assertEquals(1, gr.match("name").size());
   }
 
   @Test
