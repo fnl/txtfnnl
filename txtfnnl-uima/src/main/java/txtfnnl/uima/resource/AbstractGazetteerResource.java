@@ -2,16 +2,13 @@
  * Copyright 2013. All rights reserved. */
 package txtfnnl.uima.resource;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.uima.UIMAFramework;
@@ -26,9 +23,12 @@ import org.uimafit.component.initialize.ConfigurationParameterInitializer;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.ExternalResourceFactory;
 
+import com.googlecode.concurrenttrees.common.KeyValuePair;
+
 import txtfnnl.uima.SharedResourceBuilder;
+import txtfnnl.utils.ConcurrentPatriciaTree;
 import txtfnnl.utils.Offset;
-import txtfnnl.utils.StringLengthComparator;
+import txtfnnl.utils.PatriciaTree;
 import txtfnnl.utils.StringUtils;
 
 /**
@@ -61,45 +61,61 @@ import txtfnnl.utils.StringUtils;
  */
 public abstract class AbstractGazetteerResource implements GazetteerResource,
     ExternalResourceAware {
-  // resource-internal configuration
-  /** The pattern used to find token splits. */
-  private static final Pattern NOT_LETTER_OR_DIGIT = Pattern.compile("[^\\p{L}\\p{N}]+");
-  /** The size of the initial HashMap for this resource. */
-  static final int INIT_MAP_SIZE = 1024;
-  /** A character to mark case-insensitive keys. */
-  static final String LOWERCASE = "~";
-  /** A character to mark separator-insensitive keys. */
-  static final String NORMAL = "_";
-  // public configuration fields
   @ConfigurationParameter(name = ExternalResourceFactory.PARAM_RESOURCE_NAME)
   protected String resourceName;
+  /**
+   * A regex that matches consecutive stretches of characters that should be treated as separators.
+   * <p>
+   * Defaults to everything but Unicode letters, numbers, and symbols.
+   */
+  public static final String PARAM_CHARSET_REGEX = "CharsetRegex";
+  @ConfigurationParameter(name = PARAM_CHARSET_REGEX,
+      mandatory = false,
+      defaultValue = "[^\\p{L}\\p{N}\\p{S}]+")
+  private String charsetRegex;
+  private Pattern charset;
   /** Whether to match the DB IDs themselves, too (default: <code>false</code>). */
   public static final String PARAM_ID_MATCHING = "IDMatching";
   @ConfigurationParameter(name = PARAM_ID_MATCHING, mandatory = false, defaultValue = "false")
-  protected boolean idMatching;
+  private boolean idMatching;
   /** Whether to require exact case-sensitive matching (default: <code>false</code>). */
   public static final String PARAM_CASE_MATCHING = "CaseMatching";
   @ConfigurationParameter(name = PARAM_CASE_MATCHING, mandatory = false, defaultValue = "false")
   private boolean exactCaseMatching;
+  @ConfigurationParameter(name = PARAM_REVERSE_SCANNING, mandatory = false, defaultValue = "false")
+  private boolean reverseScanning;
   // resource-internal state
   /** The logger for this Resource. */
   protected Logger logger = null;
+  /** The data resource itself. */
+  protected DataResource resource;
   /** The data resource' URI. */
   protected String resourceUri = null;
-  /**
-   * Mappings of (regular, normal, and/or lower-case) keys to sets of IDs or, for normal and/or
-   * lower-case keys, to sets of regular keys.
-   */
-  private Map<String, Set<String>> mappings;
-  /** The list of all regular expressions for the pattern (before being compiled). */
-  private List<String> regularExpressions;
-  /** The final pattern created from all individual names. */
-  private Pattern pattern;
+  /** The compacted prefix tree created from all individual names. */
+  private PatriciaTree<Set<String>> trie;
+  /** The reversed compacted prefix tree created from all individual names. */
+  private PatriciaTree<Set<String>> reverseTrie;
+  private Map<String, Set<String>> names;
 
   public static class Builder extends SharedResourceBuilder {
     /** Protected constructor that must be extended by concrete implementations. */
     protected Builder(Class<? extends SharedResourceObject> klass, String url) {
       super(klass, url);
+    }
+
+    /**
+     * Set an optional regular expression to separate relevant characters from ignored characters
+     * in the input (default: all but Unicode letters, numbers, and symbols).
+     * <p>
+     * Any characters matched by the regular expression will be skipped, as if using
+     * {@link Pattern#split(CharSequence)}.
+     * 
+     * @see AbstractGazetteerResource#PARAM_CHARSET_REGEX
+     * @see Pattern#split(CharSequence)
+     */
+    public Builder setCharsetRegex(String regex) {
+      setOptionalParameter(PARAM_CHARSET_REGEX, regex);
+      return this;
     }
 
     /** Match the Gazetteer's IDs themselves, too. */
@@ -113,21 +129,12 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
       setOptionalParameter(PARAM_CASE_MATCHING, Boolean.TRUE);
       return this;
     }
-  }
 
-  /** Create a case-insensitive key. */
-  private static String makeLower(String key) {
-    return String.format("%s%s", LOWERCASE, key.toLowerCase());
-  }
-
-  /** Create a separator-agnostic key. */
-  private static String makeNormal(String key) {
-    return String.format("%s%s", NORMAL, key.replace(SEPARATOR, ""));
-  }
-
-  /** Create a key that is both case-insensitive and separator-agnostic. */
-  private static String makeNormalLower(String key) {
-    return makeNormal(makeLower(key));
+    /** Enable reverse scanning for matches. */
+    public Builder reverseScanninig() {
+      setOptionalParameter(PARAM_REVERSE_SCANNING, Boolean.TRUE);
+      return this;
+    }
   }
 
   /** {@inheritDoc} */
@@ -141,13 +148,17 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
   }
 
   public synchronized void load(DataResource dataResource) throws ResourceInitializationException {
-    if (mappings == null) {
+    if (resource == null) {
       ConfigurationParameterInitializer.initialize(this, dataResource);
-      logger = UIMAFramework.getLogger(this.getClass());
+      resource = dataResource;
       resourceUri = dataResource.getUri().toString();
-      mappings = new HashMap<String, Set<String>>(INIT_MAP_SIZE);
-      regularExpressions = new ArrayList<String>(INIT_MAP_SIZE);
-      pattern = null;
+      logger = UIMAFramework.getLogger(this.getClass());
+      // mappings = new HashMap<String, Set<String>>(INIT_MAP_SIZE);
+      // regularExpressions = new ArrayList<String>(INIT_MAP_SIZE);
+      charset = Pattern.compile(charsetRegex);
+      trie = new ConcurrentPatriciaTree<Set<String>>();
+      reverseTrie = reverseScanning ? new ConcurrentPatriciaTree<Set<String>>() : null;
+      names = new HashMap<String, Set<String>>();
       logger.log(Level.INFO, "{0} resource loaded", resourceUri);
     }
   }
@@ -155,8 +166,15 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
   /**
    * This method implements the particular method of generating the pattern given the resource
    * type.
+   * 
+   * @throws ResourceInitializationException
    */
   public abstract void afterResourcesInitialized();
+
+  /** Fetch the input stream for this resource. */
+  protected InputStream getInputStream() throws IOException {
+    return resource.getInputStream();
+  }
 
   // methods for building a pattern from the name-id pairs
   /**
@@ -172,195 +190,147 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
    * 
    * @return a key ("normalized" name) or <code>null</code> if it cannot be normalized
    */
-  protected String makeKey(String name) {
-    StringBuilder sb = new StringBuilder();
-    for (String sub : NOT_LETTER_OR_DIGIT.split(name)) {
-      if (sub.length() > 0) {
-        if (sb.length() > 0) sb.append(SEPARATOR);
-        sb.append(makeToken(sub));
-      }
+  protected void put(String id, String name) {
+    if (id == null) throw new IllegalArgumentException("id == null for name '" + name + "'");
+    if (name == null) throw new IllegalArgumentException("name == null for ID '" + id + "'");
+    Set<String> mapped = names.get(id);
+    if (mapped == null) {
+      mapped = new HashSet<String>();
+      names.put(id, mapped);
     }
-    String key = sb.toString();
+    mapped.add(name);
+    String key = makeKey(name);
     if (key.length() == 0) {
-      logger.log(Level.WARNING, "\"" + name + "\" has no matching letters or digits");
-      return null;
+      logger.log(Level.WARNING, id + "=\"" + name + "\" has no content characters");
+      return;
     }
-    return key;
+    put(trie, id, key);
+    if (idMatching) put(trie, id, makeKey(id));
+    if (reverseScanning) {
+      put(reverseTrie, id, (new StringBuilder(key)).reverse().toString());
+      if (idMatching) put(trie, id, makeKey((new StringBuilder(id)).reverse().toString()));
+    }
   }
 
-  /** Return the Unicode category-separated (regular) sub-key of an entity token. */
-  private String makeToken(String token) {
-    StringBuilder sb = new StringBuilder();
-    int length = token.length();
-    int offset = 0;
-    int lastSplit = 0;
-    int charPoint = token.codePointAt(offset);
-    int charType = Character.getType(charPoint);
-    while (offset < length) {
-      charPoint = token.codePointAt(offset);
-      if (Character.getType(charPoint) != charType) {
-        if (sb.length() > 0 && !isCapitalized(token, lastSplit, offset, charType)) {
-          sb.append(SEPARATOR);
-          lastSplit = offset;
+  private String makeKey(String name) {
+    if (!exactCaseMatching) name = name.toLowerCase();
+    return StringUtils.join(charset.split(name));
+  }
+
+  private static void put(PatriciaTree<Set<String>> tree, String id, final String key) {
+    Set<String> ids = tree.getValueForExactKey(key);
+    if (ids == null) {
+      ids = new HashSet<String>();
+      tree.put(key, ids);
+    }
+    ids.add(id);
+  }
+
+  /**
+   * A special data structure to create normalized (separator-less) versions of an input String
+   * together with an alignment of the normalized offsets to the offsets in the input.
+   * <p>
+   * If exact case matching is disabled, a the normalized version is lower-cased, too.
+   */
+  private class NormalAlignment {
+    /** The normalized version of this string (separator-less and lower-cased if configured). */
+    CharSequence normal;
+    /**
+     * The alignment with the relative offsets in the input for the normal String.
+     * <p>
+     * This means, the length of normal and offset are equal.
+     */
+    int[] offset;
+
+    public NormalAlignment(String seq) {
+      if (!exactCaseMatching) seq = seq.toLowerCase();
+      String[] items = charset.split(seq);
+      normal = StringUtils.join(items);
+      offset = new int[normal.length()];
+      if (offset.length > 0) {
+        int pos = 0;
+        for (int i = 0; i < items.length; ++i) {
+          int idx = seq.indexOf(items[i], pos);
+          for (int j = 0; j < items[i].length(); ++j)
+            offset[pos++] = idx + j;
         }
-        charType = Character.getType(charPoint);
+        assert pos == offset.length;
       }
-      int charLen = Character.charCount(charPoint);
-      sb.append(charLen == 1 ? token.charAt(offset) : token.substring(offset, offset + charLen));
-      offset += charLen;
     }
-    return sb.toString();
-  }
-
-  /** Return <code>true</code> if the current split is a capitalized word. */
-  private boolean isCapitalized(String token, int lastSplit, int offset, int lastCharType) {
-    return (lastCharType == Character.UPPERCASE_LETTER &&
-        Character.getType(token.codePointAt(offset)) == Character.LOWERCASE_LETTER && Character
-        .charCount(token.codePointAt(lastSplit)) + lastSplit == offset);
-  }
-
-  /**
-   * Add the ID mapping and the patterns for the given key.
-   * <p>
-   * Takes care of generating all keys and patterns given the configuration. After all names have
-   * been processed, the pattern can be {@link #compile() compiled} (only needs to be called once).
-   * 
-   * @param id of entity name to normalize
-   * @param key of the entity name to normalize
-   */
-  protected void processMapping(final String id, final String key) {
-    if (key == null) throw new IllegalArgumentException("NULL key for ID '" + id + "'");
-    if (!containsKey(key)) {
-      if (exactCaseMatching || !containsKey(makeLower(key)))
-        regularExpressions.add(makeRegularExpression(key));
-    }
-    addMapping(key, id); // only the regular key maps to the DB ID
-    // all other keys only map to the regular key:
-    addMapping(makeNormal(key), key);
-    if (!exactCaseMatching) {
-      addMapping(makeLower(key), key);
-      addMapping(makeNormalLower(key), key);
-    }
-  }
-
-  /** Add a particular key-value mapping. */
-  private void addMapping(final String key, final String target) {
-    if (!mappings.containsKey(key)) mappings.put(key, new HashSet<String>());
-    mappings.get(key).add(target);
-  }
-
-  /** Create a pattern and Automaton for a given key. */
-  private String makeRegularExpression(final String key) {
-    final String regex = key.replace(SEPARATOR, "[^\\p{L}\\p{N}]*");
-    logger.log(Level.FINE, "''{0}'' -> /{1}/", new String[] { key, regex });
-    // make sure a separator must be at the end or beginning of the pattern
-    return String.format("%s[^\\p{L}\\{N}]|[^\\p{L}\\{N}]%s", regex, regex);
-  }
-
-  /**
-   * Compile the pattern from all processed key-to-ID mappings.
-   * <p>
-   * This method needs to be called by the implementing resource only once, after all Gazetteer
-   * names have been converted to keys and processed.
-   */
-  protected void compile() {
-    logger.log(Level.INFO, "compiling a pattern for {0} keys of {1} regular expressions",
-        new Object[] { mappings.size(), regularExpressions.size() });
-    Collections.sort(regularExpressions, StringLengthComparator.INSTANCE);
-    String regex = StringUtils.join('|', regularExpressions.iterator());
-    int flags = exactCaseMatching ? 0 : Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE;
-    pattern = Pattern.compile(regex, flags);
-    logger.log(Level.INFO, "the pattern has been compiled");
   }
 
   // GazetteerResource Methods
   /** {@inheritDoc} */
-  public Map<Offset, String> match(String input) {
-    Map<Offset, String> result = new HashMap<Offset, String>();
-    input = String.format(" %s ", input); // pad with spaces (matching border)
-    Matcher match = pattern.matcher(input);
-    while (match.find()) {
-      int startShift = input.charAt(match.start()) == ' ' ? 1 : 0;
-      int endShift = (match.end() > 0 && input.charAt(match.end() - 1) == ' ') ? -1 : 0;
-      result.put(new Offset(match.start() + startShift - 1, match.end() + endShift - 1),
-          makeKey(input.substring(match.start() + startShift, match.end() + endShift)));
+  public Map<Offset, Set<String>> match(String input) {
+    Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
+    NormalAlignment aln = new NormalAlignment(input);
+    int len = aln.normal.length();
+    for (int i = 0; i < len; ++i) {
+      CharSequence suffix = aln.normal.subSequence(i, len);
+      for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(suffix))
+        results.put(new Offset(aln.offset[i], aln.offset[i + hit.getKey().length() - 1] + 1),
+            hit.getValue());
     }
-    return result;
+    return results;
   }
 
   /** {@inheritDoc} */
-  public Set<String> resolve(String key) {
-    Set<String> result = new HashSet<String>(); // resolved (target) keys
-    if (mappings.containsKey(key)) {
-      result.add(key);
-    } else {
-      if (mappings.containsKey(makeNormal(key))) {
-        for (String target : mappings.get(makeNormal(key)))
-          result.add(target);
-      }
-      if (!exactCaseMatching && mappings.containsKey(makeLower(key))) {
-        for (String target : mappings.get(makeLower(key)))
-          result.add(target);
-      }
-      // add normal, lower key mappings only if no other mapping has been found
-      else if (!exactCaseMatching && result.size() == 0 &&
-          mappings.containsKey(makeNormalLower(key))) {
-        for (String target : mappings.get(makeNormalLower(key)))
-          result.add(target);
-      }
-    }
-    return result;
+  public Map<Offset, Set<String>> scan(String input) {
+    return scan(input, 0);
+  }
+
+  public Map<Offset, Set<String>> scan(String input, int baseOffset) {
+    if (input.length() == 0) throw new IllegalArgumentException("zero-length input");
+    Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
+    NormalAlignment aln = new NormalAlignment(input);
+    for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(aln.normal))
+      results.put(new Offset(baseOffset + aln.offset[0], baseOffset +
+          aln.offset[hit.getKey().length() - 1] + 1), hit.getValue());
+    return results;
+  }
+
+  /** {@inheritDoc} */
+  public Map<Offset, Set<String>> reverseScan(String suffix) {
+    return reverseScan(suffix, 0);
+  }
+
+  public Map<Offset, Set<String>> reverseScan(String suffix, int baseOffset) {
+    if (!reverseScanning) throw new IllegalStateException("reverse scanning was not enabled");
+    if (suffix.length() == 0) throw new IllegalArgumentException("zero-length suffix");
+    Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
+    String reverseInput = (new StringBuilder(suffix)).reverse().toString();
+    NormalAlignment aln = new NormalAlignment(reverseInput);
+    int len = baseOffset + suffix.length();
+    int end = len - aln.offset[0];
+    for (KeyValuePair<Set<String>> hit : reverseTrie.scanForKeyValuePairsAtStartOf(aln.normal))
+      results
+          .put(new Offset(len - aln.offset[hit.getKey().length() - 1] - 1, end), hit.getValue());
+    return results;
+  }
+
+  /** {@inheritDoc} */
+  public boolean canScanReverse() {
+    return reverseScanning;
   }
 
   // StringMapResource Methods
-  /** Return the Set of known mappings for any key. */
-  public Set<String> get(String key) {
-    return mappings.get(key);
+  /** Return the Set of official names for an ID. */
+  public Set<String> get(String id) {
+    return names.get(id);
   }
 
-  /** Return the number of <b>all</b> (name, normalized, and/or case-insensitive) keys. */
+  /** Check if the ID exists (and therefore has a mapping to a Set of official names). */
+  public boolean containsKey(String id) {
+    return names.containsKey(id);
+  }
+
+  /** Return the number of IDs covered by the Gazetteer. */
   public int size() {
-    return mappings.size();
+    return names.size();
   }
 
-  /** Iterate over the regular name keys (only). */
+  /** Iterate over all IDs covered by the Gazetteer. */
   public Iterator<String> iterator() {
-    return new Iterator<String>() {
-      private Iterator<String> it = mappings.keySet().iterator();
-      private String cache;
-
-      public boolean hasNext() {
-        if (cache == null) cache = cacheNext();
-        return cache != null;
-      }
-
-      public String next() {
-        if (cache == null) cache = cacheNext();
-        if (cache != null) {
-          String tmp = cache;
-          cache = null;
-          return tmp;
-        } else {
-          throw new NoSuchElementException();
-        }
-      }
-
-      private String cacheNext() {
-        while (it.hasNext()) {
-          String candidate = it.next();
-          if (!candidate.startsWith(LOWERCASE) && !candidate.startsWith(NORMAL)) return candidate;
-        }
-        return null;
-      }
-
-      public void remove() {
-        it.remove();
-      }
-    };
-  }
-
-  /** Check if the (name, normalized, and/or case-insensitive) key has a mapping. */
-  public boolean containsKey(String key) {
-    return mappings.containsKey(key);
+    return names.keySet().iterator();
   }
 }

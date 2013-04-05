@@ -55,22 +55,32 @@ public class LineBasedGazetteerResource extends AbstractGazetteerResource {
   @Override
   public synchronized void load(DataResource dataResource) throws ResourceInitializationException {
     super.load(dataResource);
+  }
+
+  /**
+   * Compile the DFA.
+   * 
+   * @throws ResourceInitializationException
+   */
+  @Override
+  public void afterResourcesInitialized() {
     Pattern pattern = Pattern.compile(separator);
-    InputStream inStr = null;
     String line = null;
+    InputStream inStr = null;
     try {
-      inStr = dataResource.getInputStream();
+      inStr = getInputStream();
       final BufferedReader reader = new BufferedReader(new InputStreamReader(inStr));
       while ((line = reader.readLine()) != null) {
         line = line.trim();
         if (line.length() == 0) continue;
-        parse(pattern.split(line, 2));
+        String[] keyVal = pattern.split(line, 2);
+        put(keyVal[0], keyVal[1]);
       }
     } catch (final IOException e) {
-      throw new ResourceInitializationException(e);
+      throw new RuntimeException(e.getLocalizedMessage() + " while loading " + resourceUri);
     } catch (IndexOutOfBoundsException e) {
-      throw new ResourceInitializationException(new AssertionError(
-          "received an illegal line from " + resourceUri + ": '" + line + "'"));
+      throw new RuntimeException("received an illegal line from " + resourceUri + ": '" + line +
+          "'");
     } finally {
       if (inStr != null) {
         try {
@@ -78,22 +88,5 @@ public class LineBasedGazetteerResource extends AbstractGazetteerResource {
         } catch (final IOException e) {}
       }
     }
-  }
-
-  protected void parse(String[] items) {
-    final String id = items[0];
-    final String name = items[1];
-    final String key = makeKey(name);
-    if (key != null) processMapping(id, key);
-    if (idMatching) {
-      final String idKey = makeKey(id);
-      if (idKey != null) processMapping(id, idKey);
-    }
-  }
-
-  /** Compile the DFA. */
-  @Override
-  public void afterResourcesInitialized() {
-    compile();
   }
 }

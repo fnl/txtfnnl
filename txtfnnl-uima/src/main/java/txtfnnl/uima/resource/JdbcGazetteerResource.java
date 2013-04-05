@@ -137,21 +137,7 @@ public class JdbcGazetteerResource extends AbstractGazetteerResource implements
     // note: "afterResourcesInitialized()" is a sort-of broken uimaFIT API,
     // because it cannot throw a ResourceInitializationException
     // therefore, this code throws assertion errors to the same effect...
-    // load the DB driver
-    try {
-      Class.forName(driverClass);
-    } catch (final ClassNotFoundException e) {
-      throw new AssertionError(new ResourceInitializationException(
-          ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] { driverClass,
-              PARAM_DRIVER_CLASS }, e));
-    }
-    // set the DB login timeout
-    if (loginTimeout > 0) {
-      DriverManager.setLoginTimeout(loginTimeout);
-    } else if (loginTimeout != -1)
-      throw new AssertionError(new ResourceInitializationException(
-          ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] { loginTimeout,
-              PARAM_LOGIN_TIMEOUT }));
+    initializeJdbc();
     // fetch a process the mappings
     // uses "key = makeKey(name) && if (key != null) processMapping(dbId, name, key)"
     try {
@@ -161,25 +147,34 @@ public class JdbcGazetteerResource extends AbstractGazetteerResource implements
       while (result.next()) {
         final String dbId = result.getString(1);
         final String name = result.getString(2);
-        final String key = makeKey(name);
-        if (key != null) {
-          processMapping(dbId, key); // key-to-ID mapping
-        }
-        if (idMatching) {
-          final String idKey = makeKey(dbId);
-          if (idKey == null) continue;
-          processMapping(dbId, idKey); // key-to-ID mapping
-        }
+        put(dbId, name);
       }
       conn.close();
     } catch (SQLException e) {
       logger.log(Level.SEVERE, "SQL error", e);
-      throw new AssertionError(e);
+      throw new RuntimeException(e);
     } catch (Exception e) {
       logger.log(Level.SEVERE, "unknown error", e);
-      throw new AssertionError(e);
+      throw new RuntimeException(e);
     }
-    compile();
+  }
+
+  protected void initializeJdbc() {
+    // load the DB driver
+    try {
+      Class.forName(driverClass);
+    } catch (final ClassNotFoundException e) {
+      throw new RuntimeException(new ResourceInitializationException(
+          ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] { driverClass,
+              PARAM_DRIVER_CLASS }, e));
+    }
+    // set the DB login timeout
+    if (loginTimeout > 0) {
+      DriverManager.setLoginTimeout(loginTimeout);
+    } else if (loginTimeout != -1)
+      throw new RuntimeException(new ResourceInitializationException(
+          ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] { loginTimeout,
+              PARAM_LOGIN_TIMEOUT }));
   }
 
   /** {@inheritDoc} */
@@ -193,5 +188,4 @@ public class JdbcGazetteerResource extends AbstractGazetteerResource implements
     logger.log(Level.FINE, "connected to '" + resourceUri + "'");
     return conn;
   }
-
 }

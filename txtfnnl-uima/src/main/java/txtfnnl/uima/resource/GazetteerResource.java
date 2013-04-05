@@ -18,24 +18,40 @@ import txtfnnl.utils.Offset;
  * @author Florian Leitner
  */
 public interface GazetteerResource extends StringMapResource<Set<String>> {
-  /** A private range character to normalize the representation of token boundaries. */
-  public static final String SEPARATOR = "-";
+  /** Whether to enable reverse scanning for matches (default: <code>false</code>). */
+  public static final String PARAM_REVERSE_SCANNING = "ReverseScanning";
 
   /**
-   * Scan the input with the Gazetteer, returning the {@link Offset Offsets} of all matches
-   * together with the entity key (the normalized entity name) associated to each hit.
+   * Check the entire input with the Gazetteer, returning a map of {@link Offset Offsets} of all
+   * matches together with the entity IDs associated to each hit.
    * 
    * @param input to match the Gazetteer against
-   * @return A mapping of {@link Offset Offsets} to entity key values for all matches.
+   * @return A mapping of {@link Offset Offsets} to entity IDs for all hits.
    */
-  public Map<Offset, String> match(String input);
+  public Map<Offset, Set<String>> match(String input);
 
   /**
-   * Return all valid, existing entity keys (normalized entity names) for an entity key that does
-   * not exist in the Gazetteer but was found by {@link #match(String)}.
+   * Scan the start of input with the Gazetteer, returning a map of {@link Offset Offsets} of all
+   * matches together with the entity IDs associated to each hit <i>at the beginning of input
+   * sequence</i> only.
    * 
-   * @param key to resolve against the known Gazetteer keys
-   * @return A set of existing Gazetteer keys for the resolved key.
+   * @param prefix to scan with the Gazetteer against
+   * @return A mapping of {@link Offset Offsets} to entity IDs for all hits.
    */
-  public Set<String> resolve(String key);
+  public Map<Offset, Set<String>> scan(String prefix);
+  public Map<Offset, Set<String>> scan(String prefix, int baseOffset);
+  
+  /**
+   * Works just as {@link #scan(String)}, but scans from the <b>end</b> of the input.
+   * <p>
+   * To use this function, the {@link #PARAM_REVERSE_SCANNING} flag has to be set.
+   * 
+   * @param suffix scanned for matches, starting the scan from the <b>end</b>
+   * @return A mapping of {@link Offset Offsets} to entity IDs for all hits.
+   */
+  public Map<Offset, Set<String>> reverseScan(String suffix);
+  public Map<Offset, Set<String>> reverseScan(String suffix, int baseOffset);
+  
+  /** Return <code>true</code> if the {@link #PARAM_REVERSE_SCANNING} flag is set. */
+  public boolean canScanReverse();
 }

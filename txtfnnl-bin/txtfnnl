@@ -20,6 +20,7 @@ $MAVEN_REPO/args4j/args4j/2.0.12/args4j-2.0.12.jar:\
 $MAVEN_REPO/asm/asm/3.1/asm-3.1.jar:\
 $MAVEN_REPO/cglib/cglib-nodep/2.2.2/cglib-nodep-2.2.2.jar:\
 $MAVEN_REPO/com/drewnoakes/metadata-extractor/2.4.0-beta-1/metadata-extractor-2.4.0-beta-1.jar:\
+$MAVEN_REPO/com/googlecode/concurrent-trees/concurrent-trees/2.0.0/concurrent-trees-2.0.0.jar:\
 $MAVEN_REPO/com/googlecode/mp4parser/isoparser/1.0-beta-5/isoparser-1.0-beta-5.jar:\
 $MAVEN_REPO/commons-cli/commons-cli/1.2/commons-cli-1.2.jar:\
 $MAVEN_REPO/commons-codec/commons-codec/1.5/commons-codec-1.5.jar:\
