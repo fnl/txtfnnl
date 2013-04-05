@@ -45,8 +45,9 @@ public class DamerauLevenshtein extends LeitnerLevenshtein implements Distance, 
     for (idxA = 1, offA = 0, lastA = -1; offA < lenA; offA += StringUtils.charCount(strA, offA), ++idxA) {
       charA = strA.codePointAt(offA);
       for (idxB = 1; idxB <= cpcB; ++idxB) {
-        matrix[idxA][idxB] = minimum(matrix[idxA - 1][idxB] + factor, matrix[idxA][idxB - 1] +
-            factor, matrix[idxA - 1][idxB - 1] + (charA == cpB[idxB - 1] ? 0 : factor));
+        matrix[idxA][idxB] = Math.min(
+            Math.min(matrix[idxA - 1][idxB] + factor, matrix[idxA][idxB - 1] + factor),
+            matrix[idxA - 1][idxB - 1] + (charA == cpB[idxB - 1] ? 0 : factor));
         // additional Damerau transposition rule:
         if (idxB > 1 && charA == cpB[idxB - 2] && lastA == cpB[idxB - 1])
           matrix[idxA][idxB] = Math.min(matrix[idxA][idxB], matrix[idxA - 2][idxB - 2] + factor);
