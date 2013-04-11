@@ -113,8 +113,8 @@ if [ $# -gt 0 ]; then
         tag) java -Xmx2G txtfnnl.pipelines.SentenceTagger "$@";;
         grep) java -Xmx2G txtfnnl.pipelines.PatternExtractor "$@";;
         rex) java -Xmx2G txtfnnl.pipelines.RelationshipExtractor "$@";;
-        gn) java -Xmx2G txtfnnl.pipelines.GeneNormalization "$@";;
-        grex) java -Xmx2G txtfnnl.pipelines.GeneRelationshipExtractor "$@";;
+        gn) java -Xmx32G txtfnnl.pipelines.GeneNormalization "$@";;
+        grex) java -Xmx32G txtfnnl.pipelines.GeneRelationshipExtractor "$@";;
         entities) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
         patterns) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;
         -v) echo txtfnnl-$VERSION;;

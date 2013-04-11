@@ -66,7 +66,7 @@ public class GeneNormalization extends Pipeline {
     opts.addOption("G", "genia", true,
         "use GENIA (with the dir containing 'morphdic/') instead of OpenNLP");
     // query options
-    opts.addOption("q", "query", true, "SQL query that produces gene ID, tax ID, name triplets");
+    opts.addOption("Q", "query", true, "SQL query that produces gene ID, tax ID, name triplets");
     try {
       cmd = parser.parse(opts, arguments);
     } catch (final ParseException e) {
@@ -85,7 +85,7 @@ public class GeneNormalization extends Pipeline {
     // (GENIA) tokenizer
     final String geniaDir = cmd.getOptionValue('G');
     // query
-    final String querySql = cmd.hasOption('q') ? cmd.getOptionValue('q') : SQL_QUERY;
+    final String querySql = cmd.hasOption('Q') ? cmd.getOptionValue('Q') : SQL_QUERY;
     // DB resource
     ExternalResourceDescription geneGazetteer = null;
     try {
