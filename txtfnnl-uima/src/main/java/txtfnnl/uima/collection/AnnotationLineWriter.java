@@ -121,10 +121,10 @@ public class AnnotationLineWriter extends TextWriter {
         write('\t');
         if (annotatorUri == null) write(ann.getAnnotator());
         if (annotatorUri == null && annotationNs == null) write('@');
-        else write('\t');
+        else if (annotatorUri == null) write('\t');
         if (annotationNs == null) write(ann.getNamespace());
         if (annotationNs == null && annotationId == null) write(':');
-        else write('\t');
+        else if (annotationNs == null) write('\t');
         if (annotationId == null) {
           write(ann.getIdentifier());
           write('\t');
@@ -148,6 +148,6 @@ public class AnnotationLineWriter extends TextWriter {
     } catch (final IOException e) {
       throw new AnalysisEngineProcessException(e);
     }
-    logger.log(Level.INFO, "wrote {0} annotations", count);
+    logger.log(Level.FINE, "wrote {0} annotations", count);
   }
 }
