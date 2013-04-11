@@ -50,6 +50,7 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
     try {
       Connection conn = getConnection();
       Statement stmt = conn.createStatement();
+      logger.log(Level.INFO, "running SQL query: ''{0}''", querySql);
       ResultSet result = stmt.executeQuery(querySql);
       while (result.next()) {
         final String geneId = result.getString(1);

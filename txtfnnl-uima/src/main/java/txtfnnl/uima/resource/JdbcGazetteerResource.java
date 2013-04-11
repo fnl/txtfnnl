@@ -143,6 +143,7 @@ public class JdbcGazetteerResource extends AbstractGazetteerResource implements
     try {
       Connection conn = getConnection();
       Statement stmt = conn.createStatement();
+      logger.log(Level.INFO, "running SQL query: ''{0}''", querySql);
       ResultSet result = stmt.executeQuery(querySql);
       while (result.next()) {
         final String dbId = result.getString(1);
