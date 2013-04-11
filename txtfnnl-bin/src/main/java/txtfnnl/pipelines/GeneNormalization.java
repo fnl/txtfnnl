@@ -115,11 +115,11 @@ public class GeneNormalization extends Pipeline {
     }
     // output
     final String geneAnnotationNamespace = "gene";
-    AnnotationLineWriter.Builder alw = AnnotationLineWriter.configureTodo()
+    AnnotationLineWriter.Builder writer = AnnotationLineWriter.configureTodo()
         .setAnnotatorUri(GeneAnnotator.URI).setAnnotationNamespace(geneAnnotationNamespace);
-    alw.setEncoding(Pipeline.outputEncoding(cmd));
-    alw.setOutputDirectory(Pipeline.outputDirectory(cmd));
-    if (Pipeline.outputOverwriteFiles(cmd)) alw.overwriteFiles();
+    writer.setEncoding(Pipeline.outputEncoding(cmd));
+    writer.setOutputDirectory(Pipeline.outputDirectory(cmd));
+    if (Pipeline.outputOverwriteFiles(cmd)) writer.overwriteFiles();
     try {
       // 0:tika, 1:splitter, 2:tokenizer, (3:NOOP), 4:gazetteer
       final Pipeline gn = new Pipeline(5);
@@ -140,7 +140,7 @@ public class GeneNormalization extends Pipeline {
           GeneAnnotator.configure(geneAnnotationNamespace, geneGazetteer)
               .setTextNamespace(SentenceAnnotator.NAMESPACE)
               .setTextIdentifier(SentenceAnnotator.IDENTIFIER).create());
-      gn.setConsumer(alw.create());
+      gn.setConsumer(writer.create());
       gn.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());
