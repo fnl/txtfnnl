@@ -95,6 +95,8 @@ help () {
     echo "  tag      - extract tagged plaintext (split, tag, stem and chunk)";
     echo "  grep     - extract semantic patterns (or matching sentences)";
     echo "  rex      - extract normalized relationships (with evidence sentences)";
+    echo "  gn       - extract gene normalizations (with evidence text)";
+    echo "  grex     - extract gene regulation relationships (with evidence sentences)";
     echo "  entities - annotate known entity mentions to XMI";
     echo "  patterns - extract patterns with (potential) entity relationships";
     echo;
@@ -110,8 +112,9 @@ if [ $# -gt 0 ]; then
         pre) java -Xmx2G txtfnnl.pipelines.Preprocessor "$@";;
         tag) java -Xmx2G txtfnnl.pipelines.SentenceTagger "$@";;
         grep) java -Xmx2G txtfnnl.pipelines.PatternExtractor "$@";;
-        rex) java -Xmx16G txtfnnl.pipelines.RelationshipExtractor "$@";;
-        grex) java -Xmx32G txtfnnl.pipelines.GeneRelationshipExtractor "$@";;
+        rex) java -Xmx2G txtfnnl.pipelines.RelationshipExtractor "$@";;
+        gn) java -Xmx2G txtfnnl.pipelines.GeneNormalization "$@";;
+        grex) java -Xmx2G txtfnnl.pipelines.GeneRelationshipExtractor "$@";;
         entities) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
         patterns) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;
         -v) echo txtfnnl-$VERSION;;

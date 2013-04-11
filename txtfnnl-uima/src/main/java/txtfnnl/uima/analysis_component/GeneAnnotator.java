@@ -38,11 +38,6 @@ public class GeneAnnotator extends GazetteerAnnotator {
   /** The URI of this Annotator (namespace and ID are defined dynamically). */
   @SuppressWarnings("hiding")
   public static final String URI = GeneAnnotator.class.getName();
-//  /** A {@link GeneGazetteerResource}. */
-//  @SuppressWarnings("hiding")
-//  public static final String MODEL_KEY_GAZETTEER = GazetteerAnnotator.MODEL_KEY_GAZETTEER;
-//  @ExternalResource(key = MODEL_KEY_GAZETTEER)
-//  private GnamedGazetteerResource gazetteer;
   /** The name of the property used to set the taxon ID of the matched gene name. */
   public static final String TAX_ID_PROPERTY = "taxId";
   /**
@@ -103,6 +98,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
     super.process(jcas);
     normalizedGreekLetters.remove(text);
   }
+
   @Override
   protected Map<Offset, Set<String>> matchDocument(JCas jcas) {
     String text = jcas.getDocumentText();
@@ -110,14 +106,14 @@ public class GeneAnnotator extends GazetteerAnnotator {
     text = normalizedGreekLetters.get(text);
     if (text != null) {
       Map<Offset, Set<String>> more = gazetteer.match(text);
-      for (Offset off : more.keySet()){
+      for (Offset off : more.keySet()) {
         if (matches.containsKey(off)) matches.get(off).addAll(more.get(off));
-        else matches.put(off,  more.get(off));
+        else matches.put(off, more.get(off));
       }
     }
     return matches;
   }
-  
+
   @Override
   protected void findEntities(JCas jcas, Annotation annotation, List<SemanticAnnotation> buffer) {
     int begin = annotation.getBegin();
@@ -129,9 +125,9 @@ public class GeneAnnotator extends GazetteerAnnotator {
     text = normalizedGreekLetters.get(text);
     if (text != null) {
       Map<Offset, Set<String>> more = scan(jcas, tokenIt, text, begin, end, buffer);
-      for (Offset off : more.keySet()){
+      for (Offset off : more.keySet()) {
         if (matches.containsKey(off)) matches.get(off).addAll(more.get(off));
-        else matches.put(off,  more.get(off));
+        else matches.put(off, more.get(off));
       }
     }
     for (Offset offset : matches.keySet())

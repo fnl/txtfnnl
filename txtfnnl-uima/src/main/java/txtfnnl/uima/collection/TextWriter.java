@@ -10,6 +10,7 @@ import java.util.HashMap;
 
 import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
+import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CAS;
@@ -23,6 +24,7 @@ import org.uimafit.component.CasConsumer_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.AnalysisEngineFactory;
 
+import txtfnnl.uima.AnalysisComponentBuilder;
 import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.utils.IOUtils;
@@ -68,6 +70,35 @@ public class TextWriter extends CasConsumer_ImplBase {
   public static final String PARAM_PRINT_TO_STDOUT = "PrintToStdout";
   @ConfigurationParameter(name = PARAM_PRINT_TO_STDOUT, defaultValue = "false")
   protected Boolean printToStdout;
+
+  public static class Builder extends AnalysisComponentBuilder {
+    protected Builder(Class<? extends AnalysisComponent> klass) {
+      super(klass);
+      setOptionalParameter(PARAM_PRINT_TO_STDOUT, true);
+    }
+
+    public Builder() {
+      super(TextWriter.class);
+      setOptionalParameter(PARAM_PRINT_TO_STDOUT, true);
+    }
+
+    public Builder setOutputDirectory(File outputDirectory) {
+      setOptionalParameter(PARAM_OUTPUT_DIRECTORY, outputDirectory);
+      if (outputDirectory == null) setOptionalParameter(PARAM_PRINT_TO_STDOUT, true);
+      else setOptionalParameter(PARAM_PRINT_TO_STDOUT, false);
+      return this;
+    }
+
+    public Builder setEncoding(String encoding) {
+      setOptionalParameter(PARAM_ENCODING, encoding);
+      return this;
+    }
+
+    public Builder overwriteFiles() {
+      setOptionalParameter(PARAM_OVERWRITE_FILES, true);
+      return this;
+    }
+  }
 
   /**
    * Configure a TextWriter descriptor.
