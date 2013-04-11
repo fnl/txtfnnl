@@ -174,6 +174,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
   @Override
   protected SemanticAnnotation annotate(String id, JCas jcas, Offset offset, double confidence) {
     SemanticAnnotation entity = super.annotate(id, jcas, offset, confidence);
+    entity.setAnnotator(URI); // update with static URI
     Property taxId = new Property(jcas);
     taxId.setName(TAX_ID_PROPERTY);
     taxId.setValue(((GnamedGazetteerResource) gazetteer).getTaxId(id));
