@@ -176,8 +176,12 @@ public class TextWriter extends CasConsumer_ImplBase {
         }
       }
       if (encoding != null) {
-        logger.log(Level.INFO, "set STDOUT to use '" + encoding + "' encoding");
+        logger.log(Level.INFO, "writing to STDOUT with '" + encoding + "' encoding");
+      } else {
+        logger.log(Level.INFO, "writing to STDOUT using the default encoding");
       }
+    } else {
+      logger.log(Level.INFO, "writing to '" + outputDirectory.getAbsolutePath() + "'");
     }
     logger.log(Level.INFO, "initialized {0}", this.getClass().getName());
     counter = 0;
