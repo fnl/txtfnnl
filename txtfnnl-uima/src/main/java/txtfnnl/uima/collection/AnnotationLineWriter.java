@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 
+import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CAS;
@@ -13,6 +14,7 @@ import org.apache.uima.cas.FSMatchConstraint;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.jcas.tcas.Annotation;
+import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
@@ -87,6 +89,13 @@ public class AnnotationLineWriter extends TextWriter {
   }
 
   @Override
+  public void initialize(UimaContext ctx) throws ResourceInitializationException {
+    super.initialize(ctx);
+    logger.log(Level.INFO, "constraint: '" + annotatorUri + "@" + annotationNs + ":" +
+        annotationId + "'");
+  }
+
+  @Override
   public void process(CAS cas) throws AnalysisEngineProcessException {
     JCas textJCas;
     try {
@@ -139,6 +148,6 @@ public class AnnotationLineWriter extends TextWriter {
     } catch (final IOException e) {
       throw new AnalysisEngineProcessException(e);
     }
-    logger.log(Level.FINE, "wrote {0} annotations", count);
+    logger.log(Level.INFO, "wrote {0} annotations", count);
   }
 }
