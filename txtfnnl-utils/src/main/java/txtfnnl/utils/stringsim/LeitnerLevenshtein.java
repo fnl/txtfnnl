@@ -126,7 +126,7 @@ public class LeitnerLevenshtein implements Distance, Similarity {
    */
   private int replace(final int[] greek, final int[] latin, int cp) {
     int pos = Arrays.binarySearch(greek, cp);
-    if (pos != -1) return latin[pos];
+    if (pos > -1) return latin[pos];
     else return cp;
   }
 }

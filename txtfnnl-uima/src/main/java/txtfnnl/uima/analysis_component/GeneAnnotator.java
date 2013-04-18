@@ -162,7 +162,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
    */
   private boolean replace(final char[] greek, final char[] latin, char[] target, int idx) {
     int pos = Arrays.binarySearch(greek, target[idx]);
-    if (pos != -1) {
+    if (pos > -1) {
       target[idx] = latin[pos];
       return true;
     } else {
