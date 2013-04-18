@@ -197,6 +197,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
       final String sentence = sentenceAnn.getCoveredText().replace('\n', ' ');
       final int sentenceOffset = sentenceAnn.getBegin();
       int wordOffset = 0;
+      int searchOffset = 0;
       int wordLength = 0;
       try {
         tokens = tagger.process(sentence);
@@ -208,10 +209,14 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
       count += tokens.size();
       for (final Token t : tokens) {
         wordLength = t.word().length();
-        wordOffset = sentence.indexOf(t.word(), wordOffset);
+        wordOffset = sentence.indexOf(t.word(), searchOffset);
+        if (wordOffset == -1 && "``".equals(t.word()) || "''".equals(t.word())) {
+          wordOffset = sentence.indexOf("\"", searchOffset);
+          wordLength = 1;
+        }
         if (wordOffset == -1) {
-          logger.log(Level.SEVERE, "unmatched word ''{0}'' in ''{1}''", new Object[] { t.word(),
-              sentence });
+          logger.log(Level.SEVERE, "unmatched word ''{0}'' in ''{1}'' at {2}", new Object[] { t.word(),
+              sentence, searchOffset });
           throw new AnalysisEngineProcessException(new RuntimeException("unmatched token"));
         }
         /* annotate the token */
@@ -243,7 +248,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
           throw new AnalysisEngineProcessException(new RuntimeException("illeagal chunk tag"));
         }
         tokenAnn.addToIndexes();
-        wordOffset += wordLength;
+        searchOffset = wordOffset + wordLength;
       }
       if (last != null) last.setChunkEnd(true);
     }

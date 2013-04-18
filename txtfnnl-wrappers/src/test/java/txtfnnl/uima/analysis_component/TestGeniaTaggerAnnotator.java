@@ -121,6 +121,37 @@ public class TestGeniaTaggerAnnotator {
     PowerMock.verify(logger, Logger.class);
   }
 
+  @Test
+  public void testDoubleQuoteFix() throws Exception {
+    String sentence = "dummy \"phrase\".";
+    File dictionariesPath = File.createTempFile("geniatagger.", "dir").getParentFile();
+    Logger logger = PowerMock.createMock(Logger.class);
+    GeniaTagger tagger = PowerMock.createMock(GeniaTagger.class);
+    List<Token> result = new ArrayList<Token>();
+    result.add(new Token("dummy\tSTEM\tpos1\tB-chunk\tner1"));
+    result.add(new Token("``\tsTeM\tpos2\tI-chunk\tner2"));
+    result.add(new Token("phrase\tstem\tpos3\tI-chunk\tner3"));
+    result.add(new Token("``\tStEm\tpos4\tI-chunk\tner4"));
+    result.add(new Token(".\tStem\tpos5\tO\tner5"));
+    mockTagger(tagger, dictionariesPath, logger);
+    mockProcess(sentence, result, tagger, logger);
+    // replay!
+    PowerMock.replay(tagger, GeniaTagger.class);
+    PowerMock.replay(logger, Logger.class);
+    AnalysisEngineDescription description = aeBuilder.setDirectory(dictionariesPath).create();
+    AnalysisEngine geniaAE = AnalysisEngineFactory.createAnalysisEngine(description,
+        Views.CONTENT_TEXT.toString());
+    AnalysisEngine sentenceAE = AnalysisEngineFactory.createPrimitive(SentenceAnnotator
+        .configure());
+    JCas baseJCas = sentenceAE.newJCas();
+    JCas textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
+    textJCas.setDocumentText(sentence);
+    sentenceAE.process(baseJCas);
+    geniaAE.process(baseJCas);
+    PowerMock.verify(tagger, GeniaTagger.class);
+    PowerMock.verify(logger, Logger.class);
+  }
+  
   private void mockTagger(GeniaTagger tagger, File dictionariesPath, Logger logger)
       throws Exception, IOException {
     PowerMock.stub(PowerMock.method(ChildUimaContext_impl.class, "getLogger")).toReturn(logger);
