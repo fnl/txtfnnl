@@ -20,6 +20,8 @@ import txtfnnl.uima.resource.GnamedGazetteerResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
 import txtfnnl.utils.Offset;
+import txtfnnl.utils.StringUtils;
+import txtfnnl.utils.stringsim.LeitnerLevenshtein;
 
 /**
  * A system to create normalized (mapped) annotations of gene names. This AE requires a
@@ -40,28 +42,6 @@ public class GeneAnnotator extends GazetteerAnnotator {
   public static final String URI = GeneAnnotator.class.getName();
   /** The name of the property used to set the taxon ID of the matched gene name. */
   public static final String TAX_ID_PROPERTY = "taxId";
-  /**
-   * Greek alphabet, uppercase: alpha, beta, gamma, delta, epsilon, zeta, eta, theta, iota, kappa,
-   * lambda, mu, nu, xi, omicron, pi, rho, sigma, tau, upsilon, phi, chi, psi, omega.
-   */
-  private static final char[] GREEK_UPPER = new char[] { '\u0391', '\u0392', '\u0393', '\u0394',
-      '\u0395', '\u0396', '\u0397', '\u0398', '\u0399', '\u039A', '\u039B', '\u039C', '\u039D',
-      '\u039E', '\u039F', '\u03A0', '\u03A1', '\u03A3', '\u03A4', '\u03A5', '\u03A6', '\u03A7',
-      '\u03A8', '\u03A9' };
-  /** Corresponding Latin uppercase letters for the Greek uppercase letters. */
-  private static final char[] LATIN_UPPER = new char[] { 'A', 'B', 'C', 'D', 'E', 'Z', 'H', 'Q',
-      'I', 'K', 'L', 'M', 'N', 'G', 'O', 'P', 'R', 'S', 'T', 'Y', 'F', 'X', 'U', 'W' };
-  /**
-   * Greek alphabet, lowercase: alpha, beta, gamma, delta, epsilon, zeta, eta, theta, iota, kappa,
-   * lambda, mu, nu, xi, omicron, pi, rho, sigma, tau, upsilon, phi, chi, psi, omega.
-   */
-  private static final char[] GREEK_LOWER = new char[] { '\u03B1', '\u03B2', '\u03B3', '\u03B4',
-      '\u03B5', '\u03B6', '\u03B7', '\u03B8', '\u03B9', '\u03BA', '\u03BB', '\u03BC', '\u03BD',
-      '\u03BE', '\u03BF', '\u03C0', '\u03C1', '\u03C3', '\u03C4', '\u03C5', '\u03C6', '\u03C7',
-      '\u03C8', '\u03C9' };
-  /** Corresponding Latin lowercase letters for the Greek lowercase letters. */
-  private static final char[] LATIN_LOWER = new char[] { 'a', 'b', 'c', 'd', 'e', 'z', 'h', 'q',
-      'i', 'k', 'l', 'm', 'n', 'g', 'o', 'p', 'r', 's', 't', 'y', 'f', 'x', 'u', 'w' };
   private static final char FIRST_GREEK = '\u0391';
   private static final char LAST_GREEK = '\u03C9';
   private Map<String, String> normalizedGreekLetters = new HashMap<String, String>();
@@ -141,16 +121,23 @@ public class GeneAnnotator extends GazetteerAnnotator {
    * @return the replaced version or <code>null</code> if no Greek letter was found
    */
   private String replaceGreekLetters(String text) {
-    boolean found = false;
     if (text.length() > 0) {
-      char[] result = text.toCharArray();
+      boolean found = false;
+      int[] result = StringUtils.toCodePointArray(text);
       for (int idx = result.length - 1; idx > -1; --idx) {
         if (result[idx] >= FIRST_GREEK && result[idx] <= LAST_GREEK) {
-          found = replace(GREEK_LOWER, LATIN_LOWER, result, idx) || found;
-          found = replace(GREEK_UPPER, LATIN_UPPER, result, idx) || found;
+          found = replace(LeitnerLevenshtein.GREEK_LOWER, LeitnerLevenshtein.LATIN_LOWER, result,
+              idx) || found;
+          found = replace(LeitnerLevenshtein.GREEK_UPPER, LeitnerLevenshtein.LATIN_UPPER, result,
+              idx) || found;
         }
       }
-      if (found) return new String(result);
+      if (found) {
+        StringBuilder sb = new StringBuilder();
+        for (int cp : result)
+          sb.append(Character.toChars(cp));
+        return sb.toString();
+      }
     }
     return null;
   }
@@ -160,7 +147,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
    * char in <code>target</code> with the <code>latin</code> char at the same position as the
    * matching <code>greek</code> char.
    */
-  private boolean replace(final char[] greek, final char[] latin, char[] target, int idx) {
+  private boolean replace(final int[] greek, final int[] latin, int[] target, int idx) {
     int pos = Arrays.binarySearch(greek, target[idx]);
     if (pos > -1) {
       target[idx] = latin[pos];
