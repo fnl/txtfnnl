@@ -26,27 +26,38 @@ public class LeitnerLevenshtein implements Distance, Similarity {
   public static final LeitnerLevenshtein INSTANCE = new LeitnerLevenshtein();
   protected final int factor;
   /**
-   * Greek alphabet, upper-case: alpha, beta, gamma, delta, epsilon, zeta, eta, theta, iota, kappa,
-   * lambda, mu, nu, xi, omicron, pi, rho, sigma, tau, upsilon, phi, chi, psi, omega.
+   * Greek alphabet, upper-case.
    */
-  private static final int[] GREEK_UPPER = new int[] { '\u0391', '\u0392', '\u0393', '\u0394',
+  public static final int[] GREEK_UPPER = new int[] { '\u0391', '\u0392', '\u0393', '\u0394',
       '\u0395', '\u0396', '\u0397', '\u0398', '\u0399', '\u039A', '\u039B', '\u039C', '\u039D',
       '\u039E', '\u039F', '\u03A0', '\u03A1', '\u03A3', '\u03A4', '\u03A5', '\u03A6', '\u03A7',
       '\u03A8', '\u03A9' };
+  // alpha, beta, gamma, delta,
+  // epsilon, zeta, eta, theta, iota, kappa, lambda, mu, nu,
+  // xi, omicron, pi, rho, sigma, tau, upsilon, phi, chi,
+  // psi, omega
   /** Corresponding Latin upper-case letters for Greek upper-case letters. */
-  private static final int[] LATIN_UPPER = new int[] { 'A', 'B', 'C', 'D', 'E', 'Z', 'H', 'Q',
-      'I', 'K', 'L', 'M', 'N', 'G', 'O', 'P', 'R', 'S', 'T', 'Y', 'F', 'X', 'U', 'W' };
+  public static final int[] LATIN_UPPER = new int[] { 'A', 'B', 'C', 'D', //
+      'E', 'Z', 'H', 'Q', 'I', 'K', 'L', 'M', 'N', //
+      'G', 'O', 'P', 'R', 'S', 'T', 'Y', 'F', 'X', //
+      'U', 'W' };
   /**
    * Greek alphabet, lower-case: alpha, beta, gamma, delta, epsilon, zeta, eta, theta, iota, kappa,
    * lambda, mu, nu, xi, omicron, pi, rho, sigma, tau, upsilon, phi, chi, psi, omega.
    */
-  private static final int[] GREEK_LOWER = new int[] { '\u03B1', '\u03B2', '\u03B3', '\u03B4',
+  public static final int[] GREEK_LOWER = new int[] { '\u03B1', '\u03B2', '\u03B3', '\u03B4',
       '\u03B5', '\u03B6', '\u03B7', '\u03B8', '\u03B9', '\u03BA', '\u03BB', '\u03BC', '\u03BD',
       '\u03BE', '\u03BF', '\u03C0', '\u03C1', '\u03C3', '\u03C4', '\u03C5', '\u03C6', '\u03C7',
       '\u03C8', '\u03C9' };
+  // alpha, beta, gamma, delta,
+  // epsilon, zeta, eta, theta, iota, kappa, lambda, mu, nu,
+  // xi, omicron, pi, rho, sigma, tau, upsilon, phi, chi,
+  // psi, omega
   /** Corresponding Latin lower-case letters for Greek lower-case letters. */
-  private static final int[] LATIN_LOWER = new int[] { 'a', 'b', 'c', 'd', 'e', 'z', 'h', 'q',
-      'i', 'k', 'l', 'm', 'n', 'g', 'o', 'p', 'r', 's', 't', 'y', 'f', 'x', 'u', 'w' };
+  public static final int[] LATIN_LOWER = new int[] { 'a', 'b', 'c', 'd', //
+      'e', 'z', 'h', 'q', 'i', 'k', 'l', 'm', 'n', //
+      'g', 'o', 'p', 'r', 's', 't', 'y', 'f', 'x', //
+      'u', 'w' };
   private static final int FIRST_GREEK = '\u0391';
   private static final int LAST_GREEK = '\u03C9';
 
