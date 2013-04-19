@@ -106,7 +106,7 @@ public class Pipeline {
     opts.addOption("e", "input-encoding", true, "use encoding [detect/guess]");
     opts.addOption("g", "normalize-greek", false, "normalize greek letters in input");
     opts.addOption("x", "xml-handler", true,
-        "select XML handler: 'clean', 'elsevier', or 'default'");
+        "select XML handler: 'default' (Tika), 'clean' (skips whitespaces), or 'elsevier'");
   }
 
   /**
