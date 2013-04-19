@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
@@ -22,6 +23,7 @@ import org.uimafit.descriptor.ConfigurationParameter;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.tcas.TextAnnotation;
+import txtfnnl.uima.tcas.TokenAnnotation;
 
 /**
  * A CAS consumer that writes out a particular annotation type, where each line represents a hit
@@ -38,6 +40,14 @@ public class AnnotationLineWriter extends TextWriter {
   public static final String PARAM_REPLACE_NEWLINES = "ReplaceNewlines";
   @ConfigurationParameter(name = PARAM_REPLACE_NEWLINES, defaultValue = "true")
   private Boolean replaceNewlines;
+  /**
+   * If <code>true</code> the token before and after the annotation are shown, as well as any
+   * prefix and suffix, as word-before TAB prefix TAB annotation TAB suffix TAB word-after instead
+   * of just the annotation.
+   */
+  public static final String PARAM_PRINT_SURROUNDINGS = "PrintSurroundings";
+  @ConfigurationParameter(name = PARAM_PRINT_SURROUNDINGS, defaultValue = "false")
+  private Boolean printSurroundings;
   public static final String PARAM_ANNOTATOR_URI = "AnnotatorUri";
   @ConfigurationParameter(name = PARAM_ANNOTATOR_URI)
   private String annotatorUri;
@@ -82,6 +92,11 @@ public class AnnotationLineWriter extends TextWriter {
       setOptionalParameter(PARAM_ANNOTATION_ID, id);
       return this;
     }
+
+    public Builder printSurroundings() {
+      setOptionalParameter(PARAM_PRINT_SURROUNDINGS, true);
+      return this;
+    }
   }
 
   public static Builder configureTodo() {
@@ -110,11 +125,51 @@ public class AnnotationLineWriter extends TextWriter {
         annotationId);
     FSIterator<Annotation> iter = textJCas.createFilteredIterator(
         TextAnnotation.getIterator(textJCas), cons);
+    TokenAnnotation[] tokens = new TokenAnnotation[5];
+    tokens[2] = null;
+    int before = 0;
+    int prefix = 1;
+    int suffix = 3;
+    int after = 4;
     int count = 0;
     while (iter.hasNext()) {
       count++;
       final TextAnnotation ann = (TextAnnotation) iter.next();
       String text = ann.getCoveredText();
+      if (printSurroundings) {
+        String[] surround = new String[] { "", "", text, "", "" };
+        FSIterator<Annotation> tokenIter = TokenAnnotation.getIterator(textJCas);
+        TokenAnnotation begin = null;
+        while (tokenIter.hasNext()) {
+          TokenAnnotation tok = (TokenAnnotation) tokenIter.next();
+          if (isBefore(tok, ann)) {
+            begin = tok;
+          } else {
+            if (begin != null) surround[before] = begin.getCoveredText();
+            begin = null;
+            String txt = tok.getCoveredText();
+            if (isSurrounding(tok, ann)) {
+              surround[prefix] = txt.substring(0, ann.getBegin() - tok.getBegin());
+              surround[suffix] = txt.substring(ann.getEnd() - tok.getBegin());
+            } else if (isAtBegin(tok, ann)) {
+              surround[prefix] = txt.substring(0, ann.getBegin() - tok.getBegin());
+            } else if (isAtEnd(tok, ann)) {
+              surround[suffix] = txt.substring(ann.getEnd() - tok.getBegin());
+            } else if (isAfter(tok, ann)) {
+              surround[after] = txt;
+              break;
+            } else if (isEnclosed(tok, ann)) {
+              // do nothing
+            } else {
+              this.logger.log(Level.WARNING,
+                  "token position %s undetermined relative to annotation %s", new String[] {
+                      tok.getOffset().toString(), ann.getOffset().toString() });
+              break;
+            }
+          }
+        }
+        text = StringUtils.join(surround, '\t');
+      }
       if (replaceNewlines) text = text.replace('\n', ' ');
       try {
         write(text);
@@ -132,9 +187,17 @@ public class AnnotationLineWriter extends TextWriter {
         FSArray props = ann.getProperties();
         for (int i = 0; i < props.size(); i++) {
           Property p = (Property) props.get(i);
-          write(p.getName());
+          if (p.getName().contains(" ")) {
+            write('"');
+            write(p.getName());
+            write('"');
+          } else {
+            write(p.getName());
+          }
           write('=');
-          write(p.getValue());
+          write('"');
+          write(replaceNewlines ? p.getValue().replace('\n', ' ') : p.getValue());
+          write('"');
           write('\t');
         }
         write(decimals.format(ann.getConfidence()));
@@ -149,5 +212,29 @@ public class AnnotationLineWriter extends TextWriter {
       throw new AnalysisEngineProcessException(e);
     }
     logger.log(Level.FINE, "wrote {0} annotations", count);
+  }
+
+  private static boolean isBefore(TokenAnnotation tok, TextAnnotation ann) {
+    return tok.getEnd() <= ann.getBegin();
+  }
+
+  private static boolean isSurrounding(TokenAnnotation tok, TextAnnotation ann) {
+    return tok.getBegin() < ann.getBegin() && tok.getEnd() > ann.getEnd();
+  }
+
+  private static boolean isEnclosed(TokenAnnotation tok, TextAnnotation ann) {
+    return tok.getBegin() >= ann.getBegin() && tok.getEnd() <= ann.getEnd();
+  }
+
+  private static boolean isAtBegin(TokenAnnotation tok, TextAnnotation ann) {
+    return tok.getEnd() > ann.getBegin() && tok.getBegin() < ann.getBegin();
+  }
+
+  private static boolean isAtEnd(TokenAnnotation tok, TextAnnotation ann) {
+    return tok.getBegin() < ann.getEnd() && tok.getEnd() > ann.getEnd();
+  }
+
+  private static boolean isAfter(TokenAnnotation tok, TextAnnotation ann) {
+    return tok.getBegin() >= ann.getEnd();
   }
 }

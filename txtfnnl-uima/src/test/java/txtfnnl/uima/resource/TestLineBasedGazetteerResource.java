@@ -127,10 +127,10 @@ public class TestLineBasedGazetteerResource {
   public void testReversedScanning() throws UIMAException, IOException {
     builder.reverseScanninig();
     GazetteerResource gr = newGazetteer("name");
-    Map<Offset, Set<String>> matches = gr.reverseScan("a name");
+    Map<Offset, Set<String>> matches = gr.reverseScan("a xname");
     assertEquals(1, matches.size());
     for (Offset o : matches.keySet()) {
-      assertEquals(new Offset(2, 2 + "name".length()), o);
+      assertEquals(new Offset(3, 3 + "name".length()), o);
       assertArrayEquals(new String[] {"1"}, matches.get(o).toArray(new String[1]));
     }
   }

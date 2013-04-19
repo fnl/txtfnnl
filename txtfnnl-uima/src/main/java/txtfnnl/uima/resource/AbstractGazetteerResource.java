@@ -300,6 +300,7 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
     Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
     String reverseInput = (new StringBuilder(suffix)).reverse().toString();
     NormalAlignment aln = new NormalAlignment(reverseInput);
+    if (aln.normal.length() == 0) return results;
     int len = baseOffset + suffix.length();
     int end = len - aln.offset[0];
     for (KeyValuePair<Set<String>> hit : reverseTrie.scanForKeyValuePairsAtStartOf(aln.normal))

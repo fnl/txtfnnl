@@ -100,6 +100,7 @@ public class GeneNormalization extends Pipeline {
       // create builder
       GnamedGazetteerResource.Builder b = GnamedGazetteerResource.configure(dbUrl, driverClass,
           querySql);
+      b.idMatching().reverseScanninig();
       // set username/password options
       if (cmd.hasOption('u')) b.setUsername(cmd.getOptionValue('u'));
       if (cmd.hasOption('p')) b.setPassword(cmd.getOptionValue('p'));
@@ -116,7 +117,8 @@ public class GeneNormalization extends Pipeline {
     // output
     final String geneAnnotationNamespace = "gene";
     AnnotationLineWriter.Builder writer = AnnotationLineWriter.configureTodo()
-        .setAnnotatorUri(GeneAnnotator.URI).setAnnotationNamespace(geneAnnotationNamespace);
+        .setAnnotatorUri(GeneAnnotator.URI).setAnnotationNamespace(geneAnnotationNamespace)
+        .maintainNewlines().printSurroundings();
     writer.setEncoding(Pipeline.outputEncoding(cmd));
     writer.setOutputDirectory(Pipeline.outputDirectory(cmd));
     if (Pipeline.outputOverwriteFiles(cmd)) writer.overwriteFiles();
