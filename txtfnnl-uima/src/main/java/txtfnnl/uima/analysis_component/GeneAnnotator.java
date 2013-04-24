@@ -1,24 +1,16 @@
 package txtfnnl.uima.analysis_component;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
-import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
-import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ExternalResourceDescription;
 
-import txtfnnl.uima.Views;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.resource.GnamedGazetteerResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
-import txtfnnl.uima.tcas.TokenAnnotation;
 import txtfnnl.utils.Offset;
 import txtfnnl.utils.StringUtils;
 import txtfnnl.utils.stringsim.LeitnerLevenshtein;
@@ -42,9 +34,8 @@ public class GeneAnnotator extends GazetteerAnnotator {
   public static final String URI = GeneAnnotator.class.getName();
   /** The name of the property used to set the taxon ID of the matched gene name. */
   public static final String TAX_ID_PROPERTY = "taxId";
-  private static final char FIRST_GREEK = '\u0391';
-  private static final char LAST_GREEK = '\u03C9';
-  private Map<String, String> normalizedGreekLetters = new HashMap<String, String>();
+  private static final int FIRST_GREEK = LeitnerLevenshtein.GREEK_LOWER[0];
+  private static final int LAST_GREEK = LeitnerLevenshtein.GREEK_UPPER[LeitnerLevenshtein.GREEK_UPPER.length - 1];
 
   public static class Builder extends GazetteerAnnotator.Builder {
     Builder(String entityNamespace, ExternalResourceDescription geneGazetteerResourceDescription) {
@@ -66,52 +57,17 @@ public class GeneAnnotator extends GazetteerAnnotator {
   }
 
   @Override
-  public void process(JCas jcas) throws AnalysisEngineProcessException {
-    // TODO: use default view
-    String text = null;
-    try {
-      text = jcas.getView(Views.CONTENT_TEXT.toString()).getDocumentText();
-    } catch (final CASException e) {
-      throw new AnalysisEngineProcessException(e);
-    }
-    normalizedGreekLetters.put(text, replaceGreekLetters(text));
-    super.process(jcas);
-    normalizedGreekLetters.remove(text);
-  }
-
-  @Override
-  protected Map<Offset, Set<String>> matchDocument(JCas jcas) {
-    String text = jcas.getDocumentText();
-    Map<Offset, Set<String>> matches = gazetteer.match(text);
-    text = normalizedGreekLetters.get(text);
+  protected Map<Offset, Set<String>> matchText(String text) {
+    Map<Offset, Set<String>> matches = super.matchText(text);
+    text = replaceGreekLetters(text);
     if (text != null) {
-      Map<Offset, Set<String>> more = gazetteer.match(text);
+      Map<Offset, Set<String>> more = super.matchText(text);
       for (Offset off : more.keySet()) {
         if (matches.containsKey(off)) matches.get(off).addAll(more.get(off));
         else matches.put(off, more.get(off));
       }
     }
     return matches;
-  }
-
-  @Override
-  protected void findEntities(JCas jcas, Annotation annotation, List<SemanticAnnotation> buffer) {
-    int begin = annotation.getBegin();
-    int end = annotation.getEnd();
-    String text = jcas.getDocumentText();
-    FSIterator<Annotation> tokenIt = jcas.getAnnotationIndex(TokenAnnotation.type).subiterator(
-        annotation);
-    Map<Offset, Set<String>> matches = scan(jcas, tokenIt, text, begin, end, buffer);
-    text = normalizedGreekLetters.get(text);
-    if (text != null) {
-      Map<Offset, Set<String>> more = scan(jcas, tokenIt, text, begin, end, buffer);
-      for (Offset off : more.keySet()) {
-        if (matches.containsKey(off)) matches.get(off).addAll(more.get(off));
-        else matches.put(off, more.get(off));
-      }
-    }
-    for (Offset offset : matches.keySet())
-      buffer.addAll(annotateEntities(jcas, matches.get(offset), offset));
   }
 
   /**

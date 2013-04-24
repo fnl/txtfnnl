@@ -4,9 +4,12 @@ package txtfnnl.uima.resource;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -74,16 +77,22 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
       defaultValue = "[^\\p{L}\\p{N}\\p{S}]+")
   private String charsetRegex;
   private Pattern charset;
+  private static final int INIT_MAP_SIZE = 256;
   /** Whether to match the DB IDs themselves, too (default: <code>false</code>). */
   public static final String PARAM_ID_MATCHING = "IDMatching";
   @ConfigurationParameter(name = PARAM_ID_MATCHING, mandatory = false, defaultValue = "false")
   private boolean idMatching;
+  /** Whether hits must coincide with token boundaries (default: <code>false</code>). */
+  public static final String PARAM_BOUNDARY_MATCH = "BoundaryMatch";
+  @ConfigurationParameter(name = PARAM_BOUNDARY_MATCH, mandatory = false, defaultValue = "false")
+  private boolean boundaryMatch;
   /** Whether to require exact case-sensitive matching (default: <code>false</code>). */
   public static final String PARAM_CASE_MATCHING = "CaseMatching";
   @ConfigurationParameter(name = PARAM_CASE_MATCHING, mandatory = false, defaultValue = "false")
   private boolean exactCaseMatching;
-  @ConfigurationParameter(name = PARAM_REVERSE_SCANNING, mandatory = false, defaultValue = "false")
-  private boolean reverseScanning;
+  // @ConfigurationParameter(name = PARAM_REVERSE_SCANNING, mandatory = false, defaultValue =
+  // "false")
+  // private boolean reverseScanning;
   // resource-internal state
   /** The logger for this Resource. */
   protected Logger logger = null;
@@ -93,8 +102,9 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
   protected String resourceUri = null;
   /** The compacted prefix tree created from all individual names. */
   private PatriciaTree<Set<String>> trie;
-  /** The reversed compacted prefix tree created from all individual names. */
-  private PatriciaTree<Set<String>> reverseTrie;
+  // /** The reversed compacted prefix tree created from all individual names. */
+  // private PatriciaTree<Set<String>> reverseTrie;
+  /** The mapping of IDs to their names. */
   private Map<String, Set<String>> names;
 
   public static class Builder extends SharedResourceBuilder {
@@ -130,11 +140,15 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
       return this;
     }
 
-    /** Enable reverse scanning for matches. */
-    public Builder reverseScanninig() {
-      setOptionalParameter(PARAM_REVERSE_SCANNING, Boolean.TRUE);
+    public Builder boundaryMatch() {
+      setOptionalParameter(PARAM_BOUNDARY_MATCH, Boolean.TRUE);
       return this;
     }
+    // /** Enable reverse scanning for matches. */
+    // public Builder reverseScanninig() {
+    // setOptionalParameter(PARAM_REVERSE_SCANNING, Boolean.TRUE);
+    // return this;
+    // }
   }
 
   /** {@inheritDoc} */
@@ -157,8 +171,8 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
       // regularExpressions = new ArrayList<String>(INIT_MAP_SIZE);
       charset = Pattern.compile(charsetRegex);
       trie = new ConcurrentPatriciaTree<Set<String>>();
-      reverseTrie = reverseScanning ? new ConcurrentPatriciaTree<Set<String>>() : null;
-      names = new HashMap<String, Set<String>>();
+      // reverseTrie = reverseScanning ? new ConcurrentPatriciaTree<Set<String>>() : null;
+      names = new HashMap<String, Set<String>>(INIT_MAP_SIZE);
       logger.log(Level.INFO, "{0} resource loaded", resourceUri);
     }
   }
@@ -190,7 +204,7 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
    * 
    * @return a key ("normalized" name) or <code>null</code> if it cannot be normalized
    */
-  protected void put(String id, String name) {
+  protected void put(final String id, final String name) {
     if (id == null) throw new IllegalArgumentException("id == null for name '" + name + "'");
     if (name == null) throw new IllegalArgumentException("name == null for ID '" + id + "'");
     Set<String> mapped = names.get(id);
@@ -206,18 +220,18 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
     }
     put(trie, id, key);
     if (idMatching) put(trie, id, makeKey(id));
-    if (reverseScanning) {
-      put(reverseTrie, id, (new StringBuilder(key)).reverse().toString());
-      if (idMatching) put(trie, id, makeKey((new StringBuilder(id)).reverse().toString()));
-    }
+    // if (reverseScanning) {
+    // put(reverseTrie, id, (new StringBuilder(key)).reverse().toString());
+    // if (idMatching) put(trie, id, makeKey((new StringBuilder(id)).reverse().toString()));
+    // }
   }
 
-  private String makeKey(String name) {
-    if (!exactCaseMatching) name = name.toLowerCase();
-    return StringUtils.join(charset.split(name));
+  private String makeKey(final String name) {
+    String key = StringUtils.join(charset.split(name));
+    return exactCaseMatching ? key : key.toLowerCase();
   }
 
-  private static void put(PatriciaTree<Set<String>> tree, String id, final String key) {
+  private static void put(PatriciaTree<Set<String>> tree, final String id, final String key) {
     Set<String> ids = tree.getValueForExactKey(key);
     if (ids == null) {
       ids = new HashSet<String>();
@@ -234,18 +248,34 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
    */
   private class NormalAlignment {
     /** The normalized version of this string (separator-less and lower-cased if configured). */
-    CharSequence normal;
+    String normal;
     /**
      * The alignment with the relative offsets in the input for the normal String.
      * <p>
      * This means, the length of normal and offset are equal.
      */
     int[] offset;
+    /** The positions of token breaks (including 0 and last). */
+    int[] tokens;
 
     public NormalAlignment(String seq) {
-      if (!exactCaseMatching) seq = seq.toLowerCase();
       String[] items = charset.split(seq);
+      List<Integer> tokenList = new LinkedList<Integer>();
+      int off = 0;
+      tokenList.add(off);
+      for (String tok : items) {
+        int pos = 0;
+        while ((pos = nextBoundary(tok, pos)) < tok.length())
+          tokenList.add(off + pos);
+        tokenList.add(off + pos);
+        off += pos;
+      }
+      tokens = new int[tokenList.size()];
+      off = 0;
+      for (int pos : tokenList)
+        tokens[off++] = pos;
       normal = StringUtils.join(items);
+      if (!exactCaseMatching) normal = normal.toLowerCase();
       offset = new int[normal.length()];
       if (offset.length > 0) {
         int pos = 0;
@@ -259,61 +289,98 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
     }
   }
 
+  private int nextBoundary(String token, int offset) {
+    int length = token.length();
+    if (offset < length) {
+      int charPoint = token.codePointAt(offset);
+      int lastCharType = Character.getType(charPoint);
+      offset += Character.charCount(charPoint);
+      while (offset < length) {
+        charPoint = token.codePointAt(offset);
+        if (Character.getType(charPoint) != lastCharType) {
+          if (!isCapitalized(token, offset)) return offset;
+          else lastCharType = Character.getType(charPoint); // switch to lower-case
+        }
+        offset += Character.charCount(charPoint);
+      }
+    }
+    return offset;
+  }
+
+  /** Return <code>true</code> if the current split is a capitalized word. */
+  private boolean isCapitalized(String token, int offset) {
+    return offset < 3 && offset == Character.charCount(token.codePointAt(0)) &&
+        Character.getType(token.codePointAt(0)) == Character.UPPERCASE_LETTER &&
+        Character.getType(token.codePointAt(offset)) == Character.LOWERCASE_LETTER;
+  }
+
   // GazetteerResource Methods
   /** {@inheritDoc} */
   public Map<Offset, Set<String>> match(String input) {
+    return match(input, 0);
+  }
+
+  /** {@inheritDoc} */
+  public Map<Offset, Set<String>> match(String input, int start) {
+    return match(input, start, input.length());
+  }
+
+  /** {@inheritDoc} */
+  public Map<Offset, Set<String>> match(String input, int start, int end) {
     Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
     NormalAlignment aln = new NormalAlignment(input);
-    int len = aln.normal.length();
-    for (int i = 0; i < len; ++i) {
+    int len = Math.min(aln.normal.length(), end);
+    for (int i = Math.max(0, start); i < len; ++i) {
+      if (boundaryMatch && Arrays.binarySearch(aln.tokens, i) < 0) continue;
       CharSequence suffix = aln.normal.subSequence(i, len);
-      for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(suffix))
-        results.put(new Offset(aln.offset[i], aln.offset[i + hit.getKey().length() - 1] + 1),
-            hit.getValue());
+      for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(suffix)) {
+        int j = i + hit.getKey().length();
+        if (boundaryMatch && Arrays.binarySearch(aln.tokens, j) < 0) continue;
+        results.put(new Offset(aln.offset[i], aln.offset[j - 1] + 1), hit.getValue());
+      }
     }
     return results;
   }
 
-  /** {@inheritDoc} */
-  public Map<Offset, Set<String>> scan(String input) {
-    return scan(input, 0);
-  }
-
-  public Map<Offset, Set<String>> scan(String input, int baseOffset) {
-    if (input.length() == 0) throw new IllegalArgumentException("zero-length input");
-    Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
-    NormalAlignment aln = new NormalAlignment(input);
-    for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(aln.normal))
-      results.put(new Offset(baseOffset + aln.offset[0], baseOffset +
-          aln.offset[hit.getKey().length() - 1] + 1), hit.getValue());
-    return results;
-  }
-
-  /** {@inheritDoc} */
-  public Map<Offset, Set<String>> reverseScan(String suffix) {
-    return reverseScan(suffix, 0);
-  }
-
-  public Map<Offset, Set<String>> reverseScan(String suffix, int baseOffset) {
-    if (!reverseScanning) throw new IllegalStateException("reverse scanning was not enabled");
-    if (suffix.length() == 0) throw new IllegalArgumentException("zero-length suffix");
-    Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
-    String reverseInput = (new StringBuilder(suffix)).reverse().toString();
-    NormalAlignment aln = new NormalAlignment(reverseInput);
-    if (aln.normal.length() == 0) return results;
-    int len = baseOffset + suffix.length();
-    int end = len - aln.offset[0];
-    for (KeyValuePair<Set<String>> hit : reverseTrie.scanForKeyValuePairsAtStartOf(aln.normal))
-      results
-          .put(new Offset(len - aln.offset[hit.getKey().length() - 1] - 1, end), hit.getValue());
-    return results;
-  }
-
-  /** {@inheritDoc} */
-  public boolean canScanReverse() {
-    return reverseScanning;
-  }
-
+  // /** {@inheritDoc} */
+  // public Map<Offset, Set<String>> scan(String input) {
+  // return scan(input, 0);
+  // }
+  //
+  // public Map<Offset, Set<String>> scan(String input, int baseOffset) {
+  // if (input.length() == 0) throw new IllegalArgumentException("zero-length input");
+  // Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
+  // NormalAlignment aln = new NormalAlignment(input);
+  // for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(aln.normal))
+  // results.put(new Offset(baseOffset + aln.offset[0], baseOffset +
+  // aln.offset[hit.getKey().length() - 1] + 1), hit.getValue());
+  // return results;
+  // }
+  //
+  // /** {@inheritDoc} */
+  // public Map<Offset, Set<String>> reverseScan(String suffix) {
+  // return reverseScan(suffix, 0);
+  // }
+  //
+  // public Map<Offset, Set<String>> reverseScan(String suffix, int baseOffset) {
+  // if (!reverseScanning) throw new IllegalStateException("reverse scanning was not enabled");
+  // if (suffix.length() == 0) throw new IllegalArgumentException("zero-length suffix");
+  // Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
+  // String reverseInput = (new StringBuilder(suffix)).reverse().toString();
+  // NormalAlignment aln = new NormalAlignment(reverseInput);
+  // if (aln.normal.length() == 0) return results;
+  // int len = baseOffset + suffix.length();
+  // int end = len - aln.offset[0];
+  // for (KeyValuePair<Set<String>> hit : reverseTrie.scanForKeyValuePairsAtStartOf(aln.normal))
+  // results
+  // .put(new Offset(len - aln.offset[hit.getKey().length() - 1] - 1, end), hit.getValue());
+  // return results;
+  // }
+  //
+  // /** {@inheritDoc} */
+  // public boolean canScanReverse() {
+  // return reverseScanning;
+  // }
   // StringMapResource Methods
   /** Return the Set of official names for an ID. */
   public Set<String> get(String id) {

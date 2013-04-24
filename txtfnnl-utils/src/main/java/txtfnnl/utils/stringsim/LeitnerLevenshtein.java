@@ -14,7 +14,9 @@ import txtfnnl.utils.stringsim.Similarity;
  * between "aa" and "AA" is two, not zero; In other words, regular operations count as two, while
  * case mismatches count as distance one in the {@link LeitnerLevenshtein#distance(String, String)
  * distance} result. Similarly, Greek letters are treated as case mismatches to their Latin
- * equivalents.
+ * equivalents. This conversion is based on Table 1 from the HGNC,
+ * "Guidelines for Human Gene Nomenclature", <i>Genomics Vol. 79, No. 4, pp. 464-470, April
+ * 2002</i>.
  * <p>
  * Similarity is defined as <code>1 - (D / N)</code> where <code>D</code> is the special
  * {@link LeitnerLevenshtein#distance(String,String) distance} and <code>N</code> is twice the
@@ -32,14 +34,15 @@ public class LeitnerLevenshtein implements Distance, Similarity {
       '\u0395', '\u0396', '\u0397', '\u0398', '\u0399', '\u039A', '\u039B', '\u039C', '\u039D',
       '\u039E', '\u039F', '\u03A0', '\u03A1', '\u03A3', '\u03A4', '\u03A5', '\u03A6', '\u03A7',
       '\u03A8', '\u03A9' };
-  // alpha, beta, gamma, delta,
-  // epsilon, zeta, eta, theta, iota, kappa, lambda, mu, nu,
-  // xi, omicron, pi, rho, sigma, tau, upsilon, phi, chi,
-  // psi, omega
+  public static final String[] GREEK_UPPER_NAMES = new String[] { //
+  "Alpha", "Beta", "Gamma", "Delta", //
+      "Epsilon", "Zeta", "Eta", "Theta", "Iota", "Kappa", "Lambda", "Mu", "Nu", //
+      "Xi", "Omicron", "Pi", "Rho", "Sigma", "Tau", "Upsilon", "Phi", "Chi", //
+      "Psi", "Omega" };
   /** Corresponding Latin upper-case letters for Greek upper-case letters. */
-  public static final int[] LATIN_UPPER = new int[] { 'A', 'B', 'C', 'D', //
+  public static final int[] LATIN_UPPER = new int[] { 'A', 'B', 'G', 'D', //
       'E', 'Z', 'H', 'Q', 'I', 'K', 'L', 'M', 'N', //
-      'G', 'O', 'P', 'R', 'S', 'T', 'Y', 'F', 'X', //
+      'X', 'O', 'P', 'R', 'S', 'T', 'Y', 'F', 'C', //
       'U', 'W' };
   /**
    * Greek alphabet, lower-case: alpha, beta, gamma, delta, epsilon, zeta, eta, theta, iota, kappa,
@@ -49,14 +52,15 @@ public class LeitnerLevenshtein implements Distance, Similarity {
       '\u03B5', '\u03B6', '\u03B7', '\u03B8', '\u03B9', '\u03BA', '\u03BB', '\u03BC', '\u03BD',
       '\u03BE', '\u03BF', '\u03C0', '\u03C1', '\u03C3', '\u03C4', '\u03C5', '\u03C6', '\u03C7',
       '\u03C8', '\u03C9' };
-  // alpha, beta, gamma, delta,
-  // epsilon, zeta, eta, theta, iota, kappa, lambda, mu, nu,
-  // xi, omicron, pi, rho, sigma, tau, upsilon, phi, chi,
-  // psi, omega
+  public static final String[] GREEK_LOWER_NAMES = new String[] { //
+  "alpha", "beta", "gamma", "delta", //
+      "epsilon", "zeta", "eta", "theta", "iota", "kappa", "lambda", "mu", "nu", //
+      "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon", "phi", "chi", //
+      "psi", "omega" };
   /** Corresponding Latin lower-case letters for Greek lower-case letters. */
-  public static final int[] LATIN_LOWER = new int[] { 'a', 'b', 'c', 'd', //
+  public static final int[] LATIN_LOWER = new int[] { 'a', 'b', 'g', 'd', //
       'e', 'z', 'h', 'q', 'i', 'k', 'l', 'm', 'n', //
-      'g', 'o', 'p', 'r', 's', 't', 'y', 'f', 'x', //
+      'x', 'o', 'p', 'r', 's', 't', 'y', 'f', 'c', //
       'u', 'w' };
   private static final int FIRST_GREEK = '\u0391';
   private static final int LAST_GREEK = '\u03C9';

@@ -80,7 +80,8 @@ public class TestLineBasedGazetteerResource {
   private GazetteerResource newGazetteer(String... names) throws IOException,
       ResourceInitializationException, ResourceAccessException {
     String[] ids = new String[names.length];
-    for (int i = 0; i < names.length; ++i) ids[i] = Integer.toString(i + 1);
+    for (int i = 0; i < names.length; ++i)
+      ids[i] = Integer.toString(i + 1);
     return newGazetteer(ids, names);
   }
 
@@ -108,30 +109,7 @@ public class TestLineBasedGazetteerResource {
     assertEquals(1, matches.size());
     for (Offset o : matches.keySet()) {
       assertEquals(new Offset(2, 2 + "name".length()), o);
-      assertArrayEquals(new String[] {"1"}, matches.get(o).toArray(new String[1]));
-    }
-  }
-
-  @Test
-  public void testScanning() throws UIMAException, IOException {
-    GazetteerResource gr = newGazetteer("name");
-    Map<Offset, Set<String>> matches = gr.scan("name a");
-    assertEquals(1, matches.size());
-    for (Offset o : matches.keySet()) {
-      assertEquals(new Offset(0, "name".length()), o);
-      assertArrayEquals(new String[] {"1"}, matches.get(o).toArray(new String[1]));
-    }
-  }
-
-  @Test
-  public void testReversedScanning() throws UIMAException, IOException {
-    builder.reverseScanninig();
-    GazetteerResource gr = newGazetteer("name");
-    Map<Offset, Set<String>> matches = gr.reverseScan("a xname");
-    assertEquals(1, matches.size());
-    for (Offset o : matches.keySet()) {
-      assertEquals(new Offset(3, 3 + "name".length()), o);
-      assertArrayEquals(new String[] {"1"}, matches.get(o).toArray(new String[1]));
+      assertArrayEquals(new String[] { "1" }, matches.get(o).toArray(new String[1]));
     }
   }
 
@@ -155,7 +133,7 @@ public class TestLineBasedGazetteerResource {
     assertEquals(1, matches.size());
     for (Offset o : matches.keySet()) {
       assertEquals(new Offset(0, "NAME".length()), o);
-      assertArrayEquals(new String[] {"1"}, matches.get(o).toArray(new String[1]));
+      assertArrayEquals(new String[] { "1" }, matches.get(o).toArray(new String[1]));
     }
   }
 
@@ -173,6 +151,24 @@ public class TestLineBasedGazetteerResource {
     GazetteerResource gr = newGazetteer(new String[] { "id" }, new String[] { "name" });
     assertEquals(1, gr.match("id").size());
     assertEquals(1, gr.match("name").size());
+  }
+
+  @Test
+  public void testBoundaryMatch() throws UIMAException, IOException {
+    builder.boundaryMatch();
+    GazetteerResource gr = newGazetteer("naMe");
+    Map<Offset, Set<String>> matches = gr.match("xName1");
+    assertEquals(1, matches.size());
+    for (Offset o : matches.keySet()) {
+      assertEquals(new Offset(1, 1 + "name".length()), o);
+      assertArrayEquals(new String[] { "1" }, matches.get(o).toArray(new String[1]));
+    }
+    matches = gr.match("xname1");
+    assertEquals(0, matches.size());
+    matches = gr.match("naMex");
+    assertEquals(0, matches.size());
+    matches = gr.match("name");
+    assertEquals(1, matches.size());
   }
 
   @Test
