@@ -1,6 +1,5 @@
 package txtfnnl.uima.analysis_component;
 
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +27,6 @@ import txtfnnl.uima.Views;
 import txtfnnl.uima.resource.GazetteerResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
-import txtfnnl.uima.tcas.TokenAnnotation;
 import txtfnnl.utils.Offset;
 import txtfnnl.utils.stringsim.LeitnerLevenshtein;
 import txtfnnl.utils.stringsim.Similarity;
@@ -143,12 +141,14 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     } catch (final CASException e) {
       throw new AnalysisEngineProcessException(e);
     }
+    String docText = jcas.getDocumentText();
     if (sourceNamespace == null) {
-      Map<Offset, Set<String>> matches = matchDocument(jcas);
-      for (Offset offset : matches.keySet())
-        // annotateEntities
-        for (SemanticAnnotation ann : annotateEntities(jcas, matches.get(offset), offset))
+      Map<Offset, Set<String>> matches = matchText(docText);
+      for (Offset offset : matches.keySet()) {
+        String name = docText.substring(offset.start(), offset.end());
+        for (SemanticAnnotation ann : makeAnnotations(jcas, name, matches.get(offset), offset))
           ann.addToIndexes();
+      }
     } else {
       FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, sourceNamespace,
           sourceIdentifier);
@@ -157,70 +157,47 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       List<SemanticAnnotation> buffer = new LinkedList<SemanticAnnotation>();
       while (it.hasNext()) {
         // findEntities -> annotateEntities
-        findEntities(jcas, it.next(), buffer);
+        Annotation ann = it.next();
+        
+        Map<Offset, Set<String>> matches = matchText(ann.getCoveredText());
+        for (Offset pos : matches.keySet()) {
+          Offset offset = new Offset(pos.start() + ann.getBegin(), pos.end() + ann.getBegin());
+          String name = docText.substring(offset.start(), offset.end());
+          buffer.addAll(makeAnnotations(jcas, name, matches.get(pos), offset));
+        }
       }
       for (SemanticAnnotation ann : buffer)
         ann.addToIndexes();
     }
   }
 
-  protected Map<Offset, Set<String>> matchDocument(JCas jcas) {
-    return gazetteer.match(jcas.getDocumentText());
+  protected Map<Offset, Set<String>> matchText(String text) {
+    return gazetteer.match(text);
   }
 
   /**
    * Iterate over the entity keys and offsets of all Gazetteer matches in the <code>text</code> of
    * the <code>annotation</code>.
-   */
-  protected void findEntities(JCas jcas, Annotation annotation, List<SemanticAnnotation> buffer) {
-    int begin = annotation.getBegin();
-    int end = annotation.getEnd();
-    String text = jcas.getDocumentText();
-    FSIterator<Annotation> tokenIt = jcas.getAnnotationIndex(TokenAnnotation.type).subiterator(
-        annotation);
-    Map<Offset, Set<String>> matches = scan(jcas, tokenIt, text, begin, end, buffer);
-    for (Offset offset : matches.keySet())
-      buffer.addAll(annotateEntities(jcas, matches.get(offset), offset));
-  }
-
-  protected Map<Offset, Set<String>> scan(JCas jcas, FSIterator<Annotation> tokenIt, String text,
-      int begin, int end, List<SemanticAnnotation> buffer) {
-    logger.log(Level.FINE, "scanning for {0} in ''{1}''",
-        new String[] { entityNamespace, text.substring(begin, end) });
-    Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
-    while (tokenIt.hasNext()) {
-      Annotation tok = tokenIt.next();
-      results.putAll(gazetteer.scan(text.substring(tok.getBegin(), end), tok.getBegin()));
-      if (gazetteer.canScanReverse()) {
-        Map<Offset, Set<String>> matches = gazetteer.reverseScan(text.substring(begin, tok.getEnd()), begin);
-        for (Offset off : matches.keySet())
-          if (results.containsKey(off)) results.get(off).addAll(matches.get(off));
-          else results.put(off,  matches.get(off));
-      }
-    }
-    return results;
-  }
-
-  /**
+   * <p>
    * Determine if the match <code>key</code> is exact, or requires resolving the entity
    * <code>key</code>, and calculate the (normalized) {@link Similarity#similarity(String, String)
    * string similarity} for the annotation confidence.
    */
-  protected List<SemanticAnnotation> annotateEntities(JCas jcas, Set<String> ids, Offset offset) {
-    List<SemanticAnnotation> coll = new LinkedList<SemanticAnnotation>();
-    String name = jcas.getDocumentText().substring(offset.start(), offset.end());
+  protected List<SemanticAnnotation> makeAnnotations(JCas jcas, String name, Set<String> ids,
+      Offset offset) {
+    List<SemanticAnnotation> anns = new LinkedList<SemanticAnnotation>();
     for (String dbId : ids) {
       Set<String> officialNames = gazetteer.get(dbId);
       if (officialNames.contains(name)) {
-        coll.add(annotate(dbId, jcas, offset, 1.0));
+        anns.add(annotate(dbId, jcas, offset, 1.0));
       } else {
         double conf = 0.0;
         for (String n : officialNames)
           conf = Math.max(conf, measure.similarity(n, name));
-        coll.add(annotate(dbId, jcas, offset, conf));
+        anns.add(annotate(dbId, jcas, offset, conf));
       }
     }
-    return coll;
+    return anns;
   }
 
   /**

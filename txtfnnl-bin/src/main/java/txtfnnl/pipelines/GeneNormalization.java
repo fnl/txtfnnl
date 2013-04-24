@@ -100,7 +100,8 @@ public class GeneNormalization extends Pipeline {
       // create builder
       GnamedGazetteerResource.Builder b = GnamedGazetteerResource.configure(dbUrl, driverClass,
           querySql);
-      b.idMatching().reverseScanninig();
+      b.idMatching();
+      b.boundaryMatch();
       // set username/password options
       if (cmd.hasOption('u')) b.setUsername(cmd.getOptionValue('u'));
       if (cmd.hasOption('p')) b.setPassword(cmd.getOptionValue('p'));

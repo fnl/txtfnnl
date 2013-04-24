@@ -81,7 +81,7 @@ public class TestJdbcGazetteerResource {
 
   @Test
   public void testFullConfigure() throws ResourceInitializationException {
-    builder.idMatching().caseMatching().reverseScanninig().setCharsetRegex("[hello]");
+    builder.idMatching().caseMatching().boundaryMatch().setCharsetRegex("[hello]");
     final String config = builder.create().toString();
     assertTrue(config.contains(url));
     assertTrue(config.contains("SELECT id, name FROM entities"));
