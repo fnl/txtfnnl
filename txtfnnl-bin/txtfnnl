@@ -114,6 +114,7 @@ if [ $# -gt 0 ]; then
         grep) java -Xmx2G txtfnnl.pipelines.PatternExtractor "$@";;
         rex) java -Xmx2G txtfnnl.pipelines.RelationshipExtractor "$@";;
         gn) java -Xmx32G txtfnnl.pipelines.GeneNormalization "$@";;
+        profgn) java -Xmx32G '-agentlib:JPIBootLoader=JPIAgent:server=enabled;CGProf' txtfnnl.pipelines.GeneNormalization "$@";;
         grex) java -Xmx32G txtfnnl.pipelines.GeneRelationshipExtractor "$@";;
         entities) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
         patterns) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;
