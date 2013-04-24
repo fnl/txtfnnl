@@ -196,6 +196,10 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
       final Annotation sentenceAnn = sentenceIt.next();
       final String sentence = sentenceAnn.getCoveredText().replace('\n', ' ');
       final int sentenceOffset = sentenceAnn.getBegin();
+      if (sentence.length() > 4096) {
+        logger.log(Level.WARNING, "skipping too long sentence at offset {0}", sentenceOffset);
+        continue;
+      }
       int wordOffset = 0;
       int searchOffset = 0;
       int wordLength = 0;
@@ -215,8 +219,8 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
           wordLength = 1;
         }
         if (wordOffset == -1) {
-          logger.log(Level.SEVERE, "unmatched word ''{0}'' in ''{1}'' at {2}", new Object[] { t.word(),
-              sentence, searchOffset });
+          logger.log(Level.SEVERE, "unmatched word ''{0}'' in ''{1}'' at {2}",
+              new Object[] { t.word(), sentence, searchOffset });
           throw new AnalysisEngineProcessException(new RuntimeException("unmatched token"));
         }
         /* annotate the token */
