@@ -128,7 +128,7 @@ public class AnnotationLineWriter extends TextWriter {
   private static final int PREFIX = 1;
   private static final int SUFFIX = 3;
   private static final int AFTER = 4;
-  
+
   @Override
   public void process(CAS cas) throws AnalysisEngineProcessException {
     JCas textJCas;
@@ -180,11 +180,13 @@ public class AnnotationLineWriter extends TextWriter {
               posTag = tok.getPos();
             } else if (isAtEnd(tok, ann)) {
               surrounding[SUFFIX] = txt.substring(ann.getEnd() - tok.getBegin());
+              if (posTag == null) posTag = tok.getPos();
             } else if (isAfter(tok, ann)) {
               surrounding[AFTER] = txt;
               break; // done!
             } else if (isEnclosed(tok, ann)) {
-              // "inner" token - do nothing
+              if (posTag == null) posTag = tok.getPos();
+              // "inner" token - do nothing (otherwise)
             } else {
               this.logger.log(Level.WARNING,
                   "token position %s undetermined relative to annotation %s", new String[] {
