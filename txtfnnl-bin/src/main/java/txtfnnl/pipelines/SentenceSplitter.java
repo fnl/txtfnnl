@@ -36,7 +36,7 @@ public class SentenceSplitter {
     Pipeline.addTikaOptions(opts);
     Pipeline.addOutputOptions(opts);
     // sentence splitter options
-    opts.addOption("S", "successive-newlines", false, "split sentences on successive newlines");
+    opts.addOption("S", "split-anywhere", false, "do not use newlines for splitting");
     opts.addOption("s", "single-newlines", false, "split sentences on every newline");
     // output format options setup
     opts.addOption("n", "allow-newlines", false,
@@ -52,11 +52,11 @@ public class SentenceSplitter {
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl split [options] <directory|files...>\n");
     // sentence splitter
-    String splitSentences = null; // S, s
+    String splitSentences = "successive"; // S, s
     if (cmd.hasOption('s')) {
       splitSentences = "single";
     } else if (cmd.hasOption('d')) {
-      splitSentences = "successive";
+      splitSentences = null;
     }
     // output (format)
     final String encoding = Pipeline.outputEncoding(cmd);

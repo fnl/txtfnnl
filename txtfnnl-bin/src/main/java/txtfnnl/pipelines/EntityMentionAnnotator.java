@@ -14,6 +14,9 @@ import org.apache.commons.cli.PosixParser;
 import org.apache.uima.UIMAException;
 import org.apache.uima.resource.ExternalResourceDescription;
 
+import org.uimafit.factory.AnalysisEngineFactory;
+
+import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.KnownEntityAnnotator;
 import txtfnnl.uima.collection.XmiWriter;
 import txtfnnl.utils.IOUtils;
@@ -141,7 +144,9 @@ public class EntityMentionAnnotator {
       final Pipeline pipeline = new Pipeline(2); // tika and entity detector
       pipeline.setReader(cmd);
       pipeline.configureTika(cmd);
-      pipeline.set(1, KnownEntityAnnotator.configure(namespace, queries, entityMap, jdbcResource));
+      pipeline.set(1, AnalysisEngineFactory.createAnalysisEngine(
+          KnownEntityAnnotator.configure(namespace, queries, entityMap, jdbcResource),
+          Views.CONTENT_TEXT.toString()));
       pipeline.setConsumer(XmiWriter.configure(outputDirectory, encoding, overwriteFiles, false,
           true));
       pipeline.run();

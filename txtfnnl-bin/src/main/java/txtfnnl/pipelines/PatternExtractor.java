@@ -47,7 +47,7 @@ public class PatternExtractor extends Pipeline {
     Pipeline.addTikaOptions(opts);
     Pipeline.addOutputOptions(opts);
     // sentence splitter options
-    opts.addOption("S", "successive-newlines", false, "split sentences on successive newlines");
+    opts.addOption("S", "split-anywhere", false, "do not use newlines for splitting");
     opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
     // sentence filter options
     opts.addOption("f", "filter-sentences", true, "retain sentences using a file of regex matches");
@@ -69,11 +69,11 @@ public class PatternExtractor extends Pipeline {
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl grep [options] -p <patterns> <directory|files...>\n");
     // sentence splitter
-    String splitSentences = null; // S, s
+    String splitSentences = "successive"; // S, s
     if (cmd.hasOption('s')) {
       splitSentences = "single";
     } else if (cmd.hasOption('S')) {
-      splitSentences = "successive";
+      splitSentences = null;
     }
     // sentence filter
     final File sentenceFilterPatterns = cmd.hasOption('f') ? new File(cmd.getOptionValue('f'))
