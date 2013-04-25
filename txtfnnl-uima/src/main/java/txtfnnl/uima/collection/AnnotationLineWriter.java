@@ -124,6 +124,11 @@ public class AnnotationLineWriter extends TextWriter {
         annotationId + "'");
   }
 
+  private static final int BEFORE = 0;
+  private static final int PREFIX = 1;
+  private static final int SUFFIX = 3;
+  private static final int AFTER = 4;
+  
   @Override
   public void process(CAS cas) throws AnalysisEngineProcessException {
     JCas textJCas;
@@ -137,7 +142,7 @@ public class AnnotationLineWriter extends TextWriter {
     }
     FSMatchConstraint cons = TextAnnotation.makeConstraint(textJCas, annotatorUri, annotationNs,
         annotationId);
-    FSIterator<Annotation> iter = textJCas.createFilteredIterator(
+    FSIterator<Annotation> annotationIter = textJCas.createFilteredIterator(
         TextAnnotation.getIterator(textJCas), cons);
     TokenAnnotation[] tokens = new TokenAnnotation[5];
     List<TokenAnnotation> allTokens = new ArrayList<TokenAnnotation>();
@@ -147,77 +152,76 @@ public class AnnotationLineWriter extends TextWriter {
         allTokens.add((TokenAnnotation) it.next());
     }
     int allTokensIdx = 0;
+    int allTokensLen = allTokens.size();
     tokens[2] = null;
-    int before = 0;
-    int prefix = 1;
-    int suffix = 3;
-    int after = 4;
-    int count = 0;
-    while (iter.hasNext()) {
-      count++;
-      final TextAnnotation ann = (TextAnnotation) iter.next();
+    int annCount = 0;
+    while (annotationIter.hasNext()) {
+      final TextAnnotation ann = (TextAnnotation) annotationIter.next();
+      annCount++;
       String text = ann.getCoveredText();
       String posTag = null;
       if (printSurroundings) {
-        String[] surround = new String[] { "", "", text, "", "" };
-        TokenAnnotation begin = null;
+        String[] surrounding = new String[] { "", "", text, "", "" };
+        TokenAnnotation beforeTok = null;
         int idx = allTokensIdx;
-        while (idx < allTokens.size()) {
+        while (idx < allTokensLen) {
           TokenAnnotation tok = allTokens.get(idx++);
           if (isBefore(tok, ann)) {
-            begin = tok;
+            beforeTok = tok;
+            allTokensIdx = idx - 1;
           } else {
-            if (begin != null) {
-              surround[before] = begin.getCoveredText();
-              allTokensIdx = idx - 2;
-              begin = null;
-            }
             String txt = tok.getCoveredText();
             if (isSurrounding(tok, ann)) {
-              surround[prefix] = txt.substring(0, ann.getBegin() - tok.getBegin());
-              surround[suffix] = txt.substring(ann.getEnd() - tok.getBegin());
+              surrounding[PREFIX] = txt.substring(0, ann.getBegin() - tok.getBegin());
+              surrounding[SUFFIX] = txt.substring(ann.getEnd() - tok.getBegin());
               posTag = tok.getPos();
             } else if (isAtBegin(tok, ann)) {
-              surround[prefix] = txt.substring(0, ann.getBegin() - tok.getBegin());
+              surrounding[PREFIX] = txt.substring(0, ann.getBegin() - tok.getBegin());
               posTag = tok.getPos();
             } else if (isAtEnd(tok, ann)) {
-              surround[suffix] = txt.substring(ann.getEnd() - tok.getBegin());
+              surrounding[SUFFIX] = txt.substring(ann.getEnd() - tok.getBegin());
             } else if (isAfter(tok, ann)) {
-              surround[after] = txt;
-              break;
+              surrounding[AFTER] = txt;
+              break; // done!
             } else if (isEnclosed(tok, ann)) {
-              // do nothing
+              // "inner" token - do nothing
             } else {
               this.logger.log(Level.WARNING,
                   "token position %s undetermined relative to annotation %s", new String[] {
                       tok.getOffset().toString(), ann.getOffset().toString() });
               break;
             }
+            if (beforeTok != null) {
+              surrounding[BEFORE] = beforeTok.getCoveredText();
+              beforeTok = null;
+            }
           }
         }
-        text = StringUtils.join(surround, '\t');
-      }
+        text = StringUtils.join(surrounding, '\t');
+      } // end printSurroundings
       if (printPosTag) {
         if (posTag == null) {
-          while (allTokensIdx < allTokens.size()) {
-            TokenAnnotation tok = allTokens.get(allTokensIdx);
+          int idx = allTokensIdx;
+          while (idx < allTokensLen) {
+            TokenAnnotation tok = allTokens.get(idx++);
             if (isSurrounding(tok, ann)) {
               posTag = tok.getPos();
+              allTokensIdx = idx - 1;
               break;
             } else if (isAtBegin(tok, ann)) {
               posTag = tok.getPos();
+              allTokensIdx = idx - 1;
               break;
             } else if (isBefore(tok, ann)) {
               // continue searching
             } else {
               break;
             }
-            ++allTokensIdx;
           }
         }
         if (posTag == null) posTag = "NULL";
         text = String.format("%s\t%s", text, posTag);
-      }
+      } // end printPosTag
       if (replaceNewlines) text = text.replace('\n', ' ');
       try {
         write(text);
@@ -259,7 +263,7 @@ public class AnnotationLineWriter extends TextWriter {
     } catch (final IOException e) {
       throw new AnalysisEngineProcessException(e);
     }
-    logger.log(Level.FINE, "wrote {0} annotations", count);
+    logger.log(Level.FINE, "wrote {0} annotations", annCount);
   }
 
   private static boolean isBefore(TokenAnnotation tok, TextAnnotation ann) {
