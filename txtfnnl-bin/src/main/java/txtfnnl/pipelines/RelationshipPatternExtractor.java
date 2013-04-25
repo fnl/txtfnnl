@@ -54,7 +54,7 @@ public class RelationshipPatternExtractor extends Pipeline {
     Pipeline.addJdbcResourceOptions(opts, EntityMentionAnnotator.DEFAULT_JDBC_DRIVER,
         EntityMentionAnnotator.DEFAULT_DB_PROVIDER, EntityMentionAnnotator.DEFAULT_DATABASE);
     // sentence splitter options
-    opts.addOption("S", "successive-newlines", false, "split sentences on successive newlines");
+    opts.addOption("S", "split-anywhere", false, "do not use newlines for splitting");
     opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
     // entity annotator options setup
     opts.addOption("Q", "query-file", true, "file with SQL SELECT queries");
@@ -85,11 +85,11 @@ public class RelationshipPatternExtractor extends Pipeline {
     final File outputDirectory = Pipeline.outputDirectory(cmd);
     final boolean overwriteFiles = Pipeline.outputOverwriteFiles(cmd);
     // sentence splitter
-    String splitSentences = null; // S, s
+    String splitSentences = "successive"; // S, s
     if (cmd.hasOption('s')) {
       splitSentences = "single";
     } else if (cmd.hasOption('S')) {
-      splitSentences = "successive";
+      splitSentences = null;
     }
     // DB resource
     ExternalResourceDescription jdbcResource = null;

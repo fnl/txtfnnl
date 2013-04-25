@@ -3,6 +3,8 @@ package txtfnnl.uima.collection;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.uima.UimaContext;
@@ -48,6 +50,13 @@ public class AnnotationLineWriter extends TextWriter {
   public static final String PARAM_PRINT_SURROUNDINGS = "PrintSurroundings";
   @ConfigurationParameter(name = PARAM_PRINT_SURROUNDINGS, defaultValue = "false")
   private Boolean printSurroundings;
+  /**
+   * If <code>true</code> the matching token's PoS tag of the annotation is added as a row after
+   * the annotation itself.
+   */
+  public static final String PARAM_PRINT_POS_TAG = "PrintPosTag";
+  @ConfigurationParameter(name = PARAM_PRINT_POS_TAG, defaultValue = "false")
+  private Boolean printPosTag;
   public static final String PARAM_ANNOTATOR_URI = "AnnotatorUri";
   @ConfigurationParameter(name = PARAM_ANNOTATOR_URI)
   private String annotatorUri;
@@ -97,6 +106,11 @@ public class AnnotationLineWriter extends TextWriter {
       setOptionalParameter(PARAM_PRINT_SURROUNDINGS, true);
       return this;
     }
+
+    public Builder printPosTag() {
+      setOptionalParameter(PARAM_PRINT_POS_TAG, true);
+      return this;
+    }
   }
 
   public static Builder configureTodo() {
@@ -126,6 +140,13 @@ public class AnnotationLineWriter extends TextWriter {
     FSIterator<Annotation> iter = textJCas.createFilteredIterator(
         TextAnnotation.getIterator(textJCas), cons);
     TokenAnnotation[] tokens = new TokenAnnotation[5];
+    List<TokenAnnotation> allTokens = new ArrayList<TokenAnnotation>();
+    if (printSurroundings || printPosTag) {
+      FSIterator<Annotation> it = TokenAnnotation.getIterator(textJCas);
+      while (it.hasNext())
+        allTokens.add((TokenAnnotation) it.next());
+    }
+    int allTokensIdx = 0;
     tokens[2] = null;
     int before = 0;
     int prefix = 1;
@@ -136,23 +157,29 @@ public class AnnotationLineWriter extends TextWriter {
       count++;
       final TextAnnotation ann = (TextAnnotation) iter.next();
       String text = ann.getCoveredText();
+      String posTag = null;
       if (printSurroundings) {
         String[] surround = new String[] { "", "", text, "", "" };
-        FSIterator<Annotation> tokenIter = TokenAnnotation.getIterator(textJCas);
         TokenAnnotation begin = null;
-        while (tokenIter.hasNext()) {
-          TokenAnnotation tok = (TokenAnnotation) tokenIter.next();
+        int idx = allTokensIdx;
+        while (idx < allTokens.size()) {
+          TokenAnnotation tok = allTokens.get(idx++);
           if (isBefore(tok, ann)) {
             begin = tok;
           } else {
-            if (begin != null) surround[before] = begin.getCoveredText();
+            if (begin != null) {
+              surround[before] = begin.getCoveredText();
+              allTokensIdx = idx - 2;
+            }
             begin = null;
             String txt = tok.getCoveredText();
             if (isSurrounding(tok, ann)) {
               surround[prefix] = txt.substring(0, ann.getBegin() - tok.getBegin());
               surround[suffix] = txt.substring(ann.getEnd() - tok.getBegin());
+              posTag = tok.getPos();
             } else if (isAtBegin(tok, ann)) {
               surround[prefix] = txt.substring(0, ann.getBegin() - tok.getBegin());
+              posTag = tok.getPos();
             } else if (isAtEnd(tok, ann)) {
               surround[suffix] = txt.substring(ann.getEnd() - tok.getBegin());
             } else if (isAfter(tok, ann)) {
@@ -169,6 +196,24 @@ public class AnnotationLineWriter extends TextWriter {
           }
         }
         text = StringUtils.join(surround, '\t');
+      }
+      if (printPosTag) {
+        if (posTag == null) {
+          while (allTokensIdx < allTokens.size()) {
+            TokenAnnotation tok = allTokens.get(allTokensIdx);
+            if (isSurrounding(tok, ann))
+              posTag = tok.getPos();
+            else if (isAtBegin(tok, ann))
+              posTag = tok.getPos();
+            else if (isBefore(tok, ann))
+              ; // do nothing
+            else
+              break;
+            ++allTokensIdx;
+          }
+        }
+        if (posTag == null) posTag = "NULL";
+        text = String.format("%s\t%s", text, posTag);
       }
       if (replaceNewlines) text = text.replace('\n', ' ');
       try {

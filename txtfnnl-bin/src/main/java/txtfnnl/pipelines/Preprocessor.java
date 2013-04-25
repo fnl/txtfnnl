@@ -45,7 +45,7 @@ public class Preprocessor extends Pipeline {
     // fix option output-directory: always write files, never use STDOUT
     opts.addOption("o", "output-directory", true, "output directory for writing files [CWD]");
     // sentence splitter options
-    opts.addOption("S", "successive-newlines", false, "split sentences on successive newlines");
+    opts.addOption("S", "split-anywhere", false, "do not use newlines for splitting");
     opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
     // tokenizer options setup
     opts.addOption("G", "genia", true, "use GENIA (giving its model dir) instead of OpenNLP");
@@ -58,11 +58,11 @@ public class Preprocessor extends Pipeline {
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl pre [options] <directory|files...>\n");
     // sentence splitter
-    String splitSentences = null; // S, s
+    String splitSentences = "successive"; // S, s
     if (cmd.hasOption('s')) {
       splitSentences = "single";
     } else if (cmd.hasOption('S')) {
-      splitSentences = "successive";
+      splitSentences = null;
     }
     // (GENIA) tokenizer
     final String geniaDir = cmd.getOptionValue('G');
