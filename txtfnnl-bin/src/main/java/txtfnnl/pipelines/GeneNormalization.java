@@ -132,11 +132,11 @@ public class GeneNormalization extends Pipeline {
       if (geniaDir == null) {
         gn.set(2, TokenAnnotator.configure());
         // gn.set(4, BioLemmatizerAnnotator.configure());
-        gn.set(3, NOOPAnnotator.configure());
+        gn.set(3, NOOPAnnotator.configure().create());
       } else {
         gn.set(2, GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir)).create());
         // the GENIA Tagger already lemmatizes; nothing to do
-        gn.set(3, NOOPAnnotator.configure());
+        gn.set(3, NOOPAnnotator.configure().create());
       }
       gn.set(
           4,
