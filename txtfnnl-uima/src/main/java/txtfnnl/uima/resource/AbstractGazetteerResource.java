@@ -90,9 +90,6 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
   public static final String PARAM_CASE_MATCHING = "CaseMatching";
   @ConfigurationParameter(name = PARAM_CASE_MATCHING, mandatory = false, defaultValue = "false")
   private boolean exactCaseMatching;
-  // @ConfigurationParameter(name = PARAM_REVERSE_SCANNING, mandatory = false, defaultValue =
-  // "false")
-  // private boolean reverseScanning;
   // resource-internal state
   /** The logger for this Resource. */
   protected Logger logger = null;
@@ -102,8 +99,6 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
   protected String resourceUri = null;
   /** The compacted prefix tree created from all individual names. */
   private PatriciaTree<Set<String>> trie;
-  // /** The reversed compacted prefix tree created from all individual names. */
-  // private PatriciaTree<Set<String>> reverseTrie;
   /** The mapping of IDs to their names. */
   private Map<String, Set<String>> names;
 
@@ -144,11 +139,6 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
       setOptionalParameter(PARAM_BOUNDARY_MATCH, Boolean.TRUE);
       return this;
     }
-    // /** Enable reverse scanning for matches. */
-    // public Builder reverseScanninig() {
-    // setOptionalParameter(PARAM_REVERSE_SCANNING, Boolean.TRUE);
-    // return this;
-    // }
   }
 
   /** {@inheritDoc} */
@@ -219,11 +209,10 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
       return;
     }
     put(trie, id, key);
-    if (idMatching) put(trie, id, makeKey(id));
-    // if (reverseScanning) {
-    // put(reverseTrie, id, (new StringBuilder(key)).reverse().toString());
-    // if (idMatching) put(trie, id, makeKey((new StringBuilder(id)).reverse().toString()));
-    // }
+    if (idMatching) {
+      put(trie, id, makeKey(id));
+      mapped.add(id);
+    }
   }
 
   private String makeKey(final String name) {
@@ -339,45 +328,6 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
     return results;
   }
 
-  // /** {@inheritDoc} */
-  // public Map<Offset, Set<String>> scan(String input) {
-  // return scan(input, 0);
-  // }
-  //
-  // public Map<Offset, Set<String>> scan(String input, int baseOffset) {
-  // if (input.length() == 0) throw new IllegalArgumentException("zero-length input");
-  // Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
-  // NormalAlignment aln = new NormalAlignment(input);
-  // for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(aln.normal))
-  // results.put(new Offset(baseOffset + aln.offset[0], baseOffset +
-  // aln.offset[hit.getKey().length() - 1] + 1), hit.getValue());
-  // return results;
-  // }
-  //
-  // /** {@inheritDoc} */
-  // public Map<Offset, Set<String>> reverseScan(String suffix) {
-  // return reverseScan(suffix, 0);
-  // }
-  //
-  // public Map<Offset, Set<String>> reverseScan(String suffix, int baseOffset) {
-  // if (!reverseScanning) throw new IllegalStateException("reverse scanning was not enabled");
-  // if (suffix.length() == 0) throw new IllegalArgumentException("zero-length suffix");
-  // Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
-  // String reverseInput = (new StringBuilder(suffix)).reverse().toString();
-  // NormalAlignment aln = new NormalAlignment(reverseInput);
-  // if (aln.normal.length() == 0) return results;
-  // int len = baseOffset + suffix.length();
-  // int end = len - aln.offset[0];
-  // for (KeyValuePair<Set<String>> hit : reverseTrie.scanForKeyValuePairsAtStartOf(aln.normal))
-  // results
-  // .put(new Offset(len - aln.offset[hit.getKey().length() - 1] - 1, end), hit.getValue());
-  // return results;
-  // }
-  //
-  // /** {@inheritDoc} */
-  // public boolean canScanReverse() {
-  // return reverseScanning;
-  // }
   // StringMapResource Methods
   /** Return the Set of official names for an ID. */
   public Set<String> get(String id) {
