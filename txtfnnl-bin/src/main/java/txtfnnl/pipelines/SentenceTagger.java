@@ -41,7 +41,7 @@ public class SentenceTagger extends Pipeline {
     Pipeline.addTikaOptions(opts);
     Pipeline.addOutputOptions(opts);
     // sentence splitter options
-    opts.addOption("S", "successive-newlines", false, "split sentences on successive newlines");
+    opts.addOption("S", "split-anywhere", false, "do not use newlines for splitting");
     opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
     // tokenizer options setup
     opts.addOption("G", "genia", true,
@@ -56,12 +56,12 @@ public class SentenceTagger extends Pipeline {
         "txtfnnl tag [options] <directory|files...>\n");
     // (GENIA) tokenizer
     final String geniaDir = cmd.getOptionValue('G');
-    // sentence splitter
-    String splitSentences = null; // S, s
+    // sentence splitter: default: successive (works best with default handler)
+    String splitSentences = "successive"; // S, s
     if (cmd.hasOption('s')) {
       splitSentences = "single";
     } else if (cmd.hasOption('S')) {
-      splitSentences = "successive";
+      splitSentences = null;
     }
     // output (format)
     final String encoding = Pipeline.outputEncoding(cmd);
