@@ -170,8 +170,8 @@ public class AnnotationLineWriter extends TextWriter {
             if (begin != null) {
               surround[before] = begin.getCoveredText();
               allTokensIdx = idx - 2;
+              begin = null;
             }
-            begin = null;
             String txt = tok.getCoveredText();
             if (isSurrounding(tok, ann)) {
               surround[prefix] = txt.substring(0, ann.getBegin() - tok.getBegin());
@@ -201,14 +201,17 @@ public class AnnotationLineWriter extends TextWriter {
         if (posTag == null) {
           while (allTokensIdx < allTokens.size()) {
             TokenAnnotation tok = allTokens.get(allTokensIdx);
-            if (isSurrounding(tok, ann))
+            if (isSurrounding(tok, ann)) {
               posTag = tok.getPos();
-            else if (isAtBegin(tok, ann))
-              posTag = tok.getPos();
-            else if (isBefore(tok, ann))
-              ; // do nothing
-            else
               break;
+            } else if (isAtBegin(tok, ann)) {
+              posTag = tok.getPos();
+              break;
+            } else if (isBefore(tok, ann)) {
+              // continue searching
+            } else {
+              break;
+            }
             ++allTokensIdx;
           }
         }
