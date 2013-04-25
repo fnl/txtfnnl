@@ -33,6 +33,7 @@ import org.uimafit.util.JCasUtil;
 
 import txtfnnl.uima.Views;
 import txtfnnl.uima.cas.Property;
+import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 
 public class TestKnownEntityAnnotator {
@@ -88,7 +89,7 @@ public class TestKnownEntityAnnotator {
     jdbc_resource.commit();
     // finally, create the AE and some undefined example CAS instances.
     annotatorDesc = KnownEntityAnnotator.configure(SEMANTIC_ANNOTATION_NAMESPACE, queries, tmpMap,
-        connectionUrl, "org.h2.Driver");
+        JdbcConnectionResourceImpl.configure(connectionUrl, "org.h2.Driver").create()).create();
     annotator = AnalysisEngineFactory.createPrimitive(annotatorDesc);
     baseJCas = annotator.newJCas();
     textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
