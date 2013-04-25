@@ -100,8 +100,7 @@ class GeniaTagger extends ReadlineRuntime<List<Token>> {
   protected List<Token> parseResponse() throws IOException {
     final List<Token> tokens = new LinkedList<Token>();
     String line = readLine();
-    if (line == null)
-      throw new IOException("readline was null");
+    if (line == null) throw new IOException("readline was null");
     while (line.length() > 0) {
       tokens.add(new Token(line));
       line = readLine();
@@ -194,12 +193,14 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
     final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textCas);
     List<Token> tokens;
     int count = 0;
+    List<Annotation> unhandledSentence = new LinkedList<Annotation>();
     while (sentenceIt.hasNext()) {
       final Annotation sentenceAnn = sentenceIt.next();
       final String sentence = sentenceAnn.getCoveredText().replace('\n', ' ');
       final int sentenceOffset = sentenceAnn.getBegin();
       if (sentence.length() > 4096) {
-        logger.log(Level.WARNING, "skipping too long sentence at offset {0}", sentenceOffset);
+        logger.log(Level.WARNING, "skipping too long sentence {0}", sentenceAnn);
+        unhandledSentence.add(sentenceAnn);
         continue;
       }
       int wordOffset = 0;
@@ -208,7 +209,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
       try {
         tokens = tagger.process(sentence);
       } catch (final IOException e) {
-        logger.log(Level.WARNING, "geniatagger failed on: ''{0}''", sentence);
+        logger.log(Level.WARNING, "geniatagger choked on: ''{0}''", sentence);
         try {
           tagger.stop();
           tagger = new GeniaTagger(dictionariesPath, logger);
@@ -216,6 +217,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
           logger.log(Level.SEVERE, "geniatagger could not be restarted");
           throw new AnalysisEngineProcessException(e2);
         }
+        unhandledSentence.add(sentenceAnn);
         continue;
       }
       TokenAnnotation last = null;
@@ -264,6 +266,11 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
         searchOffset = wordOffset + wordLength;
       }
       if (last != null) last.setChunkEnd(true);
+    }
+    for (Annotation sent : unhandledSentence) {
+      logger.log(Level.INFO, "dropping untagged sentence {0} ''{1}''",
+          new Object[] { sent, sent.getCoveredText() });
+      sent.removeFromIndexes();
     }
     logger.log(Level.FINE, "annotated {0} tokens", count);
   }
