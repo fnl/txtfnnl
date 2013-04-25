@@ -261,31 +261,28 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
     public NormalAlignment(String seq) {
       String[] items = charset.split(seq);
       List<Integer> tokenList = new LinkedList<Integer>();
-      int off = 0;
-      tokenList.add(off);
+      int normalPos = 0;
+      int seqPos = 0;
+      int counter = 0;
+      normal = StringUtils.join(items);
+      offset = new int[normal.length()];
+      if (!exactCaseMatching) normal = normal.toLowerCase();
+      tokenList.add(normalPos);
       for (String tok : items) {
-        int pos = 0;
-        while ((pos = nextBoundary(tok, pos)) < tok.length())
-          tokenList.add(off + pos);
-        tokenList.add(off + pos);
-        off += pos;
+        int tokPos = 0;
+        seqPos = seq.indexOf(tok, seqPos);
+        while ((tokPos = nextBoundary(tok, tokPos)) < tok.length())
+          tokenList.add(normalPos + tokPos);
+        tokenList.add(normalPos + tokPos);
+        for (int i = 0; i < tok.length(); ++i)
+          offset[counter++] = seqPos + i;
+        normalPos += tokPos;
+        seqPos += tokPos;
       }
       tokens = new int[tokenList.size()];
-      off = 0;
-      for (int pos : tokenList)
-        tokens[off++] = pos;
-      normal = StringUtils.join(items);
-      if (!exactCaseMatching) normal = normal.toLowerCase();
-      offset = new int[normal.length()];
-      if (offset.length > 0) {
-        int pos = 0;
-        for (int i = 0; i < items.length; ++i) {
-          int idx = seq.indexOf(items[i], pos);
-          for (int j = 0; j < items[i].length(); ++j)
-            offset[pos++] = idx + j;
-        }
-        assert pos == offset.length;
-      }
+      counter = 0;
+      for (int t : tokenList)
+        tokens[counter++] = t;
     }
   }
 

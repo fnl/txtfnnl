@@ -8,9 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.cas.ConstraintFactory;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.cas.FSMatchConstraint;
@@ -22,14 +20,11 @@ import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.jcas.cas.TOP;
 import org.apache.uima.jcas.tcas.Annotation;
-import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
-import org.uimafit.factory.AnalysisEngineFactory;
 
-import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.resource.Entity;
 import txtfnnl.uima.resource.RelationshipStringMapResource;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
@@ -97,34 +92,33 @@ public class KnownRelationshipAnnotator extends KnownEvidenceAnnotator<List<Set<
   @ConfigurationParameter(name = PARAM_REMOVE_SENTENCE_ANNOTATIONS, defaultValue = "false")
   private boolean removeSentenceAnnotations;
 
+  public static class Builder extends KnownEvidenceAnnotator.Builder {
+    public Builder(String relationshipNamespace, String entityNamespace, File relationshipMap)
+        throws IOException {
+      super(KnownEntityAnnotator.class, RelationshipStringMapResource.configure("file:" +
+          relationshipMap.getCanonicalPath()));
+      setRequiredParameter(PARAM_RELATIONSHIP_NAMESPACE, relationshipNamespace);
+      setRequiredParameter(PARAM_ENTITY_NAMESPACE, entityNamespace);
+    }
+
+    public Builder removeSentenceAnnotations() {
+      setOptionalParameter(PARAM_REMOVE_SENTENCE_ANNOTATIONS, Boolean.TRUE);
+      return this;
+    }
+  }
+
   /**
-   * Configure an AE description for a pipeline.
+   * Configure a description builder for this engine.
    * 
-   * @param ns of the {@link SemanticAnnotation}s
-   * @param queries to use for fetching entity names from the JDBC-connected DB
-   * @param entityMap containing filename to entity type, namespace, and ID mappings
-   * @param dbUrl of the DB to connect to
-   * @param driverClass to use for connecting to the DB
-   * @param dbUsername to use for connecting to the DB
-   * @param dbPassword to use for connecting to the DB
-   * @return a configured AE description
-   * @throws ResourceInitializationException
+   * @param relationshipNamespace to use for the {@link RelationshipAnnotation} instances
+   * @param entityNamespace to limit {@link SemanticAnnotation} instances of entities
+   * @param relationshipMap containing the entity mappings to look out for
+   * @return an AE description builder
+   * @throws IOException if the map does not exist
    */
-  @SuppressWarnings("serial")
-  public static AnalysisEngineDescription configure(final String entityNamespace,
-      final String relationshipNamespace, File relationshipMap,
-      final boolean removeSentenceAnnotations) throws UIMAException, IOException {
-    final ExternalResourceDescription evidenceMapResource = RelationshipStringMapResource
-        .configure("file:" + relationshipMap.getAbsolutePath());
-    return AnalysisEngineFactory.createPrimitiveDescription(KnownRelationshipAnnotator.class,
-        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-          {
-            put(MODEL_KEY_EVIDENCE_STRING_MAP, evidenceMapResource);
-            put(PARAM_ENTITY_NAMESPACE, entityNamespace);
-            put(PARAM_RELATIONSHIP_NAMESPACE, relationshipNamespace);
-            put(PARAM_REMOVE_SENTENCE_ANNOTATIONS, removeSentenceAnnotations);
-          }
-        }));
+  public static Builder configure(String relationshipNamespace, String entityNamespace,
+      File relationshipMap) throws IOException {
+    return new Builder(relationshipNamespace, entityNamespace, relationshipMap);
   }
 
   /**

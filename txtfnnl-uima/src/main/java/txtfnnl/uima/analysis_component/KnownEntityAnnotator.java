@@ -25,9 +25,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
@@ -37,14 +35,11 @@ import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
-import org.uimafit.factory.AnalysisEngineFactory;
 
-import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.resource.Entity;
 import txtfnnl.uima.resource.EntityStringMapResource;
 import txtfnnl.uima.resource.JdbcConnectionResource;
-import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.utils.Offset;
 import txtfnnl.utils.StringLengthComparator;
@@ -119,72 +114,30 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
   private PreparedStatement[] statements;
   private Set<Entity> unknownEntities; // entities not in the DB
 
+  public static class Builder extends KnownEvidenceAnnotator.Builder {
+    public Builder(String namespace, String[] queries, File entityMap,
+        ExternalResourceDescription jdbcResource) throws IOException {
+      super(KnownEntityAnnotator.class, EntityStringMapResource.configure("file:" +
+          entityMap.getCanonicalPath()));
+      setRequiredParameter(PARAM_NAMESPACE, namespace);
+      setRequiredParameter(PARAM_QUERIES, queries);
+      setRequiredParameter(MODEL_KEY_JDBC_CONNECTION, jdbcResource);
+    }
+  }
+
   /**
    * Configure an KnownEntityAnnotator description.
    * 
    * @param namespace of the {@link SemanticAnnotation}s
    * @param queries to use for fetching entity names from the JDBC-connected DB
    * @param entityMap containing filename to entity type, namespace, and ID mappings
-   * @param dbUrl of the DB to connect to
-   * @param driverClass to use for connecting to the DB
-   * @param dbUsername to use for connecting to the DB
-   * @param dbPassword to use for connecting to the DB
-   * @return a configured AE description
-   * @throws ResourceInitializationException
-   */
-  public static AnalysisEngineDescription configure(String namespace, String[] queries,
-      File entityMap, String dbUrl, String driverClass, String dbUsername, String dbPassword)
-      throws UIMAException, IOException {
-    final ExternalResourceDescription jdbcResource = JdbcConnectionResourceImpl.configure(dbUrl,
-        driverClass, dbUsername, dbPassword);
-    return KnownEntityAnnotator.configure(namespace, queries, entityMap, jdbcResource);
-  }
-
-  /**
-   * Configure a KnownEntityAnnotator description using a DB that needs no username or password.
-   * This method only requires the essential configuration parameters for this AE.
-   * 
-   * @param namespace of the {@link SemanticAnnotation}s
-   * @param queries to use for fetching entity names from the JDBC-connected DB
-   * @param entityMap containing filename to entity type, namespace, and ID mappings
-   * @param dbUrl of the DB to connect to
-   * @param driverClass to use for connecting to the DB
-   * @return a configured AE description
-   * @throws ResourceInitializationException
-   */
-  public static AnalysisEngineDescription configure(final String namespace,
-      final String[] queries, File entityMap, String dbUrl, String driverClass)
-      throws UIMAException, IOException {
-    return KnownEntityAnnotator.configure(namespace, queries, entityMap, dbUrl, driverClass, null,
-        null);
-  }
-
-  /**
-   * Configure an KnownEntityAnnotator description with an already configured DB resource
-   * description.
-   * 
-   * @param namespace of the {@link SemanticAnnotation}s
-   * @param queries to use for fetching entity names from the JDBC-connected DB
-   * @param entityMap containing filename to entity type, namespace, and ID mappings
    * @param jdbcResource a (configured) JdbcConnectionResource descriptor
-   * @return a configured AE description
-   * @throws ResourceInitializationException
+   * @return an AE Builder
+   * @throws IOException
    */
-  @SuppressWarnings("serial")
-  public static AnalysisEngineDescription configure(final String namespace,
-      final String[] queries, File entityMap, final ExternalResourceDescription jdbcResource)
-      throws UIMAException, IOException {
-    final ExternalResourceDescription evidenceMapResource = EntityStringMapResource
-        .configure("file:" + entityMap.getAbsolutePath());
-    return AnalysisEngineFactory.createPrimitiveDescription(KnownEntityAnnotator.class,
-        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-          {
-            put(MODEL_KEY_EVIDENCE_STRING_MAP, evidenceMapResource);
-            put(MODEL_KEY_JDBC_CONNECTION, jdbcResource);
-            put(PARAM_NAMESPACE, namespace);
-            put(PARAM_QUERIES, queries);
-          }
-        }));
+  public static Builder configure(String namespace, String[] queries, File entityMap,
+      ExternalResourceDescription jdbcResource) throws IOException {
+    return new Builder(namespace, queries, entityMap, jdbcResource);
   }
 
   @Override

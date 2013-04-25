@@ -5,9 +5,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.apache.uima.UimaContext;
+import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.jcas.JCas;
+import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
@@ -15,6 +17,7 @@ import org.apache.uima.util.Logger;
 import org.uimafit.component.JCasAnnotator_ImplBase;
 import org.uimafit.descriptor.ExternalResource;
 
+import txtfnnl.uima.AnalysisComponentBuilder;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.resource.LineBasedStringMapResource;
 
@@ -40,6 +43,14 @@ public abstract class KnownEvidenceAnnotator<Evidence> extends JCasAnnotator_Imp
   int truePositives; // total TP count over all SOFAs
   int falseNegatives; // total FN count over all SOFAs
   int checksum; // to ensure FP/FN counts are correct
+
+  public static class Builder extends AnalysisComponentBuilder {
+    protected Builder(Class<? extends AnalysisComponent> klass,
+        ExternalResourceDescription documentEvidenceMapResource) {
+      super(klass);
+      setRequiredParameter(MODEL_KEY_EVIDENCE_STRING_MAP, documentEvidenceMapResource);
+    }
+  }
 
   @Override
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
