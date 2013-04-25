@@ -144,9 +144,10 @@ public class EntityMentionAnnotator {
       final Pipeline pipeline = new Pipeline(2); // tika and entity detector
       pipeline.setReader(cmd);
       pipeline.configureTika(cmd);
-      pipeline.set(1, AnalysisEngineFactory.createAnalysisEngine(
-          KnownEntityAnnotator.configure(namespace, queries, entityMap, jdbcResource),
-          Views.CONTENT_TEXT.toString()));
+      pipeline.set(1, KnownEntityAnnotator.configure(namespace, queries, entityMap, jdbcResource));
+      // pipeline.set(1, AnalysisEngineFactory.createAnalysisEngine(
+      //     KnownEntityAnnotator.configure(namespace, queries, entityMap, jdbcResource),
+      //     Views.CONTENT_TEXT.toString()));
       pipeline.setConsumer(XmiWriter.configure(outputDirectory, encoding, overwriteFiles, false,
           true));
       pipeline.run();
