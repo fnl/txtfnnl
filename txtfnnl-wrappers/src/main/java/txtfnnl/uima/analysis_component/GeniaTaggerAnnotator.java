@@ -100,6 +100,8 @@ class GeniaTagger extends ReadlineRuntime<List<Token>> {
   protected List<Token> parseResponse() throws IOException {
     final List<Token> tokens = new LinkedList<Token>();
     String line = readLine();
+    if (line == null)
+      throw new IOException("readline was null");
     while (line.length() > 0) {
       tokens.add(new Token(line));
       line = readLine();
@@ -206,8 +208,15 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
       try {
         tokens = tagger.process(sentence);
       } catch (final IOException e) {
-        logger.log(Level.SEVERE, "geniatagger failed on: ''{0}''", sentence);
-        throw new AnalysisEngineProcessException(e);
+        logger.log(Level.WARNING, "geniatagger failed on: ''{0}''", sentence);
+        try {
+          tagger.stop();
+          tagger = new GeniaTagger(dictionariesPath, logger);
+        } catch (final IOException e2) {
+          logger.log(Level.SEVERE, "geniatagger could not be restarted");
+          throw new AnalysisEngineProcessException(e2);
+        }
+        continue;
       }
       TokenAnnotation last = null;
       count += tokens.size();
