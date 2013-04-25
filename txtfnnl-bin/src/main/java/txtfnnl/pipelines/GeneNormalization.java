@@ -119,7 +119,7 @@ public class GeneNormalization extends Pipeline {
     final String geneAnnotationNamespace = "gene";
     AnnotationLineWriter.Builder writer = AnnotationLineWriter.configureTodo()
         .setAnnotatorUri(GeneAnnotator.URI).setAnnotationNamespace(geneAnnotationNamespace)
-        .maintainNewlines().printSurroundings();
+        .maintainNewlines().printSurroundings().printPosTag();
     writer.setEncoding(Pipeline.outputEncoding(cmd));
     writer.setOutputDirectory(Pipeline.outputDirectory(cmd));
     if (Pipeline.outputOverwriteFiles(cmd)) writer.overwriteFiles();
