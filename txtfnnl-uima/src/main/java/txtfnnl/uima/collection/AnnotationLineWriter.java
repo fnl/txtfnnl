@@ -43,6 +43,13 @@ public class AnnotationLineWriter extends TextWriter {
   @ConfigurationParameter(name = PARAM_REPLACE_NEWLINES, defaultValue = "true")
   private Boolean replaceNewlines;
   /**
+   * If <code>true</code> (the default), tabulators within covered text will be replaced with
+   * white-spaces.
+   */
+  public static final String PARAM_REPLACE_TABS = "ReplaceTabulators";
+  @ConfigurationParameter(name = PARAM_REPLACE_TABS, defaultValue = "true")
+  private Boolean replaceTabs;
+  /**
    * If <code>true</code> the token before and after the annotation are shown, as well as any
    * prefix and suffix, as word-before TAB prefix TAB annotation TAB suffix TAB word-after instead
    * of just the annotation.
@@ -84,6 +91,11 @@ public class AnnotationLineWriter extends TextWriter {
 
     public Builder maintainNewlines() {
       setOptionalParameter(PARAM_REPLACE_NEWLINES, false);
+      return this;
+    }
+
+    public Builder maintainTabulators() {
+      setOptionalParameter(PARAM_REPLACE_TABS, false);
       return this;
     }
 
@@ -159,6 +171,7 @@ public class AnnotationLineWriter extends TextWriter {
       final TextAnnotation ann = (TextAnnotation) annotationIter.next();
       annCount++;
       String text = ann.getCoveredText();
+      if (replaceTabs) text = text.replace('\t', ' ');
       String posTag = null;
       if (printSurroundings) {
         String[] surrounding = new String[] { "", "", text, "", "" };
@@ -199,6 +212,8 @@ public class AnnotationLineWriter extends TextWriter {
             }
           }
         }
+        if (replaceTabs) for (int i = 0; i < surrounding.length; ++i)
+          surrounding[i] = surrounding[i].replace('\t', ' ');
         text = StringUtils.join(surrounding, '\t');
       } // end printSurroundings
       if (printPosTag) {
