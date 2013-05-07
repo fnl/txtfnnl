@@ -20,6 +20,7 @@ import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.jcas.cas.TOP;
 import org.apache.uima.jcas.tcas.Annotation;
+import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 
@@ -93,10 +94,9 @@ public class KnownRelationshipAnnotator extends KnownEvidenceAnnotator<List<Set<
   private boolean removeSentenceAnnotations;
 
   public static class Builder extends KnownEvidenceAnnotator.Builder {
-    public Builder(String relationshipNamespace, String entityNamespace, File relationshipMap)
-        throws IOException {
-      super(KnownEntityAnnotator.class, RelationshipStringMapResource.configure("file:" +
-          relationshipMap.getCanonicalPath()));
+    public Builder(String relationshipNamespace, String entityNamespace,
+        ExternalResourceDescription relationshipMapResource) throws IOException {
+      super(KnownEntityAnnotator.class, relationshipMapResource);
       setRequiredParameter(PARAM_RELATIONSHIP_NAMESPACE, relationshipNamespace);
       setRequiredParameter(PARAM_ENTITY_NAMESPACE, entityNamespace);
     }
@@ -114,11 +114,13 @@ public class KnownRelationshipAnnotator extends KnownEvidenceAnnotator<List<Set<
    * @param entityNamespace to limit {@link SemanticAnnotation} instances of entities
    * @param relationshipMap containing the entity mappings to look out for
    * @return an AE description builder
-   * @throws IOException if the map does not exist
+   * @throws IOException if the relationship map does not exist
+   * @throws ResourceInitializationException if the relationship map cannot be initialized
    */
   public static Builder configure(String relationshipNamespace, String entityNamespace,
-      File relationshipMap) throws IOException {
-    return new Builder(relationshipNamespace, entityNamespace, relationshipMap);
+      File relationshipMap) throws IOException, ResourceInitializationException {
+    return new Builder(relationshipNamespace, entityNamespace, RelationshipStringMapResource
+        .configure("file:" + relationshipMap.getCanonicalPath()).create());
   }
 
   /**

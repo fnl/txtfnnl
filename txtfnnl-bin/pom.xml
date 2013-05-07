@@ -3,8 +3,8 @@
   <parent>
     <artifactId>txtfnnl</artifactId>
     <groupId>txtfnnl</groupId>
-    <version>0.3</version>
     <relativePath>..</relativePath>
+    <version>0.4</version>
   </parent>
   <artifactId>txtfnnl-bin</artifactId>
   <name>txtfnnl-bin</name>
@@ -18,17 +18,17 @@
   	<dependency>
   		<groupId>txtfnnl</groupId>
   		<artifactId>txtfnnl-uima</artifactId>
-  		<version>0.3</version>
+  		<version>0.4</version>
   	</dependency>
   	<dependency>
   		<groupId>txtfnnl</groupId>
   		<artifactId>txtfnnl-tika</artifactId>
-  		<version>0.3</version>
+  		<version>0.4</version>
   	</dependency>
   	<dependency>
   		<groupId>txtfnnl</groupId>
   		<artifactId>txtfnnl-utils</artifactId>
-  		<version>0.3</version>
+  		<version>0.4</version>
   	</dependency>
   	<dependency>
   		<groupId>postgresql</groupId>
@@ -48,7 +48,7 @@
   	<dependency>
   		<groupId>txtfnnl</groupId>
   		<artifactId>txtfnnl-wrappers</artifactId>
-  		<version>0.3</version>
+  		<version>0.4</version>
   	</dependency>
   </dependencies>
   <properties>

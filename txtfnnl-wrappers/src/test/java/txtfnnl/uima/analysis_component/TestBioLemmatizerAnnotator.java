@@ -16,7 +16,6 @@ import org.apache.uima.jcas.tcas.Annotation;
 
 import org.uimafit.factory.AnalysisEngineFactory;
 
-import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
 import txtfnnl.uima.tcas.SentenceAnnotation;
@@ -29,7 +28,7 @@ public class TestBioLemmatizerAnnotator {
 
   @Before
   public void setUp() throws UIMAException, IOException {
-    annotator = BioLemmatizerAnnotator.configure();
+    annotator = BioLemmatizerAnnotator.configure().create();
     engine = AnalysisEngineFactory.createPrimitive(annotator);
   }
 
@@ -41,8 +40,7 @@ public class TestBioLemmatizerAnnotator {
 
   @Test
   public void testProcessCAS() throws UIMAException, IOException {
-    final JCas baseJCas = engine.newJCas();
-    jcas = baseJCas.createView(Views.CONTENT_TEXT.toString());
+    jcas = engine.newJCas();
     final String text = "These are two nice sentences. And this could be getting better.";
     final String[] lemma = { "these", "be", "two", "nice", "sentence", ".", "and", "this",
         "could", "be", "get", "well", "." };
@@ -54,7 +52,7 @@ public class TestBioLemmatizerAnnotator {
     addSentence(0, 29);
     addSentence(30, 63);
     addTokens(beginPositions, endPositions, tags);
-    engine.process(baseJCas.getCas());
+    engine.process(jcas);
     int count = 0;
     final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(jcas);
     final AnnotationIndex<Annotation> tokenIdx = jcas.getAnnotationIndex(TokenAnnotation.type);

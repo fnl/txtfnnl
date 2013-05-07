@@ -1,6 +1,3 @@
-/**
- * 
- */
 package txtfnnl.pipelines;
 
 import java.io.File;
@@ -16,12 +13,11 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.uima.UIMAException;
 import org.apache.uima.resource.ExternalResourceDescription;
+import org.apache.uima.resource.ResourceInitializationException;
 
 import txtfnnl.uima.analysis_component.KnownEntityAnnotator;
 import txtfnnl.uima.analysis_component.KnownRelationshipAnnotator;
 import txtfnnl.uima.analysis_component.LinkGrammarAnnotator;
-import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
-import txtfnnl.uima.collection.RelationshipPatternLineWriter;
 import txtfnnl.utils.IOUtils;
 
 /**
@@ -54,8 +50,7 @@ public class RelationshipPatternExtractor extends Pipeline {
     Pipeline.addJdbcResourceOptions(opts, EntityMentionAnnotator.DEFAULT_JDBC_DRIVER,
         EntityMentionAnnotator.DEFAULT_DB_PROVIDER, EntityMentionAnnotator.DEFAULT_DATABASE);
     // sentence splitter options
-    opts.addOption("S", "split-anywhere", false, "do not use newlines for splitting");
-    opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
+    Pipeline.addSentenceAnnotatorOptions(opts);
     // entity annotator options setup
     opts.addOption("Q", "query-file", true, "file with SQL SELECT queries");
     OptionBuilder.withLongOpt("query");
@@ -81,26 +76,16 @@ public class RelationshipPatternExtractor extends Pipeline {
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl patterns [options] <directory|files...>\n");
     // output options
-    final String encoding = Pipeline.outputEncoding(cmd);
-    final File outputDirectory = Pipeline.outputDirectory(cmd);
-    final boolean overwriteFiles = Pipeline.outputOverwriteFiles(cmd);
-    // sentence splitter
-    String splitSentences = "successive"; // S, s
-    if (cmd.hasOption('s')) {
-      splitSentences = "single";
-    } else if (cmd.hasOption('S')) {
-      splitSentences = null;
-    }
     // DB resource
     ExternalResourceDescription jdbcResource = null;
     try {
-      jdbcResource = Pipeline.getJdbcResource(cmd, l, EntityMentionAnnotator.DEFAULT_JDBC_DRIVER,
+      jdbcResource = Pipeline.getJdbcConnectionResource(cmd, l, EntityMentionAnnotator.DEFAULT_JDBC_DRIVER,
           EntityMentionAnnotator.DEFAULT_DB_PROVIDER, EntityMentionAnnotator.DEFAULT_DATABASE);
-    } catch (final IOException e) {
+    } catch (final ClassNotFoundException e) {
       System.err.println("JDBC resoruce setup failed:");
       System.err.println(e.toString());
       System.exit(1); // == EXIT ==
-    } catch (final ClassNotFoundException e) {
+    } catch (ResourceInitializationException e) {
       System.err.println("JDBC resoruce setup failed:");
       System.err.println(e.toString());
       System.exit(1); // == EXIT ==
@@ -121,7 +106,7 @@ public class RelationshipPatternExtractor extends Pipeline {
       }
       String[] fileQueries = null;
       try {
-        fileQueries = IOUtils.read(new FileInputStream(queryFile), encoding).split("\n");
+        fileQueries = IOUtils.read(new FileInputStream(queryFile), Pipeline.inputEncoding(cmd)).split("\n");
       } catch (final Exception e) {
         System.err.print("cannot read query file ");
         System.err.print(queryFile);
@@ -161,12 +146,23 @@ public class RelationshipPatternExtractor extends Pipeline {
       final Pipeline pipeline = new Pipeline(5);
       pipeline.setReader(cmd);
       pipeline.configureTika(cmd);
-      pipeline.set(1, SentenceAnnotator.configure(splitSentences));
-      pipeline.set(2, KnownEntityAnnotator.configure(namespace, queries, entityMap, jdbcResource));
-      pipeline.set(3, KnownRelationshipAnnotator.configure(namespace, relNamespace, relMap, true));
-      pipeline.set(4, LinkGrammarAnnotator.configure().create());
-      pipeline.setConsumer(RelationshipPatternLineWriter.configure(relNamespace, outputDirectory,
-          encoding, outputDirectory == null, overwriteFiles, 1000));
+      pipeline.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
+      KnownEntityAnnotator.Builder keab = KnownEntityAnnotator.configure(namespace, queries,
+          entityMap, jdbcResource);
+      pipeline.set(2, Pipeline.multiviewEngine(keab.create()));
+      pipeline.set(
+          3,
+          Pipeline.multiviewEngine(KnownRelationshipAnnotator
+              .configure(namespace, relNamespace, relMap).removeSentenceAnnotations().create()));
+      pipeline.set(4, Pipeline.textEngine(LinkGrammarAnnotator.configure().create()));
+      /* TODO: broken (will this pipeline be used, anyways???)
+      RelationshipPatternLineWriter.Builder writer = RelationshipPatternLineWriter.configureWriter(cmd,
+          RelationshipPatternLineWriter.configure());
+      pipeline
+          .setConsumer(Pipeline.multiviewEngine(RelationshipPatternLineWriter.configure(
+              relNamespace, outputDirectory, encoding, outputDirectory == null, overwriteFiles,
+              1000)));
+              */
       pipeline.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

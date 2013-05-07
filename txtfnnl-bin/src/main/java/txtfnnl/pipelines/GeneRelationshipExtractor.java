@@ -22,7 +22,6 @@ import txtfnnl.uima.analysis_component.NOOPAnnotator;
 import txtfnnl.uima.analysis_component.RelationshipFilter;
 import txtfnnl.uima.analysis_component.SentenceFilter;
 import txtfnnl.uima.analysis_component.SyntaxPatternAnnotator;
-import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
 import txtfnnl.uima.collection.RelationshipWriter;
 import txtfnnl.uima.resource.GnamedGazetteerResource;
@@ -104,8 +103,7 @@ public class GeneRelationshipExtractor extends Pipeline {
         DEFAULT_DATABASE);
     Pipeline.addOutputOptions(opts);
     // sentence splitter options
-    opts.addOption("S", "split-anywhere", false, "do not use newlines for splitting");
-    opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
+    Pipeline.addSentenceAnnotatorOptions(opts);
     // sentence filter options
     opts.addOption("f", "filter-sentences", true, "retain sentences using a file of regex matches");
     opts.addOption("F", "filter-remove", false, "filter removes sentences with matches");
@@ -125,17 +123,12 @@ public class GeneRelationshipExtractor extends Pipeline {
     }
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl grex [options] -p <patterns> <directory|files...>\n");
-    // sentence splitter
-    String splitSentences = "successive"; // S, s
-    if (cmd.hasOption('s')) {
-      splitSentences = "single";
-    } else if (cmd.hasOption('S')) {
-      splitSentences = null;
-    }
     // sentence filter
-    final File sentenceFilterPatterns = cmd.hasOption('f') ? new File(cmd.getOptionValue('f'))
-        : null;
-    final boolean removingSentenceFilter = cmd.hasOption('F');
+    LineBasedStringArrayResource.Builder filterResource = null;
+    if (cmd.hasOption('f')) {
+      filterResource = LineBasedStringArrayResource.configure("file:" +
+          new File(cmd.getOptionValue('f')).getAbsolutePath());
+    }
     // (GENIA) tokenizer
     final String geniaDir = cmd.getOptionValue('G');
     // semantic patterns
@@ -168,9 +161,8 @@ public class GeneRelationshipExtractor extends Pipeline {
       System.exit(1); // == EXIT ==
     }
     // output (format)
-    final String encoding = Pipeline.outputEncoding(cmd);
-    final File outputDirectory = Pipeline.outputDirectory(cmd);
-    final boolean overwriteFiles = Pipeline.outputOverwriteFiles(cmd);
+    RelationshipWriter.Builder writer = Pipeline.configureWriter(cmd,
+        RelationshipWriter.configure());
     try {
       ExternalResourceDescription patternResource = LineBasedStringArrayResource.configure(
           "file:" + patterns.getCanonicalPath()).create();
@@ -179,30 +171,54 @@ public class GeneRelationshipExtractor extends Pipeline {
       final Pipeline rex = new Pipeline(10);
       rex.setReader(cmd);
       rex.configureTika(cmd);
-      rex.set(1, SentenceAnnotator.configure(splitSentences));
-      if (sentenceFilterPatterns == null) rex.set(2, NOOPAnnotator.configure());
-      else rex.set(2, SentenceFilter.configure(sentenceFilterPatterns, removingSentenceFilter));
-      if (geniaDir == null) {
-        rex.set(3, TokenAnnotator.configure());
-        rex.set(4, BioLemmatizerAnnotator.configure());
+      rex.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
+      if (filterResource != null) {
+        SentenceFilter.Builder sentenceFilter = SentenceFilter.configure(filterResource.create());
+        if (cmd.hasOption('F')) sentenceFilter.removeMatches();
+        rex.set(2, Pipeline.textEngine(sentenceFilter.create()));
       } else {
-        rex.set(3, GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir)).create());
-        // the GENIA Tagger already lemmatizes; nothing to do
-        rex.set(4, NOOPAnnotator.configure());
+        rex.set(2, Pipeline.textEngine(NOOPAnnotator.configure().create()));
       }
-      rex.set(5, SyntaxPatternAnnotator.configure(patternResource).removeUnmatched().create());
-      rex.set(6, GeneAnnotator.configure("UniProt", actorGazetteer).setTextNamespace("actor")
-          .setTextIdentifier("regulator").create());
-      rex.set(7, GeneAnnotator.configure("Entrez", targetGazetteer).setTextNamespace("actor")
-          .setTextIdentifier("target").create());
-      rex.set(8, RelationshipFilter.configure(SyntaxPatternAnnotator.URI, "event", "tre",
-          SyntaxPatternAnnotator.URI, "actor", "regulator", GazetteerAnnotator.URI, "UniProt",
-          null, false));
-      rex.set(9, RelationshipFilter.configure(SyntaxPatternAnnotator.URI, "event", "tre",
-          SyntaxPatternAnnotator.URI, "actor", "target", GazetteerAnnotator.URI, "Entrez", null,
-          false));
-      rex.setConsumer(RelationshipWriter.configure(outputDirectory, encoding,
-          outputDirectory == null, overwriteFiles, true, null, true, true));
+      if (geniaDir == null) {
+        rex.set(3, Pipeline.textEngine(TokenAnnotator.configure().create()));
+        rex.set(4, Pipeline.textEngine(BioLemmatizerAnnotator.configure().create()));
+      } else {
+        rex.set(
+            3,
+            Pipeline.textEngine(GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir))
+                .create()));
+        // the GENIA Tagger already lemmatizes; nothing to do
+        rex.set(4, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
+      }
+      rex.set(
+          5,
+          Pipeline.textEngine(SyntaxPatternAnnotator.configure(patternResource).removeUnmatched()
+              .create()));
+      rex.set(
+          6,
+          Pipeline.textEngine(GeneAnnotator.configure("UniProt", actorGazetteer)
+              .setTextNamespace("actor").setTextIdentifier("regulator").create()));
+      rex.set(
+          7,
+          Pipeline.textEngine(GeneAnnotator.configure("Entrez", targetGazetteer)
+              .setTextNamespace("actor").setTextIdentifier("target").create()));
+      rex.set(
+          8,
+          Pipeline.textEngine(RelationshipFilter.configure()
+              .setRelationshipAnnotatorUri(SyntaxPatternAnnotator.URI)
+              .setRelationshipNamespace("event").setRelationshipIdentifier("tre")
+              .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
+              .setMappingIdentifier("regulator").setEntityAnnotatorUri(GazetteerAnnotator.URI)
+              .setEntityNamespace("UniProt").create()));
+      rex.set(
+          9,
+          Pipeline.textEngine(RelationshipFilter.configure()
+              .setRelationshipAnnotatorUri(SyntaxPatternAnnotator.URI)
+              .setRelationshipNamespace("event").setRelationshipIdentifier("tre")
+              .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
+              .setMappingIdentifier("target").setEntityAnnotatorUri(GazetteerAnnotator.URI)
+              .setEntityNamespace("Entrez").create()));
+      rex.setConsumer(Pipeline.multiviewEngine(writer.create()));
       rex.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

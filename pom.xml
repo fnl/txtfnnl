@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>txtfnnl</groupId>
 	<artifactId>txtfnnl</artifactId>
-	<version>0.3</version>
+	<version>0.4</version>
 	<name>txtfnnl</name>
 	<description>A large-scale Text Mining application framework.</description>
 	<packaging>pom</packaging>

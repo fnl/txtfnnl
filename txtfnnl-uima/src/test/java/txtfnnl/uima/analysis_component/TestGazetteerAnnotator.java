@@ -1,6 +1,7 @@
 package txtfnnl.uima.analysis_component;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.sql.Connection;
@@ -23,7 +24,6 @@ import org.apache.uima.jcas.tcas.Annotation;
 import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 
-import txtfnnl.uima.Views;
 import txtfnnl.uima.resource.JdbcGazetteerResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 
@@ -61,9 +61,9 @@ public class TestGazetteerAnnotator {
     conn.close();
   }
 
-  private JCas makeCas(AnalysisEngine ae, String text) throws UIMAException {
+  private JCas makeJCas(AnalysisEngine ae, String text) throws UIMAException {
     JCas baseCas = ae.newJCas();
-    baseCas.createView(Views.CONTENT_TEXT.toString()).setDocumentText(text);
+    baseCas.setDocumentText(text);
     return baseCas;
   }
 
@@ -71,10 +71,9 @@ public class TestGazetteerAnnotator {
   public void testProcess() throws SQLException, UIMAException {
     createTable("NAME1", "Name2");
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(descriptor);
-    final JCas baseCas = makeCas(ae, "that has name 2 in it");
-    ae.process(baseCas);
-    FSIterator<Annotation> it = baseCas.getView(Views.CONTENT_TEXT.toString())
-        .getAnnotationIndex(SemanticAnnotation.type).iterator();
+    final JCas jcas = makeJCas(ae, "that has name 2 in it");
+    ae.process(jcas);
+    FSIterator<Annotation> it = jcas.getAnnotationIndex(SemanticAnnotation.type).iterator();
     int count = 0;
     while (it.hasNext()) {
       SemanticAnnotation ann = (SemanticAnnotation) it.next();

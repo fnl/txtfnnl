@@ -8,6 +8,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.xml.sax.ContentHandler;
+
 import org.apache.tika.metadata.Metadata;
 import org.apache.uima.UIMAException;
 import org.apache.uima.analysis_engine.AnalysisEngine;
@@ -20,6 +22,8 @@ import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 import org.uimafit.util.JCasUtil;
 
+import txtfnnl.tika.sax.ElsevierXMLContentHandler;
+import txtfnnl.tika.uima.TikaAnnotator.Builder;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.tcas.DocumentAnnotation;
@@ -31,11 +35,12 @@ public class TestTikaAnnotator {
     DisableLogging.enableLogging(Level.WARNING);
   }
 
-  AnalysisEngine getEngine(String encoding, boolean normalizeGreek, String xmlHandler)
-      throws UIMAException, IOException {
-    final AnalysisEngineDescription aed = TikaAnnotator.configure(encoding, normalizeGreek,
-        xmlHandler);
-    return AnalysisEngineFactory.createPrimitive(aed);
+  AnalysisEngine getEngine(String encoding, boolean normalizeGreek,
+      Class<? extends ContentHandler> xmlHandler) throws UIMAException, IOException {
+    Builder b = TikaAnnotator.configure();
+    b.setEncoding(encoding).setXmlHandlerClass(xmlHandler);
+    if (normalizeGreek) b.normalizeGreek();
+    return AnalysisEngineFactory.createPrimitive(b.create());
   }
 
   AnalysisEngine getEngine() throws UIMAException, IOException {
@@ -44,7 +49,7 @@ public class TestTikaAnnotator {
 
   @Test
   public void testConfiguration() throws UIMAException, IOException {
-    final AnalysisEngineDescription aed = TikaAnnotator.configure();
+    final AnalysisEngineDescription aed = TikaAnnotator.configure().create();
     aed.doFullValidation();
   }
 
@@ -118,8 +123,8 @@ public class TestTikaAnnotator {
     JCas jCas = baseJCas.createView(Views.CONTENT_RAW.toString());
     jCas.setSofaDataString("<ce:para xmlns:ce=\"url\" val='1' >"
         + "<ce:para val='1' >test</ce:para>" + "again</ce:para>", "text/xml");
-    tikaAnnotator = AnalysisEngineFactory.createPrimitive(TikaAnnotator.configure(null, false,
-        "txtfnnl.tika.sax.ElsevierXMLContentHandler"));
+    tikaAnnotator = AnalysisEngineFactory.createPrimitive(TikaAnnotator.configure()
+        .setXmlHandlerClass(ElsevierXMLContentHandler.class).create());
     tikaAnnotator.process(baseJCas);
     jCas = baseJCas.getView(Views.CONTENT_TEXT.toString());
     Assert.assertEquals("test\n\nagain", jCas.getDocumentText());

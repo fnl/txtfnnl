@@ -7,7 +7,6 @@ import java.util.List;
 
 import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
@@ -20,7 +19,6 @@ import org.uimafit.descriptor.ConfigurationParameter;
 
 import txtfnnl.subprocess.ReadlineRuntime;
 import txtfnnl.uima.AnalysisComponentBuilder;
-import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
 
@@ -183,14 +181,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
 
   @Override
   public void process(JCas jcas) throws AnalysisEngineProcessException {
-    // TODO: use default view
-    JCas textCas;
-    try {
-      textCas = jcas.getView(Views.CONTENT_TEXT.toString());
-    } catch (final CASException e) {
-      throw new AnalysisEngineProcessException(e);
-    }
-    final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textCas);
+    final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(jcas);
     List<Token> tokens;
     int count = 0;
     List<Annotation> unhandledSentence = new LinkedList<Annotation>();
@@ -235,7 +226,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
           throw new AnalysisEngineProcessException(new RuntimeException("unmatched token"));
         }
         /* annotate the token */
-        final TokenAnnotation tokenAnn = new TokenAnnotation(textCas, sentenceOffset + wordOffset,
+        final TokenAnnotation tokenAnn = new TokenAnnotation(jcas, sentenceOffset + wordOffset,
             sentenceOffset + wordOffset + wordLength);
         tokenAnn.setAnnotator(URI);
         tokenAnn.setNamespace(NAMESPACE);

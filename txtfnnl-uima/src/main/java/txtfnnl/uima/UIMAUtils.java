@@ -24,7 +24,7 @@ public class UIMAUtils {
    * @return an Object array of those parameters
    * @throws IOException
    */
-  public static Object[] makeParameterArray(Map<String, Object> params) throws IOException {
+  public static Object[] makeParameterArray_TODO_DeleteThisClass(Map<String, Object> params) throws IOException {
     final List<Object> list = new LinkedList<Object>();
     for (final String key : params.keySet()) {
       Object value = params.get(key);

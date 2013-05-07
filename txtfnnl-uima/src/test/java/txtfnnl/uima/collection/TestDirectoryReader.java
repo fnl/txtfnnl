@@ -31,7 +31,7 @@ public class TestDirectoryReader {
   @Before
   public void setUp() throws Exception {
     fileSystemReader = CollectionReaderFactory.createCollectionReader(DirectoryReader
-        .configure("src/test/resources"));
+        .configure(new File("src/test/resources")).create());
     baseCasMock = EasyMock.createMock(CAS.class);
     rawCasMock = EasyMock.createMock(CAS.class);
     basePath = "file:" + (new File(".")).getCanonicalPath() + "/src/test/resources/";
@@ -76,7 +76,7 @@ public class TestDirectoryReader {
   public void testRecursiveReading() throws IOException, UIMAException {
     try {
       fileSystemReader = CollectionReaderFactory.createCollectionReader(DirectoryReader.configure(
-          "src/test/resources", true));
+          new File("src/test/resources")).recurseSubdirectories().create());
     } catch (final ResourceInitializationException e) {
       e.printStackTrace();
       Assert.fail("resource initialization exception: " + e.getMessage());

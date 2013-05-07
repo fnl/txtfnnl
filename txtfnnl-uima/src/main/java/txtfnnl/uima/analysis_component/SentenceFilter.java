@@ -3,17 +3,14 @@
  */
 package txtfnnl.uima.analysis_component;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
+import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
@@ -25,9 +22,8 @@ import org.apache.uima.util.Logger;
 import org.uimafit.component.JCasAnnotator_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
-import org.uimafit.factory.AnalysisEngineFactory;
 
-import txtfnnl.uima.Views;
+import txtfnnl.uima.AnalysisComponentBuilder;
 import txtfnnl.uima.resource.LineBasedStringArrayResource;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 
@@ -62,26 +58,35 @@ public class SentenceFilter extends JCasAnnotator_ImplBase {
   @ConfigurationParameter(name = PARAM_REMOVE_MATCHED, defaultValue = "false")
   private boolean removeMatched;
 
-  /**
-   * Configure a new descriptor with a pattern file resource.
-   * 
-   * @param patterns to match
-   * @param separator between values in the patterns file
-   * @param removeMatched remove sentence annotations where a pattern matched
-   * @return a configured AE description
-   * @throws UIMAException
-   */
-  public static AnalysisEngineDescription configure(File patterns, boolean removeMatched)
-      throws UIMAException {
-    final ExternalResourceDescription patternResource = LineBasedStringArrayResource.configure(
-        "file:" + patterns.getAbsolutePath()).create();
-    return AnalysisEngineFactory.createPrimitiveDescription(SentenceFilter.class,
-        MODEL_KEY_PATTERN_RESOURCE, patternResource, PARAM_REMOVE_MATCHED, removeMatched);
+  public static class Builder extends AnalysisComponentBuilder {
+    protected Builder(Class<? extends AnalysisComponent> klass,
+        ExternalResourceDescription patternResource) {
+      super(klass);
+      setRequiredParameter(MODEL_KEY_PATTERN_RESOURCE, patternResource);
+    }
+
+    Builder(ExternalResourceDescription patternResource) {
+      this(SentenceFilter.class, patternResource);
+    }
+
+    public Builder removeMatches() {
+      setOptionalParameter(PARAM_REMOVE_MATCHED, Boolean.TRUE);
+      return this;
+    }
+
+    public Builder setAnnotatorUri(String uri) {
+      setOptionalParameter(PARAM_SENTENCE_ANNOTATOR, uri);
+      return this;
+    }
   }
 
-  /** Default configuration only requires the pattern resource file. */
-  public static AnalysisEngineDescription configure(File patterns) throws UIMAException {
-    return SentenceFilter.configure(patterns, false);
+  /**
+   * Configure a new descriptor builder with a (line-based string) pattern resource.
+   * 
+   * @param patternResource with the relevant patterns
+   */
+  public static Builder configure(ExternalResourceDescription patternResource) {
+    return new Builder(patternResource);
   }
 
   @Override
@@ -101,12 +106,6 @@ public class SentenceFilter extends JCasAnnotator_ImplBase {
 
   @Override
   public void process(JCas jcas) throws AnalysisEngineProcessException {
-    // TODO: use default view
-    try {
-      jcas = jcas.getView(Views.CONTENT_TEXT.toString());
-    } catch (final CASException e) {
-      throw new AnalysisEngineProcessException(e);
-    }
     final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(jcas);
     List<SentenceAnnotation> removeBuffer = new LinkedList<SentenceAnnotation>();
     int count = 0;

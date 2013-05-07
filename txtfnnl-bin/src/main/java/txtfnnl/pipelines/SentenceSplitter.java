@@ -1,6 +1,5 @@
 package txtfnnl.pipelines;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.logging.Logger;
 
@@ -11,7 +10,6 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.uima.UIMAException;
 
-import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.collection.SentenceLineWriter;
 
 /**
@@ -36,13 +34,11 @@ public class SentenceSplitter {
     Pipeline.addTikaOptions(opts);
     Pipeline.addOutputOptions(opts);
     // sentence splitter options
-    opts.addOption("S", "split-anywhere", false, "do not use newlines for splitting");
-    opts.addOption("s", "single-newlines", false, "split sentences on every newline");
+    Pipeline.addSentenceAnnotatorOptions(opts);
     // output format options setup
-    opts.addOption("n", "allow-newlines", false,
+    opts.addOption("n", "maintain-newlines", false,
         "do not replace newline chars within sentences with white-spaces");
-    opts.addOption("a", "all-content", false,
-        "include other (non-sentence) content in the output");
+    opts.addOption("a", "all-content", false, "include other (non-sentence) content in the output");
     try {
       cmd = parser.parse(opts, arguments);
     } catch (final ParseException e) {
@@ -51,26 +47,17 @@ public class SentenceSplitter {
     }
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl split [options] <directory|files...>\n");
-    // sentence splitter
-    String splitSentences = "successive"; // S, s
-    if (cmd.hasOption('s')) {
-      splitSentences = "single";
-    } else if (cmd.hasOption('d')) {
-      splitSentences = null;
-    }
     // output (format)
-    final String encoding = Pipeline.outputEncoding(cmd);
-    final File outputDirectory = Pipeline.outputDirectory(cmd);
-    final boolean overwriteFiles = Pipeline.outputOverwriteFiles(cmd);
-    final boolean replaceNewlines = (!cmd.hasOption('n'));
-    final boolean includeAllContent = cmd.hasOption('a');
+    SentenceLineWriter.Builder writer = Pipeline.configureWriter(cmd,
+        SentenceLineWriter.configure());
+    if (cmd.hasOption('n')) writer.maintainNewlines();
+    if (!cmd.hasOption('a')) writer.excludeOtherContent();
     try {
       final Pipeline splitter = new Pipeline(2); // tika and the splitter
       splitter.setReader(cmd);
       splitter.configureTika(cmd);
-      splitter.set(1, SentenceAnnotator.configure(splitSentences));
-      splitter.setConsumer(SentenceLineWriter.configure(outputDirectory, encoding,
-          outputDirectory == null, overwriteFiles, replaceNewlines, includeAllContent));
+      splitter.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
+      splitter.setConsumer(Pipeline.multiviewEngine(writer.create()));
       splitter.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

@@ -14,6 +14,7 @@ import java.util.logging.Level;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.apache.uima.UIMAException;
@@ -38,6 +39,7 @@ import txtfnnl.uima.tcas.SyntaxAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
 import txtfnnl.utils.IOUtils;
 
+@Ignore
 public class TestRelationshipPatternLineWriter {
   RelationshipPatternLineWriter writer;
   AnalysisEngine ae;

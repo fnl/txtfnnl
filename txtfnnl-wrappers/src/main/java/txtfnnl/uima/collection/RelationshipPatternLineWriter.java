@@ -38,8 +38,6 @@ import org.apache.uima.util.Level;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.AnalysisEngineFactory;
 
-import txtfnnl.uima.UIMAUtils;
-import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.KnownRelationshipAnnotator;
 import txtfnnl.uima.analysis_component.LinkGrammarAnnotator;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
@@ -51,8 +49,8 @@ import txtfnnl.utils.SetUtils;
 /**
  * A CAS consumer that writes plain-text lines, adding line separators after each relationship
  * pattern. TODO: documentation... XXX: this code is quite a mess... The AE works as expected, but
- * it could be simplified/refactored if it turns out the AE will be heavily used. This is not to be
- * considered "production code" - you have been warned...
+ * it has to be completely reworked if it turns out the AE will be used at all. This is not to be
+ * considered "serious code" - you have been warned...
  * 
  * @author Florian Leitner
  */
@@ -142,21 +140,13 @@ public final class RelationshipPatternLineWriter extends TextWriter {
    * @throws IOException
    * @throws UIMAException
    */
-  @SuppressWarnings("serial")
   public static AnalysisEngineDescription configure(final String relationshipNamespace,
       final File outputDirectory, final String encoding, final boolean printToStdout,
       final boolean overwriteFiles, final int maxPatternLength) throws UIMAException, IOException {
     return AnalysisEngineFactory.createPrimitiveDescription(RelationshipPatternLineWriter.class,
-        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-          {
-            put(PARAM_RELATIONSHIP_NAMESPACE, relationshipNamespace);
-            put(PARAM_OUTPUT_DIRECTORY, outputDirectory);
-            put(PARAM_ENCODING, encoding);
-            put(PARAM_PRINT_TO_STDOUT, printToStdout);
-            put(PARAM_OVERWRITE_FILES, overwriteFiles);
-            put(PARAM_MAX_PATTERN_LENGTH, maxPatternLength);
-          }
-        }));
+        PARAM_RELATIONSHIP_NAMESPACE, relationshipNamespace, PARAM_OUTPUT_DIRECTORY,
+        outputDirectory, PARAM_ENCODING, encoding, PARAM_PRINT_TO_STDOUT, printToStdout,
+        PARAM_OVERWRITE_FILES, overwriteFiles, PARAM_MAX_PATTERN_LENGTH, maxPatternLength);
   }
 
   /**
@@ -175,9 +165,9 @@ public final class RelationshipPatternLineWriter extends TextWriter {
   }
 
   /**
-   * For all annotated relationship sentences in the {@link Views.CONTENT_TEXT} view of a CAS,
-   * extract patterns expressing the syntactic relationships between the annotated entities using
-   * the annotated syntax tree for that sentence.
+   * For all annotated relationship sentences in the text view of a CAS, extract patterns
+   * expressing the syntactic relationships between the annotated entities using the annotated
+   * syntax tree for that sentence.
    */
   @Override
   public void process(CAS cas) throws AnalysisEngineProcessException {
@@ -185,8 +175,8 @@ public final class RelationshipPatternLineWriter extends TextWriter {
     CAS rawJCas;
     String documentId;
     try {
-      textJCas = cas.getView(Views.CONTENT_TEXT.toString()).getJCas();
-      rawJCas = cas.getView(Views.CONTENT_RAW.toString());
+      textJCas = cas.getView(textView).getJCas();
+      rawJCas = cas.getView(rawView);
       setStream(rawJCas);
       documentId = new File(new URI(rawJCas.getSofaDataURI()).getPath()).getName();
     } catch (final CASException e) {

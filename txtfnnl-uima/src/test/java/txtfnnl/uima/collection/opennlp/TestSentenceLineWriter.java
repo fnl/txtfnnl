@@ -40,7 +40,7 @@ public class TestSentenceLineWriter {
   @Test
   public void testInitializeUimaContext() throws UIMAException, IOException {
     final AnalysisEngine slw = AnalysisEngineFactory.createPrimitive(SentenceLineWriter
-        .configure());
+        .configure().create());
     for (final String p : new String[] { TextWriter.PARAM_OUTPUT_DIRECTORY,
         TextWriter.PARAM_ENCODING }) {
       Assert.assertNull("Parameter " + p + " does not default to null.",
@@ -60,7 +60,7 @@ public class TestSentenceLineWriter {
   @Test
   public void testProcessJCasToStdout() throws UIMAException, IOException {
     final AnalysisEngine slw = AnalysisEngineFactory.createPrimitive(SentenceLineWriter
-        .configure());
+        .configure().create());
     final ByteArrayOutputStream outputStream = processHelper(slw);
     final String result = SENTENCE_1.replace('\n', ' ').trim() +
         System.getProperty("line.separator") + SEPARATOR + System.getProperty("line.separator") +
@@ -70,8 +70,8 @@ public class TestSentenceLineWriter {
 
   @Test
   public void testProcessJCasDisableJoinLines() throws UIMAException, IOException {
-    final AnalysisEngine slw = AnalysisEngineFactory.createPrimitive(SentenceLineWriter.configure(
-        null, null, true, false, false, true));
+    final AnalysisEngine slw = AnalysisEngineFactory.createPrimitive(SentenceLineWriter
+        .configure().maintainNewlines().create());
     final String result = SENTENCE_1.trim() + System.getProperty("line.separator") + "  " +
         SEPARATOR + "  " + System.getProperty("line.separator") + SENTENCE_2.trim() +
         System.getProperty("line.separator");
@@ -84,8 +84,8 @@ public class TestSentenceLineWriter {
     final File tmpDir = IOUtils.mkTmpDir();
     final File existing = new File(tmpDir, "test.txt.txt");
     Assert.assertTrue(existing.createNewFile());
-    final AnalysisEngine slw = AnalysisEngineFactory.createPrimitive(SentenceLineWriter.configure(
-        tmpDir, "UTF-32", true, false, true, true));
+    final AnalysisEngine slw = AnalysisEngineFactory.createPrimitive(SentenceLineWriter
+        .configure().setOutputDirectory(tmpDir).setEncoding("UTF-32").create());
     final String result = SENTENCE_1.replace('\n', ' ').trim() +
         System.getProperty("line.separator") + SEPARATOR + System.getProperty("line.separator") +
         SENTENCE_2.replace('\n', ' ').trim() + System.getProperty("line.separator");

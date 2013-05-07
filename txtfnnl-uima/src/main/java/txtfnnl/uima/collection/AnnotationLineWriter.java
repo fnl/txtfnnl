@@ -22,7 +22,6 @@ import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
 
-import txtfnnl.uima.Views;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.tcas.TextAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
@@ -125,7 +124,7 @@ public class AnnotationLineWriter extends TextWriter {
     }
   }
 
-  public static Builder configureTodo() {
+  public static Builder configure() {
     return new Builder();
   }
 
@@ -145,8 +144,8 @@ public class AnnotationLineWriter extends TextWriter {
   public void process(CAS cas) throws AnalysisEngineProcessException {
     JCas textJCas;
     try {
-      textJCas = cas.getView(Views.CONTENT_TEXT.toString()).getJCas();
-      setStream(cas.getView(Views.CONTENT_RAW.toString()));
+      textJCas = cas.getView(textView).getJCas();
+      setStream(cas.getView(rawView));
     } catch (final CASException e) {
       throw new AnalysisEngineProcessException(e);
     } catch (final IOException e) {

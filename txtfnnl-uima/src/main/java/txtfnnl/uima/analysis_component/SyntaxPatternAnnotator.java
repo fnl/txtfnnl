@@ -11,8 +11,8 @@ import java.util.Set;
 import java.util.regex.PatternSyntaxException;
 
 import org.apache.uima.UimaContext;
+import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.cas.FSMatchConstraint;
 import org.apache.uima.cas.text.AnnotationIndex;
@@ -29,7 +29,6 @@ import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
 
 import txtfnnl.uima.AnalysisComponentBuilder;
-import txtfnnl.uima.Views;
 import txtfnnl.uima.pattern.SyntaxPattern;
 import txtfnnl.uima.resource.LineBasedStringArrayResource;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
@@ -93,9 +92,14 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
   private String defaultNamespace;
 
   public static class Builder extends AnalysisComponentBuilder {
-    Builder(ExternalResourceDescription patternResourceDescription) {
-      super(SyntaxPatternAnnotator.class);
+    protected Builder(Class<? extends AnalysisComponent> klass,
+        ExternalResourceDescription patternResourceDescription) {
+      super(klass);
       setRequiredParameter(MODEL_KEY_PATTERN_RESOURCE, patternResourceDescription);
+    }
+
+    Builder(ExternalResourceDescription patternResourceDescription) {
+      this(SyntaxPatternAnnotator.class, patternResourceDescription);
     }
 
     /** Remove {@link SentenceAnnotation SentenceAnnotations} that did not match to any pattern. */
@@ -256,12 +260,6 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
 
   @Override
   public void process(JCas jcas) throws AnalysisEngineProcessException {
-    // TODO: use default view
-    try {
-      jcas = jcas.getView(Views.CONTENT_TEXT.toString());
-    } catch (final CASException e) {
-      throw new AnalysisEngineProcessException(e);
-    }
     final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(jcas);
     final AnnotationIndex<Annotation> tokenIdx = jcas.getAnnotationIndex(TokenAnnotation.type);
     final FSMatchConstraint tokenConstraint = TokenAnnotation.makeConstraint(jcas, tokenNamespace);

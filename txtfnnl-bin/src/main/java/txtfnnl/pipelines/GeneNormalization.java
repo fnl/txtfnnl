@@ -2,7 +2,6 @@ package txtfnnl.pipelines;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.cli.CommandLine;
@@ -11,8 +10,6 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.uima.UIMAException;
-import org.apache.uima.resource.ExternalResourceDescription;
-import org.apache.uima.resource.ResourceInitializationException;
 
 import txtfnnl.uima.analysis_component.GeneAnnotator;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
@@ -53,6 +50,7 @@ public class GeneNormalization extends Pipeline {
   public static void main(String[] arguments) {
     final CommandLineParser parser = new PosixParser();
     final Options opts = new Options();
+    final String geneAnnotationNamespace = "gene";
     CommandLine cmd = null;
     Pipeline.addLogHelpAndInputOptions(opts);
     Pipeline.addTikaOptions(opts);
@@ -60,8 +58,7 @@ public class GeneNormalization extends Pipeline {
         DEFAULT_DATABASE);
     Pipeline.addOutputOptions(opts);
     // sentence splitter options
-    opts.addOption("S", "split-anywhere", false, "do not use newlines for splitting");
-    opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
+    Pipeline.addSentenceAnnotatorOptions(opts);
     // tokenizer options setup
     opts.addOption("G", "genia", true,
         "use GENIA (with the dir containing 'morphdic/') instead of OpenNLP");
@@ -75,75 +72,55 @@ public class GeneNormalization extends Pipeline {
     }
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl gn [options] <directory|files...>\n");
-    // sentence splitter
-    String splitSentences = "successive"; // S, s
-    if (cmd.hasOption('s')) {
-      splitSentences = "single";
-    } else if (cmd.hasOption('S')) {
-      splitSentences = null;
-    }
     // (GENIA) tokenizer
-    final String geniaDir = cmd.getOptionValue('G');
-    // query
+    final File geniaDir = cmd.getOptionValue('G') == null ? null : new File(
+        cmd.getOptionValue('G'));
+    // DB query used to fetch the gazetteer's entities
     final String querySql = cmd.hasOption('Q') ? cmd.getOptionValue('Q') : SQL_QUERY;
-    // DB resource
-    ExternalResourceDescription geneGazetteer = null;
+    // DB gazetteer resource setup
+    final String dbUrl = Pipeline.getJdbcUrl(cmd, l, DEFAULT_DB_PROVIDER, DEFAULT_DATABASE);
+    GnamedGazetteerResource.Builder gazetteer = null;
     try {
-      final String driverClass = cmd.getOptionValue('D', DEFAULT_JDBC_DRIVER);
-      Class.forName(driverClass);
-      // db url
-      final String dbHost = cmd.getOptionValue('H', "localhost");
-      final String dbProvider = cmd.getOptionValue('P', DEFAULT_DB_PROVIDER);
-      final String dbName = cmd.getOptionValue('d', DEFAULT_DATABASE);
-      final String dbUrl = String.format("jdbc:%s://%s/%s", dbProvider, dbHost, dbName);
-      l.log(Level.INFO, "JDBC URL: {0}", dbUrl);
       // create builder
-      GnamedGazetteerResource.Builder b = GnamedGazetteerResource.configure(dbUrl, driverClass,
-          querySql);
-      b.idMatching();
-      b.boundaryMatch();
-      // set username/password options
-      if (cmd.hasOption('u')) b.setUsername(cmd.getOptionValue('u'));
-      if (cmd.hasOption('p')) b.setPassword(cmd.getOptionValue('p'));
-      geneGazetteer = b.create();
-    } catch (final ResourceInitializationException e) {
-      System.err.println("JDBC resoruce setup failed:");
-      System.err.println(e.toString());
-      System.exit(1); // == EXIT ==
+      gazetteer = GnamedGazetteerResource.configure(dbUrl,
+          Pipeline.getJdbcDriver(cmd, DEFAULT_JDBC_DRIVER), querySql);
     } catch (final ClassNotFoundException e) {
       System.err.println("JDBC driver class unknown:");
       System.err.println(e.toString());
       System.exit(1); // == EXIT ==
     }
+    gazetteer.idMatching();
+    gazetteer.boundaryMatch();
+    Pipeline.configureAuthentication(cmd, gazetteer);
     // output
-    final String geneAnnotationNamespace = "gene";
-    AnnotationLineWriter.Builder writer = AnnotationLineWriter.configureTodo()
-        .setAnnotatorUri(GeneAnnotator.URI).setAnnotationNamespace(geneAnnotationNamespace)
+    AnnotationLineWriter.Builder writer = Pipeline.configureWriter(cmd,
+        AnnotationLineWriter.configure());
+    writer.setAnnotatorUri(GeneAnnotator.URI).setAnnotationNamespace(geneAnnotationNamespace)
         .printSurroundings().printPosTag();
-    writer.setEncoding(Pipeline.outputEncoding(cmd));
-    writer.setOutputDirectory(Pipeline.outputDirectory(cmd));
-    if (Pipeline.outputOverwriteFiles(cmd)) writer.overwriteFiles();
     try {
       // 0:tika, 1:splitter, 2:tokenizer, (3:NOOP), 4:gazetteer
       final Pipeline gn = new Pipeline(5);
       gn.setReader(cmd);
       gn.configureTika(cmd);
-      gn.set(1, SentenceAnnotator.configure(splitSentences));
+      gn.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
       if (geniaDir == null) {
-        gn.set(2, TokenAnnotator.configure());
-        // gn.set(4, BioLemmatizerAnnotator.configure());
-        gn.set(3, NOOPAnnotator.configure().create());
+        gn.set(2, Pipeline.textEngine(TokenAnnotator.configure().create()));
+        // TODO: lemmatization might not be needed?
+        // gn.set(3, Pipeline.textEngine(BioLemmatizerAnnotator.configure().create()));
+        gn.set(3, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
       } else {
-        gn.set(2, GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir)).create());
-        // the GENIA Tagger already lemmatizes; nothing to do
-        gn.set(3, NOOPAnnotator.configure().create());
+        GeniaTaggerAnnotator.Builder tagger = GeniaTaggerAnnotator.configure();
+        tagger.setDirectory(geniaDir);
+        gn.set(2, Pipeline.textEngine(tagger.create()));
+        // the GENIA Tagger already lemmatizes; nothing to do here
+        gn.set(3, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
       }
-      gn.set(
-          4,
-          GeneAnnotator.configure(geneAnnotationNamespace, geneGazetteer)
-              .setTextNamespace(SentenceAnnotator.NAMESPACE)
-              .setTextIdentifier(SentenceAnnotator.IDENTIFIER).create());
-      gn.setConsumer(writer.create());
+      GeneAnnotator.Builder geneAnnotator = GeneAnnotator.configure(geneAnnotationNamespace,
+          gazetteer.create());
+      geneAnnotator.setTextNamespace(SentenceAnnotator.NAMESPACE).setTextIdentifier(
+          SentenceAnnotator.IDENTIFIER);
+      gn.set(4, Pipeline.textEngine(geneAnnotator.create()));
+      gn.setConsumer(Pipeline.multiviewEngine(writer.create()));
       gn.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

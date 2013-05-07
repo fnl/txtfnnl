@@ -1,13 +1,9 @@
 package txtfnnl.uima.analysis_component;
 
-import java.io.IOException;
 import java.util.Collection;
 
-import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
@@ -16,13 +12,12 @@ import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
 import org.uimafit.component.JCasAnnotator_ImplBase;
-import org.uimafit.factory.AnalysisEngineFactory;
 
 import edu.ucdenver.ccp.nlp.biolemmatizer.BioLemmatizer;
 import edu.ucdenver.ccp.nlp.biolemmatizer.LemmataEntry;
 import edu.ucdenver.ccp.nlp.biolemmatizer.LemmataEntry.Lemma;
 
-import txtfnnl.uima.Views;
+import txtfnnl.uima.AnalysisComponentBuilder;
 import txtfnnl.uima.tcas.TokenAnnotation;
 
 /**
@@ -44,9 +39,15 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
   protected Logger logger;
   private BioLemmatizer lemmatizer;
 
-  /** Configure a BioLemmatizer AE description. */
-  public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-    return AnalysisEngineFactory.createPrimitiveDescription(BioLemmatizerAnnotator.class);
+  public static class Builder extends AnalysisComponentBuilder {
+    public Builder() {
+      super(BioLemmatizerAnnotator.class);
+    }
+  }
+
+  /** Configure a BioLemmatizer AE Builder. */
+  public static Builder configure() {
+    return new Builder();
   }
 
   /**
@@ -63,13 +64,6 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
 
   @Override
   public void process(JCas jcas) throws AnalysisEngineProcessException {
-    // TODO: use default view
-    final JCas base = jcas;
-    try {
-      jcas = jcas.getView(Views.CONTENT_TEXT.toString());
-    } catch (final CASException e) {
-      throw new AnalysisEngineProcessException(e);
-    }
     final FSIterator<Annotation> tokenIt = TokenAnnotation.getIterator(jcas);
     while (tokenIt.hasNext()) {
       final TokenAnnotation tokenAnn = (TokenAnnotation) tokenIt.next();
@@ -78,8 +72,7 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
       try {
         posTag = tokenAnn.getPos().toLowerCase();
       } catch (final NullPointerException ex) {
-        String msg = String
-            .format("token '%s' in %s has no PoS tag", token, base.getSofaDataURI());
+        String msg = String.format("token '%s' has no PoS tag", token);
         throw new AnalysisEngineProcessException(new AssertionError(msg));
       }
       tokenAnn.setStem(lemmatize(token, posTag));

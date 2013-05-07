@@ -2,6 +2,11 @@ package txtfnnl.uima;
 
 import txtfnnl.uima.tcas.TextAnnotation;
 
+/**
+ * A utility class to represent a text annotation as a unique instance with respect to a CAS view.
+ * 
+ * @author Florian Leitner
+ */
 public final class UniqueTextAnnotation {
   final int begin, end, code;
   final String ns, id, ann;

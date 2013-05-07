@@ -6,12 +6,9 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
-import java.util.HashMap;
 
-import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_component.AnalysisComponent;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CAS;
 import org.apache.uima.cas.CASException;
@@ -20,12 +17,8 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
-import org.uimafit.component.CasConsumer_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
-import org.uimafit.factory.AnalysisEngineFactory;
 
-import txtfnnl.uima.AnalysisComponentBuilder;
-import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.utils.IOUtils;
 
@@ -39,116 +32,62 @@ import txtfnnl.utils.IOUtils;
  * 
  * @author Florian Leitner
  */
-public class TextWriter extends CasConsumer_ImplBase {
-  /**
-   * Optional configuration parameter String that defines the path to a directory where the output
-   * files will be written. Note that the directory will be created if it does not exist.
-   */
-  public static final String PARAM_OUTPUT_DIRECTORY = "OutputDirectory";
-  @ConfigurationParameter(name = PARAM_OUTPUT_DIRECTORY)
-  protected File outputDirectory;
-  /**
-   * Force a particular output encoding. By default, the system's default encoding is used.
-   */
-  public static final String PARAM_ENCODING = "Encoding";
-  @ConfigurationParameter(name = PARAM_ENCODING)
-  protected String encoding;
-  /**
-   * Optional flag leading to the overwriting any existing files; defaults to <code>false</code>.
-   * <p>
-   * By inserting ".<b>n</b>" between the file name and its new suffix, the file name is made
-   * unique; otherwise the existing file is replaced (where <b>n</b> is the first positive integer
-   * that makes the file name "unique").
-   */
-  public static final String PARAM_OVERWRITE_FILES = "OverwriteFiles";
-  @ConfigurationParameter(name = PARAM_OVERWRITE_FILES, defaultValue = "false")
-  protected boolean overwriteFiles;
-  /**
-   * If <code>true</code>, the output will (also) be written to STDOUT. By default, text is not
-   * written to STDOUT.
-   */
-  public static final String PARAM_PRINT_TO_STDOUT = "PrintToStdout";
-  @ConfigurationParameter(name = PARAM_PRINT_TO_STDOUT, defaultValue = "false")
-  protected Boolean printToStdout;
-
-  public static class Builder extends AnalysisComponentBuilder {
-    protected Builder(Class<? extends AnalysisComponent> klass) {
-      super(klass);
-      setOptionalParameter(PARAM_PRINT_TO_STDOUT, true);
-    }
-
-    public Builder() {
-      super(TextWriter.class);
-      setOptionalParameter(PARAM_PRINT_TO_STDOUT, true);
-    }
-
-    public Builder setOutputDirectory(File outputDirectory) {
-      setOptionalParameter(PARAM_OUTPUT_DIRECTORY, outputDirectory);
-      if (outputDirectory == null) setOptionalParameter(PARAM_PRINT_TO_STDOUT, true);
-      else setOptionalParameter(PARAM_PRINT_TO_STDOUT, false);
-      return this;
-    }
-
-    public Builder setEncoding(String encoding) {
-      setOptionalParameter(PARAM_ENCODING, encoding);
-      return this;
-    }
-
-    public Builder overwriteFiles() {
-      setOptionalParameter(PARAM_OVERWRITE_FILES, true);
-      return this;
-    }
-  }
-
-  /**
-   * Configure a TextWriter descriptor.
-   * <p>
-   * Note that if the {@link #outputDirectory} is <code>null</code> and {@link #printToStdout} is
-   * <code>false</code>, a {@link ResourceInitializationException} will occur when creating the AE.
-   * 
-   * @param outputDirectory path to the output directory (or null)
-   * @param encoding encoding to use for writing (or null)
-   * @param printToStdout whether to print to STDOUT or not
-   * @param overwriteFiles whether to overwrite existing files or not
-   * @return a configured AE description
-   * @throws IOException
-   * @throws UIMAException
-   */
-  @SuppressWarnings("serial")
-  public static AnalysisEngineDescription configure(final File outputDirectory,
-      final String encoding, final boolean printToStdout, final boolean overwriteFiles)
-      throws UIMAException, IOException {
-    return AnalysisEngineFactory.createPrimitiveDescription(TextWriter.class,
-        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-          {
-            put(PARAM_OUTPUT_DIRECTORY, outputDirectory);
-            put(PARAM_ENCODING, encoding);
-            put(PARAM_PRINT_TO_STDOUT, printToStdout);
-            put(PARAM_OVERWRITE_FILES, overwriteFiles);
-          }
-        }));
-  }
-
-  /**
-   * Configure a default TextWriter descriptor for a pipeline. Writes to STDOUT using the system's
-   * default encoding.
-   * 
-   * @return a configured AE description
-   * @throws IOException
-   * @throws UIMAException
-   */
-  public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-    return TextWriter.configure(null, null, true, false);
-  }
-
+public class TextWriter extends OutputWriter {
+  /** The name of the raw view to expect. */
+  public static final String PARAM_RAW_VIEW = "RawViewName";
+  @ConfigurationParameter(name = PARAM_RAW_VIEW, mandatory = false)
+  protected String rawView = null;
+  /** The name of the text view to expect. */
+  public static final String PARAM_TEXT_VIEW = "TextViewName";
+  @ConfigurationParameter(name = PARAM_TEXT_VIEW, mandatory = false)
+  protected String textView = null;
   protected int counter; // to create "new" output file names if necessary
   protected Logger logger;
   protected Writer outputWriter;
+
+  public static class Builder extends OutputWriter.Builder {
+    protected Builder(Class<? extends AnalysisComponent> klass) {
+      super(klass);
+      setOptionalParameter(PARAM_PRINT_TO_STDOUT, Boolean.TRUE);
+    }
+
+    public Builder() {
+      this(TextWriter.class);
+    }
+    
+    /**
+     * (Re-) Set ("force") printing to STDOUT.
+     * <p>
+     * Only relevant if an output directory was set and the writer should still write to STDOUT,
+     * too.
+     */
+    public Builder printToStdout() {
+      setOptionalParameter(PARAM_PRINT_TO_STDOUT, Boolean.TRUE);
+      return this;
+    }
+
+    public Builder setRawView(String name) {
+      setOptionalParameter(PARAM_RAW_VIEW, name);
+      return this;
+    }
+
+    public Builder setTextView(String name) {
+      setOptionalParameter(PARAM_TEXT_VIEW, name);
+      return this;
+    }
+  }
+
+  /** Configure a default builder for writing the plain-text view of a SOFA. */
+  public static Builder configure() {
+    return new Builder();
+  }
 
   @Override
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
     logger = ctx.getLogger();
+    if (rawView == null) rawView = Views.CONTENT_RAW.toString();
+    if (textView == null) textView = Views.CONTENT_TEXT.toString();
     if (outputDirectory != null && (!outputDirectory.isDirectory() || !outputDirectory.canWrite()))
       throw new ResourceInitializationException(new IOException("'" +
           outputDirectory.getAbsolutePath() + "' not a writeable directory"));
@@ -192,23 +131,22 @@ public class TextWriter extends CasConsumer_ImplBase {
     JCas textJCas;
     CAS rawCas;
     try {
-      textJCas = cas.getView(Views.CONTENT_TEXT.toString()).getJCas();
-      rawCas = cas.getView(Views.CONTENT_RAW.toString());
+      textJCas = cas.getView(textView).getJCas();
+      rawCas = cas.getView(rawView);
     } catch (final CASException e) {
       throw new AnalysisEngineProcessException(e);
     }
     try {
       setStream(rawCas);
-      final String text = textJCas.getDocumentText();
       if (outputDirectory != null) {
         try {
-          outputWriter.write(text);
+          outputWriter.write(textJCas.getDocumentText());
         } catch (final IOException e) {
           throw new AnalysisEngineProcessException(e);
         }
       }
       if (printToStdout) {
-        System.out.print(text);
+        System.out.print(textJCas.getDocumentText());
       }
       unsetStream();
     } catch (final IOException e) {

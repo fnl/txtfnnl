@@ -18,7 +18,6 @@ import org.apache.uima.jcas.tcas.Annotation;
 import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 
-import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 
 public class TestSentenceAnnotator {
@@ -31,28 +30,30 @@ public class TestSentenceAnnotator {
 
   @Test
   public void testDestroy() throws UIMAException, IOException {
-    sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure());
+    sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure()
+        .create());
     sentenceAnnotator.destroy();
     Assert.assertTrue("success", true);
   }
 
   @Test
   public void testProcessCAS() throws UIMAException, IOException {
-    sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure());
+    sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure()
+        .create());
     processTest("This is one sentence.", " ");
   }
 
   @Test
   public void testNoLineSplitting() throws UIMAException, IOException {
-    sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure(null));
+    sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure()
+        .splitIgnoringNewlines().create());
     processTest("This is one sentence.", " ");
-    final JCas baseJCas = sentenceAnnotator.newJCas();
-    final JCas textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
+    final JCas jcas = sentenceAnnotator.newJCas();
     final String oneSentence = "This\tis\n\none sentence\nwritten\nover\tseveral\n\n\nlines.";
-    textJCas.setDocumentText(oneSentence);
-    sentenceAnnotator.process(baseJCas.getCas());
+    jcas.setDocumentText(oneSentence);
+    sentenceAnnotator.process(jcas.getCas());
     int count = 0;
-    final FSIterator<Annotation> it = SentenceAnnotation.getIterator(textJCas);
+    final FSIterator<Annotation> it = SentenceAnnotation.getIterator(jcas);
     while (it.hasNext()) {
       final SentenceAnnotation ann = (SentenceAnnotation) it.next();
       Assert.assertEquals(ann.getOffset().toString(), 0, ann.getBegin());
@@ -66,28 +67,28 @@ public class TestSentenceAnnotator {
   @Test
   public void testDefaultMultilineSplit() throws UIMAException, IOException {
     sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator
-        .configure("successive"));
+        .configure().splitOnSuccessiveNewlines().create());
     processTest("This is a closed sentence.", "\n\n");
   }
 
   @Test
   public void testMultilineSplit() throws UIMAException, IOException {
     sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator
-        .configure("successive"));
+        .configure().splitOnSuccessiveNewlines().create());
     processTest("This is an open sentence", "\n\t\n");
   }
 
   @Test
   public void testDefaultSingleLineSplit() throws UIMAException, IOException {
     sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator
-        .configure("single"));
+        .configure().splitOnSingleNewlines().create());
     processTest("This is a closed sentence.", "\n\n");
   }
 
   @Test
   public void testSingleLineSplit() throws UIMAException, IOException {
     sentenceAnnotator = AnalysisEngineFactory.createPrimitive(SentenceAnnotator
-        .configure("single"));
+        .configure().splitOnSingleNewlines().create());
     processTest("This is an open sentence", "\n");
   }
 
@@ -96,13 +97,12 @@ public class TestSentenceAnnotator {
     final Iterator<Integer> offsets = Arrays.asList(
         new Integer[] { 0, s1.length(), s1.length() + join.length(),
             s1.length() + s2.length() + join.length() }).iterator();
-    final JCas baseJCas = sentenceAnnotator.newJCas();
-    final JCas textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
-    textJCas.setDocumentText(s1 + join + s2);
-    sentenceAnnotator.process(baseJCas.getCas());
+    final JCas jcas = sentenceAnnotator.newJCas();
+    jcas.setDocumentText(s1 + join + s2);
+    sentenceAnnotator.process(jcas);
     int count = 0;
     int begin, end;
-    final FSIterator<Annotation> it = SentenceAnnotation.getIterator(textJCas);
+    final FSIterator<Annotation> it = SentenceAnnotation.getIterator(jcas);
     while (it.hasNext()) {
       final SentenceAnnotation ann = (SentenceAnnotation) it.next();
       begin = offsets.next();

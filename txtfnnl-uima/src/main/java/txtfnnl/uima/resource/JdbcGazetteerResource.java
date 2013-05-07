@@ -54,7 +54,8 @@ public class JdbcGazetteerResource extends AbstractGazetteerResource implements
   @ConfigurationParameter(name = PARAM_ISOLATION_LEVEL, mandatory = false, defaultValue = "-1")
   protected int isolationLevel;
 
-  public static class Builder extends AbstractGazetteerResource.Builder {
+  public static class Builder extends AbstractGazetteerResource.Builder implements
+      AuthenticationResourceBuilder {
     /** Protected constructor for inherited implementations. */
     protected Builder(Class<? extends SharedResourceObject> klass, String url, String driverClass,
         String querySql) {

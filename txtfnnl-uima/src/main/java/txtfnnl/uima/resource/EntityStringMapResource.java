@@ -3,10 +3,8 @@ package txtfnnl.uima.resource;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
-
-import org.uimafit.factory.ExternalResourceFactory;
+import org.apache.uima.resource.SharedResourceObject;
 
 /**
  * A resource providing a Set of {@link Entity Entities} mapped to a unique key (a String). An
@@ -23,29 +21,24 @@ import org.uimafit.factory.ExternalResourceFactory;
  * @author Florian Leitner
  */
 public class EntityStringMapResource extends LineBasedStringMapResource<Set<Entity>> {
-  /**
-   * Configure a new Entity String Map resource. In the case of a file, make sure that the (data)
-   * resource URL is prefixed with the "file:" schema prefix.
-   * 
-   * @param resourceUrl the URL where this resource is located
-   * @param separator the string used to separate the fields/elements (if <code>null</code>, use
-   *        default - see {@link #PARAM_SEPARATOR} )
-   */
-  public static ExternalResourceDescription configure(String resourceUrl, String separator) {
-    if (separator == null || "".equals(separator)) return ExternalResourceFactory
-        .createExternalResourceDescription(EntityStringMapResource.class, resourceUrl);
-    else return ExternalResourceFactory.createExternalResourceDescription(
-        EntityStringMapResource.class, resourceUrl, PARAM_SEPARATOR, separator);
+  public static class Builder extends LineBasedStringMapResource.Builder {
+    protected Builder(Class<? extends SharedResourceObject> klass, String url) {
+      super(klass, url);
+    }
+
+    public Builder(String resourceUrl) {
+      this(EntityStringMapResource.class, resourceUrl);
+    }
   }
 
   /**
-   * Configure a new Entity String Map resource using the default separator.
+   * Configure a new Entity String Map resource.
    * 
-   * @param resourceUrl the URL where this resource is located
-   * @return a configured resource description
+   * @param resourceUrl the URL where this resource is located (In the case of a file, make sure
+   *        that the (data) resource URL is prefixed with the "file:" schema prefix.)
    */
-  public static ExternalResourceDescription configure(String resourceUrl) {
-    return EntityStringMapResource.configure(resourceUrl, null);
+  public static Builder configure(String resourceUrl) {
+    return new Builder(resourceUrl);
   }
 
   /** Place the separated String items on the input stream into a Map. */

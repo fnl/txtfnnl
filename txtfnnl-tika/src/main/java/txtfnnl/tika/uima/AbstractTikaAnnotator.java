@@ -29,6 +29,7 @@ import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.html.HtmlParser;
 import org.apache.tika.parser.xml.XMLParser;
 import org.apache.uima.UimaContext;
+import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.jcas.JCas;
@@ -47,6 +48,7 @@ import txtfnnl.tika.sax.ElsevierXMLContentHandler;
 import txtfnnl.tika.sax.GreekLetterContentHandler;
 import txtfnnl.tika.sax.HTMLContentHandler;
 import txtfnnl.tika.sax.XMLContentHandler;
+import txtfnnl.uima.AnalysisComponentBuilder;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.DocumentAnnotation;
 
@@ -111,6 +113,27 @@ public abstract class AbstractTikaAnnotator extends JCasAnnotator_ImplBase {
   /** The output view name/SOFA produced by this AE. */
   private static final String outputView = Views.CONTENT_TEXT.toString();
 
+  public static class Builder extends AnalysisComponentBuilder {
+    protected Builder(Class<? extends AnalysisComponent> klass) {
+      super(klass);
+    }
+    
+    public Builder setEncoding(String encoding) {
+      setOptionalParameter(PARAM_ENCODING, encoding);
+      return this;
+    }
+    
+    public Builder setXmlHandlerClass(Class<? extends ContentHandler> klass) {
+      setOptionalParameter(PARAM_XML_HANDLER, (klass == null) ? null : klass.getName());
+      return this;
+    }
+    
+    public Builder normalizeGreek() {
+      setOptionalParameter(PARAM_NORMALIZE_GREEK_CHARACTERS, Boolean.TRUE);
+      return this;
+    }
+  }
+  
   @Override
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);

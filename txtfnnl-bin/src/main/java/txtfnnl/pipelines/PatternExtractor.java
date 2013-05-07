@@ -10,14 +10,15 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.uima.UIMAException;
+import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.resource.ExternalResourceDescription;
+import org.apache.uima.resource.ResourceInitializationException;
 
 import txtfnnl.uima.analysis_component.BioLemmatizerAnnotator;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
 import txtfnnl.uima.analysis_component.NOOPAnnotator;
 import txtfnnl.uima.analysis_component.SentenceFilter;
 import txtfnnl.uima.analysis_component.SyntaxPatternAnnotator;
-import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
 import txtfnnl.uima.collection.SemanticAnnotationWriter;
 import txtfnnl.uima.collection.SentenceLineWriter;
@@ -39,7 +40,7 @@ public class PatternExtractor extends Pipeline {
     throw new AssertionError("n/a");
   }
 
-  public static void main(String[] arguments) {
+  public static void main(String[] arguments) throws ResourceInitializationException {
     final CommandLineParser parser = new PosixParser();
     final Options opts = new Options();
     CommandLine cmd = null;
@@ -47,8 +48,7 @@ public class PatternExtractor extends Pipeline {
     Pipeline.addTikaOptions(opts);
     Pipeline.addOutputOptions(opts);
     // sentence splitter options
-    opts.addOption("S", "split-anywhere", false, "do not use newlines for splitting");
-    opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
+    Pipeline.addSentenceAnnotatorOptions(opts);
     // sentence filter options
     opts.addOption("f", "filter-sentences", true, "retain sentences using a file of regex matches");
     opts.addOption("F", "filter-remove", false, "filter removes sentences with matches");
@@ -68,17 +68,17 @@ public class PatternExtractor extends Pipeline {
     }
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl grep [options] -p <patterns> <directory|files...>\n");
-    // sentence splitter
-    String splitSentences = "successive"; // S, s
-    if (cmd.hasOption('s')) {
-      splitSentences = "single";
-    } else if (cmd.hasOption('S')) {
-      splitSentences = null;
-    }
     // sentence filter
-    final File sentenceFilterPatterns = cmd.hasOption('f') ? new File(cmd.getOptionValue('f'))
-        : null;
-    final boolean removingSentenceFilter = cmd.hasOption('F');
+    AnalysisEngineDescription sentenceFilter = null;
+    if (cmd.hasOption('f')) {
+      ExternalResourceDescription patternResource = LineBasedStringArrayResource.configure(
+          "file:" + new File(cmd.getOptionValue('f')).getAbsolutePath()).create();
+      SentenceFilter.Builder b = SentenceFilter.configure(patternResource);
+      if (cmd.hasOption('F')) b.removeMatches();
+      sentenceFilter = b.create();
+    } else {
+      sentenceFilter = NOOPAnnotator.configure().create();
+    }
     // (GENIA) tokenizer
     final String geniaDir = cmd.getOptionValue('G');
     // semantic patterns
@@ -92,9 +92,6 @@ public class PatternExtractor extends Pipeline {
     }
     // output (format)
     final boolean completeSentence = cmd.hasOption('c');
-    final String encoding = Pipeline.outputEncoding(cmd);
-    final File outputDirectory = Pipeline.outputDirectory(cmd);
-    final boolean overwriteFiles = Pipeline.outputOverwriteFiles(cmd);
     try {
       ExternalResourceDescription patternResource = LineBasedStringArrayResource.configure(
           "file:" + patterns.getCanonicalPath()).create();
@@ -102,25 +99,33 @@ public class PatternExtractor extends Pipeline {
       final Pipeline grep = new Pipeline(6);
       grep.setReader(cmd);
       grep.configureTika(cmd);
-      grep.set(1, SentenceAnnotator.configure(splitSentences));
-      if (sentenceFilterPatterns == null) grep.set(2, NOOPAnnotator.configure());
-      else grep.set(2, SentenceFilter.configure(sentenceFilterPatterns, removingSentenceFilter));
+      grep.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
+      grep.set(2, Pipeline.textEngine(sentenceFilter));
       if (geniaDir == null) {
-        grep.set(3, TokenAnnotator.configure());
-        grep.set(4, BioLemmatizerAnnotator.configure());
+        grep.set(3, Pipeline.textEngine(TokenAnnotator.configure().create()));
+        grep.set(4, Pipeline.textEngine(BioLemmatizerAnnotator.configure().create()));
       } else {
-        grep.set(3, GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir)).create());
+        grep.set(
+            3,
+            Pipeline.textEngine(GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir))
+                .create()));
         // the GENIA Tagger already lemmatizes; nothing to do
-        grep.set(4, NOOPAnnotator.configure());
+        grep.set(4, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
       }
       if (completeSentence) {
-        grep.set(5, SyntaxPatternAnnotator.configure(patternResource).removeUnmatched().create());
-        grep.setConsumer(SentenceLineWriter.configure(outputDirectory, encoding,
-            outputDirectory == null, overwriteFiles, true, false));
+        grep.set(
+            5,
+            Pipeline.textEngine(SyntaxPatternAnnotator.configure(patternResource)
+                .removeUnmatched().create()));
+        SentenceLineWriter.Builder writer = Pipeline.configureWriter(cmd,
+            SentenceLineWriter.configure());
+        grep.setConsumer(Pipeline.multiviewEngine(writer.create()));
       } else {
-        grep.set(5, SyntaxPatternAnnotator.configure(patternResource).create());
-        grep.setConsumer(SemanticAnnotationWriter.configure(outputDirectory, encoding,
-            outputDirectory == null, overwriteFiles, true, "\t"));
+        grep.set(5,
+            Pipeline.textEngine(SyntaxPatternAnnotator.configure(patternResource).create()));
+        SemanticAnnotationWriter.Builder writer = Pipeline.configureWriter(cmd,
+            SemanticAnnotationWriter.configure());
+        grep.setConsumer(Pipeline.multiviewEngine(writer.create()));
       }
       grep.run();
     } catch (final UIMAException e) {

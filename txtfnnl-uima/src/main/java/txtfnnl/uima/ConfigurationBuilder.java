@@ -16,6 +16,17 @@ import org.apache.uima.resource.metadata.MetaDataObject;
  * A Builder Pattern implementation to construct configuration parameter arrays for UIMA
  * {@link MetaDataObject MetaDataObjects} (ColectionReaders, AnalysisComponents, SharedResources,
  * etc.) used by the UIMAfit factories.
+ * <p>
+ * This represents the glue between the UIMAfit approach of having XML-free component configuration
+ * and the "convention over configuration"-approach followed by <b><code>txtfnnl</code></b> that
+ * makes it trivial to assemble configurable components for UIMA pipelines. Components have
+ * the exactly same pattern everywhere in this framework:
+ * <pre>
+ * import Component;
+ * Component.Builder componentBuilder = Component.configure(Object... requiredParameter);
+ * componentBuilder.setOptionalParamter(Object value).activateFlag(); // (component-dependent)
+ * MetaDataObject descriptor = componentBuilder.create();
+ * </pre>
  * 
  * @author Florian Leitner
  */

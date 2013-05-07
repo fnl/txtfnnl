@@ -15,6 +15,7 @@ import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
 import org.uimafit.component.JCasAnnotator_ImplBase;
+import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
 
 import txtfnnl.uima.AnalysisComponentBuilder;
@@ -38,6 +39,14 @@ public abstract class KnownEvidenceAnnotator<Evidence> extends JCasAnnotator_Imp
   public static final String MODEL_KEY_EVIDENCE_STRING_MAP = "KnownEvidence";
   @ExternalResource(key = MODEL_KEY_EVIDENCE_STRING_MAP)
   private LineBasedStringMapResource<Evidence> documentEvidenceMap;
+  /** The name of the raw view to expect. */
+  public static final String PARAM_RAW_VIEW = "RawViewName";
+  @ConfigurationParameter(name = PARAM_RAW_VIEW, mandatory = false)
+  private String rawView = null;
+  /** The name of the text view to expect. */
+  public static final String PARAM_TEXT_VIEW = "TextViewName";
+  @ConfigurationParameter(name = PARAM_TEXT_VIEW, mandatory = false)
+  private String textView = null;
   /** The logger for this Annotator. */
   Logger logger;
   int truePositives; // total TP count over all SOFAs
@@ -50,6 +59,16 @@ public abstract class KnownEvidenceAnnotator<Evidence> extends JCasAnnotator_Imp
       super(klass);
       setRequiredParameter(MODEL_KEY_EVIDENCE_STRING_MAP, documentEvidenceMapResource);
     }
+
+    public Builder setRawView(String name) {
+      setOptionalParameter(PARAM_RAW_VIEW, name);
+      return this;
+    }
+
+    public Builder setTextView(String name) {
+      setOptionalParameter(PARAM_TEXT_VIEW, name);
+      return this;
+    }
   }
 
   @Override
@@ -59,6 +78,8 @@ public abstract class KnownEvidenceAnnotator<Evidence> extends JCasAnnotator_Imp
     truePositives = 0;
     falseNegatives = 0;
     checksum = 0;
+    if (rawView == null) rawView = Views.CONTENT_RAW.toString();
+    if (textView == null) textView = Views.CONTENT_TEXT.toString();
     if (documentEvidenceMap.size() == 0) {
       logger.log(Level.WARNING, "no evidence strings loaded by the {0}", this.getClass()
           .getSimpleName());
@@ -87,10 +108,9 @@ public abstract class KnownEvidenceAnnotator<Evidence> extends JCasAnnotator_Imp
     JCas textCas;
     JCas rawCas;
     String documentId;
-    // TODO: use default view
     try {
-      textCas = jcas.getView(Views.CONTENT_TEXT.toString());
-      rawCas = jcas.getView(Views.CONTENT_RAW.toString());
+      textCas = jcas.getView(textView);
+      rawCas = jcas.getView(rawView);
       documentId = new File(new URI(rawCas.getSofaDataURI()).getPath()).getName();
     } catch (final CASException e) {
       throw new AnalysisEngineProcessException(e);

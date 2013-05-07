@@ -40,7 +40,8 @@ public class TestXmiWriter {
     if (testDir.exists()) {
       testDir.delete();
     }
-    fileSystemXmiConsumer = AnalysisEngineFactory.createPrimitive(XmiWriter.configure(testDir));
+    fileSystemXmiConsumer = AnalysisEngineFactory.createPrimitive(XmiWriter.configure(testDir)
+        .create());
     baseCas = fileSystemXmiConsumer.newCAS();
     rawCas = baseCas.createView(Views.CONTENT_RAW.toString());
     textCas = baseCas.createView(Views.CONTENT_TEXT.toString());
@@ -73,8 +74,8 @@ public class TestXmiWriter {
 
   @Test
   public void testFormatXmi() throws UnsupportedEncodingException, IOException, UIMAException {
-    fileSystemXmiConsumer = AnalysisEngineFactory.createPrimitive(XmiWriter.configure(testDir,
-        null, false, true, false));
+    fileSystemXmiConsumer = AnalysisEngineFactory.createPrimitive(XmiWriter.configure(testDir)
+        .create());
     rawCas.setSofaDataURI("file:/tmp/raw.ext", "text/plain");
     fileSystemXmiConsumer.process(baseCas);
     Assert.assertTrue("file " + outputFile.getAbsolutePath() + " does not exist",
@@ -91,8 +92,8 @@ public class TestXmiWriter {
     if (IOUtils.isMacOSX()) {
       enc = "UTF-8";
     }
-    fileSystemXmiConsumer = AnalysisEngineFactory.createPrimitive(XmiWriter.configure(testDir,
-        null, false, false, true));
+    fileSystemXmiConsumer = AnalysisEngineFactory.createPrimitive(XmiWriter.configure(testDir)
+        .create());
     baseCas = fileSystemXmiConsumer.newCAS();
     rawCas = baseCas.createView(Views.CONTENT_RAW.toString());
     textCas = baseCas.createView(Views.CONTENT_TEXT.toString());
@@ -110,8 +111,8 @@ public class TestXmiWriter {
 
   @Test
   public void testOverwriteFiles() throws IOException, UIMAException {
-    fileSystemXmiConsumer = AnalysisEngineFactory.createPrimitive(XmiWriter.configure(testDir,
-        null, true, false, false));
+    fileSystemXmiConsumer = AnalysisEngineFactory.createPrimitive(XmiWriter.configure(testDir)
+        .overwriteFiles().create());
     rawCas.setSofaDataURI("file:/tmp/raw.ext", "text/plain");
     Assert.assertTrue(outputFile.createNewFile());
     fileSystemXmiConsumer.process(baseCas);
@@ -132,12 +133,12 @@ public class TestXmiWriter {
 
   @Test
   public void testEncoding() throws UnsupportedEncodingException, IOException, UIMAException {
-    fileSystemXmiConsumer = AnalysisEngineFactory.createPrimitive(XmiWriter.configure(testDir,
-        "UTF-16", false, false, false));
+    fileSystemXmiConsumer = AnalysisEngineFactory.createPrimitive(XmiWriter.configure(testDir)
+        .setEncoding("UTF-16").create());
     rawCas.setSofaDataURI("file:/tmp/raw.ext", "text/plain");
     fileSystemXmiConsumer.process(baseCas);
     final String xml = IOUtils.read(new FileInputStream(outputFile), "UTF-16");
-    Assert.assertTrue(xml, xml.indexOf("<?xml version=\"1.0\"") == 0);
+    Assert.assertTrue(xml, xml.indexOf("<?xml version=\"1.1\" encoding=\"UTF-16\"") == 0);
     outputFile.delete();
   }
 }

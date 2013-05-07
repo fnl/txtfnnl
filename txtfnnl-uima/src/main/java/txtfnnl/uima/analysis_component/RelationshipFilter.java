@@ -1,15 +1,11 @@
 package txtfnnl.uima.analysis_component;
 
-import java.io.IOException;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
+import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.cas.FSMatchConstraint;
 import org.apache.uima.cas.text.AnnotationIndex;
@@ -23,10 +19,8 @@ import org.apache.uima.util.Logger;
 
 import org.uimafit.component.JCasAnnotator_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
-import org.uimafit.factory.AnalysisEngineFactory;
 
-import txtfnnl.uima.UIMAUtils;
-import txtfnnl.uima.Views;
+import txtfnnl.uima.AnalysisComponentBuilder;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
@@ -113,50 +107,106 @@ public class RelationshipFilter extends JCasAnnotator_ImplBase {
   @ConfigurationParameter(name = PARAM_REMOVE_MAPPED, defaultValue = "false")
   private boolean removeMapped;
 
-  /**
-   * Configure a new descriptor with a pattern file resource.
-   * 
-   * @param relAnnotator to check
-   * @param relNs to check
-   * @param relId to check
-   * @param entityAnnotator to regard
-   * @param entityNs to regard
-   * @param entityId to regard
-   * @param mappedAnnotator to require
-   * @param mappedNs to require
-   * @param mappedId to require
-   * @param separator between values in the patterns file
-   * @param removeMapped remove relationship annotations that have been mapped
-   * @return a configured AE description
-   * @throws UIMAException
-   * @throws IOException
-   */
-  @SuppressWarnings("serial")
-  public static AnalysisEngineDescription configure(final String relAnnotator, final String relNs,
-      final String relId, final String entityAnnotator, final String entityNs,
-      final String entityId, final String mappedAnnotator, final String mappedNs,
-      final String mappedId, final boolean removeMapped) throws UIMAException, IOException {
-    return AnalysisEngineFactory.createPrimitiveDescription(RelationshipFilter.class,
-        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-          {
-            put(PARAM_RELATIONSHIP_ANNOTATOR, relAnnotator);
-            put(PARAM_RELATIONSHIP_NAMESPACE, relNs);
-            put(PARAM_RELATIONSHIP_IDENTIFIER, relId);
-            put(PARAM_ENTITY_ANNOTATOR, entityAnnotator);
-            put(PARAM_ENTITY_NAMESPACE, entityNs);
-            put(PARAM_ENTITY_IDENTIFIER, entityId);
-            put(PARAM_MAPPED_ANNOTATOR, mappedAnnotator);
-            put(PARAM_MAPPED_NAMESPACE, mappedNs);
-            put(PARAM_MAPPED_IDENTIFIER, mappedId);
-            put(PARAM_REMOVE_MAPPED, removeMapped);
-          }
-        }));
+  public static class Builder extends AnalysisComponentBuilder {
+    protected Builder(Class<? extends AnalysisComponent> klass) {
+      super(klass);
+    }
+
+    public Builder() {
+      super(RelationshipFilter.class);
+    }
+
+    /**
+     * Only iterate over {@link RelationshipAnnotation relationships} from a particular annotator.
+     */
+    public Builder setRelationshipAnnotatorUri(String uri) {
+      setOptionalParameter(PARAM_RELATIONSHIP_ANNOTATOR, uri);
+      return this;
+    }
+
+    /**
+     * Only iterate over {@link RelationshipAnnotation relationships} with a particular namespace.
+     */
+    public Builder setRelationshipNamespace(String ns) {
+      setOptionalParameter(PARAM_RELATIONSHIP_NAMESPACE, ns);
+      return this;
+    }
+
+    /**
+     * Only iterate over {@link RelationshipAnnotation relationships} with a particular identifier.
+     */
+    public Builder setRelationshipIdentifier(String id) {
+      setOptionalParameter(PARAM_RELATIONSHIP_IDENTIFIER, id);
+      return this;
+    }
+
+    /**
+     * Only verify {@link RelationshipAnnotation#getTargets() target} {@link TextAnnotation
+     * entities} of {@link RelationshipAnnotation relationships} from a particular annotator.
+     */
+    public Builder setEntityAnnotatorUri(String uri) {
+      setOptionalParameter(PARAM_ENTITY_ANNOTATOR, uri);
+      return this;
+    }
+
+    /**
+     * Only verify {@link RelationshipAnnotation#getTargets() target} {@link TextAnnotation
+     * entities} of {@link RelationshipAnnotation relationships} with a particular namespace.
+     */
+    public Builder setEntityNamespace(String ns) {
+      setOptionalParameter(PARAM_ENTITY_NAMESPACE, ns);
+      return this;
+    }
+
+    /**
+     * Only verify {@link RelationshipAnnotation#getTargets() target} {@link TextAnnotation
+     * entities} of {@link RelationshipAnnotation relationships} with a particular identifier.
+     */
+    public Builder setEntityIdentifier(String id) {
+      setOptionalParameter(PARAM_ENTITY_IDENTIFIER, id);
+      return this;
+    }
+
+    /**
+     * Check for the inner, mapped {@link SemanticAnnotation annotations} in the
+     * {@link TextAnnotation entities} from a particular annotator only.
+     */
+    public Builder setMappingAnnotatorUri(String uri) {
+      setOptionalParameter(PARAM_MAPPED_ANNOTATOR, uri);
+      return this;
+    }
+
+    /**
+     * Check for the inner, mapped {@link SemanticAnnotation annotations} in the
+     * {@link TextAnnotation entities} with a particular namespace only.
+     */
+    public Builder setMappingNamespace(String ns) {
+      setOptionalParameter(PARAM_MAPPED_NAMESPACE, ns);
+      return this;
+    }
+
+    /**
+     * Check for the inner, mapped {@link SemanticAnnotation annotations} in the
+     * {@link TextAnnotation entities} with a particular identifier only.
+     */
+    public Builder setMappingIdentifier(String id) {
+      setOptionalParameter(PARAM_MAPPED_IDENTIFIER, id);
+      return this;
+    }
+
+    /**
+     * Invert the behavior and remove {@link RelationshipAnnotation relationships} that had a
+     * mapping.
+     */
+    public Builder removeMappedRelationships() {
+      setOptionalParameter(PARAM_REMOVE_MAPPED, Boolean.TRUE);
+      return this;
+    }
   }
 
-  /** Default configuration requires no parameters. */
-  public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-    return RelationshipFilter.configure(null, null, null, null, null, null, null, null, null,
-        false);
+  /** Configure a new builder. */
+  public static Builder configure() {
+    return new Builder();
   }
 
   @Override
@@ -171,12 +221,6 @@ public class RelationshipFilter extends JCasAnnotator_ImplBase {
 
   @Override
   public void process(JCas jcas) throws AnalysisEngineProcessException {
-    // TODO: use default view
-    try {
-      jcas = jcas.getView(Views.CONTENT_TEXT.toString());
-    } catch (final CASException e) {
-      throw new AnalysisEngineProcessException(e);
-    }
     RelationshipAnnotation rel;
     final FSMatchConstraint relCons = RelationshipAnnotation.makeConstraint(jcas,
         relationshipAnnotator, relationshipNamespace, relationshipIdentifier);

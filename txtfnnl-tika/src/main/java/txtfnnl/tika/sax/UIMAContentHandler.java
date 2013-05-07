@@ -39,10 +39,6 @@ public class UIMAContentHandler extends ContentHandlerDecorator {
   /** A logger for this handler. */
   private final Logger logger = UIMAFramework.getLogger(UIMAContentHandler.class);
 
-  // XXX: might create a content handler to normalize dash chars
-  /* static final char[] DASH_CHARS = new char[] { '\u2010', '\u2011',
-   * '\u2012', '\u2013', '\u2014', '\u2015', '\u2043', '\uFE58', '\uFE63',
-   * '\uFF0D', }; */
   /**
    * Decorative content handler for the given handler. Needs to have a view assigned first
    * (setView(JCas)) and should have an annotator URI set (setAnnotatorURI(String)).

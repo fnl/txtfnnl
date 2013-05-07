@@ -8,7 +8,6 @@ import java.util.Set;
 import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.cas.FSMatchConstraint;
 import org.apache.uima.jcas.JCas;
@@ -23,7 +22,6 @@ import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
 
 import txtfnnl.uima.AnalysisComponentBuilder;
-import txtfnnl.uima.Views;
 import txtfnnl.uima.resource.GazetteerResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
@@ -135,12 +133,6 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
 
   @Override
   public void process(JCas jcas) throws AnalysisEngineProcessException {
-    // TODO: use default view
-    try {
-      jcas = jcas.getView(Views.CONTENT_TEXT.toString());
-    } catch (final CASException e) {
-      throw new AnalysisEngineProcessException(e);
-    }
     String docText = jcas.getDocumentText();
     if (sourceNamespace == null) {
       Map<Offset, Set<String>> matches = matchText(docText);

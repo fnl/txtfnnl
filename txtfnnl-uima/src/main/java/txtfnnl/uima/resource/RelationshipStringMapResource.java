@@ -1,15 +1,12 @@
 package txtfnnl.uima.resource;
 
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
-
-import org.uimafit.factory.ExternalResourceFactory;
+import org.apache.uima.resource.SharedResourceObject;
 
 /**
  * A RelationshipStringMapResource provides Sets of {@link Entity Entities} mapped to a unique key
@@ -29,16 +26,24 @@ import org.uimafit.factory.ExternalResourceFactory;
  * @author Florian Leitner
  */
 public class RelationshipStringMapResource extends LineBasedStringMapResource<List<Set<Entity>>> {
-  public static ExternalResourceDescription configure(String resourceUrl, final String separator)
-      throws IOException {
-    if (separator == null || "".equals(separator)) return ExternalResourceFactory
-        .createExternalResourceDescription(RelationshipStringMapResource.class, resourceUrl);
-    else return ExternalResourceFactory.createExternalResourceDescription(
-        RelationshipStringMapResource.class, resourceUrl, PARAM_SEPARATOR, separator);
+  public static class Builder extends LineBasedStringMapResource.Builder {
+    protected Builder(Class<? extends SharedResourceObject> klass, String url) {
+      super(klass, url);
+    }
+
+    public Builder(String resourceUrl) {
+      this(EntityStringMapResource.class, resourceUrl);
+    }
   }
 
-  public static ExternalResourceDescription configure(String resourceUrl) throws IOException {
-    return RelationshipStringMapResource.configure(resourceUrl, null);
+  /**
+   * Configure a new Entity String Map resource.
+   * 
+   * @param resourceUrl the URL where this resource is located (In the case of a file, make sure
+   *        that the (data) resource URL is prefixed with the "file:" schema prefix.)
+   */
+  public static Builder configure(String resourceUrl) {
+    return new Builder(resourceUrl);
   }
 
   @Override

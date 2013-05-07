@@ -1,11 +1,8 @@
 package txtfnnl.uima.collection;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
 
-import org.apache.uima.UIMAException;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
+import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CAS;
 import org.apache.uima.cas.CASException;
@@ -14,9 +11,6 @@ import org.apache.uima.cas.text.AnnotationIndex;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
 
-import org.uimafit.factory.AnalysisEngineFactory;
-
-import txtfnnl.uima.UIMAUtils;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
@@ -42,40 +36,19 @@ import txtfnnl.uima.tcas.TokenAnnotation;
  * @author Florian Leitner
  */
 public final class TaggedSentenceLineWriter extends TextWriter {
-  /**
-   * Configure a TaggedSentenceLineWriter descriptor.
-   * 
-   * @param outputDirectory path to the output directory (or null)
-   * @param encoding encoding to use for writing (or null)
-   * @param printToStdout whether to print to STDOUT or not
-   * @param overwriteFiles whether to overwrite existing files or not
-   * @throws IOException
-   * @throws UIMAException
-   */
-  @SuppressWarnings("serial")
-  public static AnalysisEngineDescription configure(final File outputDirectory,
-      final String encoding, final boolean printToStdout, final boolean overwriteFiles)
-      throws UIMAException, IOException {
-    return AnalysisEngineFactory.createPrimitiveDescription(TaggedSentenceLineWriter.class,
-        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-          {
-            put(PARAM_OUTPUT_DIRECTORY, outputDirectory);
-            put(PARAM_ENCODING, encoding);
-            put(PARAM_PRINT_TO_STDOUT, printToStdout);
-            put(PARAM_OVERWRITE_FILES, overwriteFiles);
-          }
-        }));
+  public static class Builder extends TextWriter.Builder {
+    protected Builder(Class<? extends AnalysisComponent> klass) {
+      super(klass);
+    }
+
+    public Builder() {
+      this(TaggedSentenceLineWriter.class);
+    }
   }
 
-  /**
-   * Configure a default TaggedSentenceLineWriter descriptor. This consumer writes to STDOUT
-   * (only), using the system default encoding.
-   * 
-   * @throws IOException
-   * @throws UIMAException
-   */
-  public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-    return TaggedSentenceLineWriter.configure(null, null, true, false);
+  /** Configure a {@link TaggedSentenceLineWriter} description builder. */
+  public static Builder configure() {
+    return new Builder();
   }
 
   /**
@@ -85,8 +58,8 @@ public final class TaggedSentenceLineWriter extends TextWriter {
   public void process(CAS cas) throws AnalysisEngineProcessException {
     JCas textJCas;
     try {
-      textJCas = cas.getView(Views.CONTENT_TEXT.toString()).getJCas();
-      setStream(cas.getView(Views.CONTENT_RAW.toString()));
+      textJCas = cas.getView(textView).getJCas();
+      setStream(cas.getView(rawView));
     } catch (final CASException e) {
       throw new AnalysisEngineProcessException(e);
     } catch (final IOException e) {

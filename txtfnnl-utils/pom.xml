@@ -3,7 +3,7 @@
   <parent>
     <artifactId>txtfnnl</artifactId>
     <groupId>txtfnnl</groupId>
-    <version>0.3</version>
+    <version>0.4</version>
     <relativePath>..</relativePath>
   </parent>
   <artifactId>txtfnnl-utils</artifactId>

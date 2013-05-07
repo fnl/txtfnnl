@@ -13,10 +13,8 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.uima.UIMAException;
 import org.apache.uima.resource.ExternalResourceDescription;
+import org.apache.uima.resource.ResourceInitializationException;
 
-import org.uimafit.factory.AnalysisEngineFactory;
-
-import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.KnownEntityAnnotator;
 import txtfnnl.uima.collection.XmiWriter;
 import txtfnnl.utils.IOUtils;
@@ -78,22 +76,19 @@ public class EntityMentionAnnotator {
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl entities [options] <directory|files...>\n");
     // output options
-    final String encoding = Pipeline.outputEncoding(cmd);
-    final boolean overwriteFiles = Pipeline.outputOverwriteFiles(cmd);
     File outputDirectory = Pipeline.outputDirectory(cmd);
-    if (outputDirectory == null) {
-      outputDirectory = new File(System.getProperty("user.dir"));
-    }
+    if (outputDirectory == null) outputDirectory = new File(System.getProperty("user.dir"));
+    XmiWriter.Builder writer = Pipeline.configureWriter(cmd, XmiWriter.configure(outputDirectory));
     // DB resource
     ExternalResourceDescription jdbcResource = null;
     try {
-      jdbcResource = Pipeline.getJdbcResource(cmd, l, DEFAULT_JDBC_DRIVER, DEFAULT_DB_PROVIDER,
+      jdbcResource = Pipeline.getJdbcConnectionResource(cmd, l, DEFAULT_JDBC_DRIVER, DEFAULT_DB_PROVIDER,
           DEFAULT_DATABASE);
-    } catch (final IOException e) {
+    } catch (final ClassNotFoundException e) {
       System.err.println("JDBC resoruce setup failed:");
       System.err.println(e.toString());
       System.exit(1); // == EXIT ==
-    } catch (final ClassNotFoundException e) {
+    } catch (ResourceInitializationException e) {
       System.err.println("JDBC resoruce setup failed:");
       System.err.println(e.toString());
       System.exit(1); // == EXIT ==
@@ -113,7 +108,8 @@ public class EntityMentionAnnotator {
       }
       String[] fileQueries = null;
       try {
-        fileQueries = IOUtils.read(new FileInputStream(queryFile), encoding).split("\n");
+        fileQueries = IOUtils.read(new FileInputStream(queryFile), Pipeline.inputEncoding(cmd))
+            .split("\n");
       } catch (final Exception e) {
         System.err.print("cannot read query file ");
         System.err.print(queryFile);
@@ -141,15 +137,13 @@ public class EntityMentionAnnotator {
     }
     /* END entity annotator */
     try {
-      final Pipeline pipeline = new Pipeline(2); // tika and entity detector
+      final Pipeline pipeline = new Pipeline(2); // tika and known entity annotator
+      KnownEntityAnnotator.Builder builder = KnownEntityAnnotator.configure(namespace, queries,
+          entityMap, jdbcResource);
       pipeline.setReader(cmd);
       pipeline.configureTika(cmd);
-      pipeline.set(1, KnownEntityAnnotator.configure(namespace, queries, entityMap, jdbcResource));
-      // pipeline.set(1, AnalysisEngineFactory.createAnalysisEngine(
-      //     KnownEntityAnnotator.configure(namespace, queries, entityMap, jdbcResource),
-      //     Views.CONTENT_TEXT.toString()));
-      pipeline.setConsumer(XmiWriter.configure(outputDirectory, encoding, overwriteFiles, false,
-          true));
+      pipeline.set(1, Pipeline.multiviewEngine(builder.create()));
+      pipeline.setConsumer(Pipeline.multiviewEngine(writer.create()));
       pipeline.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

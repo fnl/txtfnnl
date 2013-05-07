@@ -1,31 +1,27 @@
 package txtfnnl.uima.analysis_component.opennlp;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.regex.Pattern;
 
 import opennlp.tools.sentdetect.SentenceDetectorME;
-import opennlp.tools.sentdetect.SentenceModel;
 import opennlp.tools.util.Span;
 import opennlp.uima.sentdetect.SentenceModelResource;
 import opennlp.uima.sentdetect.SentenceModelResourceImpl;
 
-import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
+import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
 import org.apache.uima.jcas.JCas;
-import org.apache.uima.resource.ResourceAccessException;
+import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
 import org.uimafit.component.JCasAnnotator_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
-import org.uimafit.factory.AnalysisEngineFactory;
+import org.uimafit.descriptor.ExternalResource;
 import org.uimafit.factory.ExternalResourceFactory;
 
+import txtfnnl.uima.AnalysisComponentBuilder;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 
@@ -43,11 +39,14 @@ import txtfnnl.uima.tcas.SentenceAnnotation;
  */
 public final class SentenceAnnotator extends JCasAnnotator_ImplBase {
   /** The annotator's URI (for the annotations) set by this AE. */
-  public static final String URI = "http://opennlp.apache.org";
+  public static final String URI = SentenceAnnotator.class.getName();
   /** The namespace used for all annotations. */
   public static final String NAMESPACE = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
   /** The identifier used for all annotations. */
   public static final String IDENTIFIER = "Sentence";
+  /** Regular expression to detect multiple/successive line-breaks. */
+  private static final Pattern SUCCESSIVE_LINEBREAKS = Pattern
+      .compile("(?:\\r?\\n[ \\u00a0\\t\\v\\f]*){2,}");
 
   public enum Split {
     SINGLE, SUCCESSIVE, DEFAULT;
@@ -72,61 +71,56 @@ public final class SentenceAnnotator extends JCasAnnotator_ImplBase {
   @ConfigurationParameter(name = PARAM_SPLIT_ON_NEWLINE)
   private String splitOnNewline;
   private Split splitting;
-  /** The name of the sentence model resource. */
-  private static final String RESOURCE_SENTENCE_MODEL = "SentenceModelResource";
-  /** The default sentence model file, as found in the jar. */
-  private static final File DEFAULT_SENTENCE_MODEL = new File("txtfnnl/opennlp/en_sent.bin");
+  /** The name of the (required) sentence model resource. */
+  public static final String RESOURCE_SENTENCE_MODEL = "SentenceModelResource";
+  @ExternalResource(key = RESOURCE_SENTENCE_MODEL)
+  private SentenceModelResource sentenceModel;
   /** The sentence detector that will be instantiated using the model. */
   private SentenceDetectorME sentenceDetector;
-  /** Regular expression to detect multiple/successive line-breaks. */
-  private static final Pattern SUCCESSIVE_LINEBREAKS = Pattern
-      .compile("(?:\\r?\\n[ \\u00a0\\t\\v\\f]*){2,}");
+  /** The default sentence model file, as found in the jar. */
+  static final String DEFAULT_SENTENCE_MODEL_URL = "file:txtfnnl/opennlp/en_sent.bin";
   private Logger logger;
 
-  /**
-   * Create this AE's descriptor for a pipeline.
-   * 
-   * @param modelFile containing the OpenNLP sentence segmentation model to use; this parameter is
-   *        <b>required</b>
-   * @param splitSentence "single", "successive", or any other value including <code>null</code>
-   *        (the default); see {@link #PARAM_SPLIT_ON_NEWLINE}
-   * @throws IOException
-   * @throws UIMAException
-   */
-  public static AnalysisEngineDescription configure(File modelFile, String splitSentences)
-      throws UIMAException, IOException {
-    AnalysisEngineDescription aed;
-    if (splitSentences == null) {
-      aed = AnalysisEngineFactory.createPrimitiveDescription(SentenceAnnotator.class);
-    } else {
-      aed = AnalysisEngineFactory.createPrimitiveDescription(SentenceAnnotator.class,
-          SentenceAnnotator.PARAM_SPLIT_ON_NEWLINE, splitSentences);
+  public static class Builder extends AnalysisComponentBuilder {
+    protected Builder(Class<? extends AnalysisComponent> klass) {
+      super(klass);
+      setModelResourceUrl(DEFAULT_SENTENCE_MODEL_URL);
     }
-    ExternalResourceFactory.createDependencyAndBind(aed, RESOURCE_SENTENCE_MODEL,
-        SentenceModelResourceImpl.class, "file:" + modelFile.getPath());
-    return aed;
+
+    Builder() {
+      this(SentenceAnnotator.class);
+    }
+
+    public Builder setModelResource(ExternalResourceDescription sentenceModelResourceDescription) {
+      setRequiredParameter(RESOURCE_SENTENCE_MODEL, sentenceModelResourceDescription);
+      return this;
+    }
+
+    public Builder setModelResourceUrl(String sentenceModelResourceUrl) {
+      setModelResource(ExternalResourceFactory.createExternalResourceDescription(
+          SentenceModelResourceImpl.class, sentenceModelResourceUrl));
+      return this;
+    }
+
+    public Builder splitOnSingleNewlines() {
+      setOptionalParameter(PARAM_SPLIT_ON_NEWLINE, Split.SINGLE.toString());
+      return this;
+    }
+
+    public Builder splitOnSuccessiveNewlines() {
+      setOptionalParameter(PARAM_SPLIT_ON_NEWLINE, Split.SUCCESSIVE.toString());
+      return this;
+    }
+
+    public Builder splitIgnoringNewlines() {
+      setOptionalParameter(PARAM_SPLIT_ON_NEWLINE, Split.DEFAULT.toString());
+      return this;
+    }
   }
 
-  /**
-   * Create this AE's descriptor for a pipeline using the default sentence model.
-   * 
-   * @param splitSentence "single", "successive", or any other value including <code>null</code>
-   *        (the default); see {@link #PARAM_SPLIT_ON_NEWLINE}
-   * @see SentenceAnnotator#configure(String, String)
-   */
-  public static AnalysisEngineDescription configure(String splitSentences) throws UIMAException,
-      IOException {
-    return SentenceAnnotator.configure(DEFAULT_SENTENCE_MODEL, splitSentences);
-  }
-
-  /**
-   * Create this AE's descriptor for a pipeline using the default sentence model, splitting
-   * sentences at every <i>single</i> newline (see {@link #PARAM_SPLIT_ON_NEWLINE}).
-   * 
-   * @see SentenceAnnotator#configure(String, String)
-   */
-  public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-    return SentenceAnnotator.configure("single");
+  /** Create this AE's builder for a pipeline. */
+  public static SentenceAnnotator.Builder configure() {
+    return new Builder();
   }
 
   /**
@@ -135,19 +129,8 @@ public final class SentenceAnnotator extends JCasAnnotator_ImplBase {
   @Override
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
-    SentenceModel model;
     logger = ctx.getLogger();
-    try {
-      final SentenceModelResource modelResource = (SentenceModelResource) ctx
-          .getResourceObject(RESOURCE_SENTENCE_MODEL);
-      model = modelResource.getModel();
-    } catch (final ResourceAccessException e) {
-      throw new ResourceInitializationException(e);
-    } catch (final NullPointerException e) {
-      throw new ResourceInitializationException(new AssertionError(
-          "sentence model resource not found"));
-    }
-    sentenceDetector = new SentenceDetectorME(model);
+    sentenceDetector = new SentenceDetectorME(sentenceModel.getModel());
     splitting = Split.parse(splitOnNewline);
     switch (splitting) {
     case SINGLE:
@@ -166,12 +149,6 @@ public final class SentenceAnnotator extends JCasAnnotator_ImplBase {
    */
   @Override
   public void process(JCas jcas) throws AnalysisEngineProcessException {
-    // TODO: use default view
-    try {
-      jcas = jcas.getView(Views.CONTENT_TEXT.toString());
-    } catch (final CASException e) {
-      throw new AnalysisEngineProcessException(e);
-    }
     String[] chunks;
     final String text = jcas.getDocumentText();
     switch (splitting) {

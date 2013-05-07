@@ -2,15 +2,13 @@ package txtfnnl.uima.collection;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
 
 import org.apache.tika.Tika;
-import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
 import org.apache.uima.cas.CAS;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.collection.CollectionException;
-import org.apache.uima.collection.CollectionReaderDescription;
+import org.apache.uima.collection.CollectionReader;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.resource.ResourceConfigurationException;
 import org.apache.uima.resource.ResourceInitializationException;
@@ -19,9 +17,8 @@ import org.apache.uima.util.ProgressImpl;
 
 import org.uimafit.component.CasCollectionReader_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
-import org.uimafit.factory.CollectionReaderFactory;
 
-import txtfnnl.uima.UIMAUtils;
+import txtfnnl.uima.CollectionReaderBuilder;
 import txtfnnl.uima.Views;
 
 /**
@@ -58,36 +55,29 @@ public class FileReader extends CasCollectionReader_ImplBase {
   private int counter = 0;
   private final Tika tika = new Tika(); // for the MIME type detection
 
-  /**
-   * Configure the CR descriptor.
-   * 
-   * @param filePaths the list of input files to read
-   * @param mimeType the MIME type to set for the input files
-   * @throws IOException
-   * @throws UIMAException
-   */
-  @SuppressWarnings("serial")
-  public static CollectionReaderDescription configure(final String[] filePaths,
-      final String mimeType) throws UIMAException, IOException {
-    return CollectionReaderFactory.createDescription(FileReader.class,
-        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-          {
-            put(PARAM_INPUT_FILES, filePaths);
-            put(PARAM_MIME_TYPE, mimeType);
-          }
-        }));
+  public static class Builder extends CollectionReaderBuilder {
+    protected Builder(Class<? extends CollectionReader> klass, String[] filePaths) {
+      super(klass);
+      setRequiredParameter(PARAM_INPUT_FILES, filePaths);
+    }
+
+    public Builder(String[] filePaths) {
+      this(FileReader.class, filePaths);
+    }
+
+    public Builder setMimeType(String mimeType) {
+      setOptionalParameter(PARAM_MIME_TYPE, mimeType);
+      return this;
+    }
   }
 
   /**
-   * Configure the CR descriptor to use Tika for detecting the MIME types.
+   * Configure the descriptor builder.
    * 
    * @param filePaths the list of input files to read
-   * @throws IOException
-   * @throws UIMAException
    */
-  public static CollectionReaderDescription configure(String[] filePaths) throws UIMAException,
-      IOException {
-    return FileReader.configure(filePaths, null);
+  public static Builder configure(final String[] filePaths) {
+    return new Builder(filePaths);
   }
 
   @Override

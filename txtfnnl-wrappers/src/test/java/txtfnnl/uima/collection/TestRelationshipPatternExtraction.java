@@ -40,6 +40,7 @@ import txtfnnl.uima.analysis_component.KnownEntityAnnotator;
 import txtfnnl.uima.analysis_component.KnownRelationshipAnnotator;
 import txtfnnl.uima.analysis_component.LinkGrammarAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
+import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
 
 @Ignore("probably will be killed...")
 public class TestRelationshipPatternExtraction {
@@ -83,7 +84,7 @@ public class TestRelationshipPatternExtraction {
   }
 
   void setUpSentenceAE() throws UIMAException, IOException {
-    sentenceAE = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure());
+    sentenceAE = AnalysisEngineFactory.createPrimitive(SentenceAnnotator.configure().create());
   }
 
   void setUpEntityAE() throws IOException, SQLException, UIMAException {
@@ -103,7 +104,7 @@ public class TestRelationshipPatternExtraction {
     entityDBStmt = entityDBConnection.prepareStatement("INSERT INTO entities VALUES(?, ?, ?)");
     entityAEDesc = KnownEntityAnnotator.configure("entity:",
         new String[] { "SELECT name FROM entities " + "WHERE ns=? AND id=?" }, entityMap,
-        dbConnectionUrl, "org.h2.Driver");
+        JdbcConnectionResourceImpl.configure(dbConnectionUrl, "org.h2.Driver").create()).create();
   }
 
   void setUpRelationshipAE() throws IOException, UIMAException {
@@ -111,8 +112,8 @@ public class TestRelationshipPatternExtraction {
     relationshipMap = File.createTempFile("relationship_map_", null);
     relationshipMap.deleteOnExit();
     relationshipTSVWriter = new BufferedWriter(new FileWriter(relationshipMap));
-    relationshipAEDesc = KnownRelationshipAnnotator.configure("entity:", "relationship:",
-        relationshipMap, true);
+    relationshipAEDesc = KnownRelationshipAnnotator.configure("relationship:", "entity:",
+        relationshipMap).create();
   }
 
   void setUpParserAE() throws UIMAException, IOException {

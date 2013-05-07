@@ -1,7 +1,5 @@
 package txtfnnl.uima.analysis_component.opennlp;
 
-import java.io.IOException;
-
 import opennlp.tools.chunker.ChunkerME;
 import opennlp.tools.postag.POSTaggerME;
 import opennlp.tools.tokenize.TokenizerME;
@@ -13,11 +11,9 @@ import opennlp.uima.postag.POSModelResourceImpl;
 import opennlp.uima.tokenize.TokenizerModelResource;
 import opennlp.uima.tokenize.TokenizerModelResourceImpl;
 
-import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
+import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
@@ -28,9 +24,9 @@ import org.apache.uima.util.Logger;
 
 import org.uimafit.component.JCasAnnotator_ImplBase;
 import org.uimafit.descriptor.ExternalResource;
-import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.factory.ExternalResourceFactory;
 
+import txtfnnl.uima.AnalysisComponentBuilder;
 import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
@@ -76,39 +72,43 @@ public class TokenAnnotator extends JCasAnnotator_ImplBase {
   private POSTaggerME posTagger;
   private ChunkerME chunker;
 
-  /**
-   * Configure a TokenAnnotator engine for a pipeline.
-   * 
-   * @param tokenModelFilePath should indicate the tokenization model file to use, e.g.,
-   *        "~/opennlp/models/en-token.bin"; should never be <code>null</code> or the empty string
-   * @param posModelFilePath should indicate the PoS tagger model file
-   * @param chunkModelFilePath should indicate the chunker model file
-   * @throws IOException
-   * @throws UIMAException
-   */
-  public static AnalysisEngineDescription configure(String tokenModelFilePath,
-      String posModelFilePath, String chunkModelFilePath) throws UIMAException, IOException {
-    final ExternalResourceDescription tokenModel = ExternalResourceFactory
-        .createExternalResourceDescription(TokenizerModelResourceImpl.class, tokenModelFilePath);
-    final ExternalResourceDescription posModel = ExternalResourceFactory
-        .createExternalResourceDescription(POSModelResourceImpl.class, posModelFilePath);
-    final ExternalResourceDescription chunkModel = ExternalResourceFactory
-        .createExternalResourceDescription(ChunkerModelResourceImpl.class, chunkModelFilePath);
-    final AnalysisEngineDescription aed = AnalysisEngineFactory.createPrimitiveDescription(
-        TokenAnnotator.class, RESOURCE_TOKEN_MODEL, tokenModel, RESOURCE_POS_MODEL, posModel,
-        RESOURCE_CHUNK_MODEL, chunkModel);
-    return aed;
+  public static class Builder extends AnalysisComponentBuilder {
+    protected Builder(Class<? extends AnalysisComponent> klass) {
+      super(klass);
+      setRequiredParameter(RESOURCE_TOKEN_MODEL,
+          ExternalResourceFactory.createExternalResourceDescription(
+              TokenizerModelResourceImpl.class, DEFAULT_TOKEN_MODEL_FILE));
+      setRequiredParameter(RESOURCE_POS_MODEL,
+          ExternalResourceFactory.createExternalResourceDescription(
+              POSModelResourceImpl.class, DEFAULT_POS_MODEL_FILE));
+      setRequiredParameter(RESOURCE_CHUNK_MODEL,
+          ExternalResourceFactory.createExternalResourceDescription(
+              ChunkerModelResourceImpl.class, DEFAULT_CHUNK_MODEL_FILE));
+    }
+
+    public Builder() {
+      this(TokenAnnotator.class);
+    }
+
+    public Builder setTokenizerModelResource(ExternalResourceDescription modelResource) {
+      setRequiredParameter(RESOURCE_TOKEN_MODEL, modelResource);
+      return this;
+    }
+
+    public Builder setPosTaggerModelResource(ExternalResourceDescription modelResource) {
+      setRequiredParameter(RESOURCE_POS_MODEL, modelResource);
+      return this;
+    }
+
+    public Builder setChunkerModelResource(ExternalResourceDescription modelResource) {
+      setRequiredParameter(RESOURCE_CHUNK_MODEL, modelResource);
+      return this;
+    }
   }
 
-  /**
-   * Configure the AE using the built-in (jar) model files.
-   * 
-   * @throws IOException
-   * @throws UIMAException
-   */
-  public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-    return TokenAnnotator.configure(DEFAULT_TOKEN_MODEL_FILE, DEFAULT_POS_MODEL_FILE,
-        DEFAULT_CHUNK_MODEL_FILE);
+  /** Configure the AE using the built-in (jar) model files. */
+  public static Builder configure() {
+    return new Builder();
   }
 
   @Override
@@ -127,12 +127,6 @@ public class TokenAnnotator extends JCasAnnotator_ImplBase {
    */
   @Override
   public void process(JCas jcas) throws AnalysisEngineProcessException {
-    // TODO: use default view
-    try {
-      jcas = jcas.getView(Views.CONTENT_TEXT.toString());
-    } catch (final CASException e) {
-      throw new AnalysisEngineProcessException(e);
-    }
     final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(jcas);
     int count = 0;
     while (sentenceIt.hasNext()) {

@@ -11,11 +11,14 @@ import java.util.Map;
 
 import org.apache.uima.resource.DataResource;
 import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.resource.SharedResourceObject;
 
 import org.uimafit.component.ExternalResourceAware;
 import org.uimafit.component.initialize.ConfigurationParameterInitializer;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.ExternalResourceFactory;
+
+import txtfnnl.uima.SharedResourceBuilder;
 
 /**
  * A generic implementation of a StringMapResource that reads data from a line-based stream with
@@ -40,6 +43,17 @@ public abstract class LineBasedStringMapResource<V> implements StringMapResource
   protected Map<String, V> resourceMap = new HashMap<String, V>();
   protected String line;
 
+  public static class Builder extends SharedResourceBuilder {
+    protected Builder(Class<? extends SharedResourceObject> klass, String url) {
+      super(klass, url);
+    }
+
+    public Builder setFieldSeparator(String sep) {
+      setOptionalParameter(PARAM_SEPARATOR, sep);
+      return this;
+    }
+  }
+  
   public void load(DataResource data) throws ResourceInitializationException {
     ConfigurationParameterInitializer.initialize(this, data);
     final URI uri = data.getUri();
@@ -81,7 +95,7 @@ public abstract class LineBasedStringMapResource<V> implements StringMapResource
   public V get(String key) {
     return resourceMap.get(key);
   }
-  
+
   public boolean containsKey(String key) {
     return resourceMap.containsKey(key);
   }

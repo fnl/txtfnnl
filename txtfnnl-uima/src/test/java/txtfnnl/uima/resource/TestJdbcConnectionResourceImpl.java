@@ -90,15 +90,15 @@ public class TestJdbcConnectionResourceImpl {
   }
 
   @Test
-  public void testConfigureComplete() throws IOException {
-    final String config = JdbcConnectionResourceImpl.configure("urlDummy", "driverDummy",
-        "userDummy", "passDummy", 999, "loginDummy", false).toString();
+  public void testConfigureComplete() throws IOException, ResourceInitializationException {
+    final String config = JdbcConnectionResourceImpl.configure("urlDummy", "driverDummy")
+        .setUsername("userDummy").setPassword("passDummy").setLoginTimeout(999).create()
+        .toString();
     Assert.assertTrue(config.contains("urlDummy"));
     Assert.assertTrue(config.contains("driverDummy"));
     Assert.assertTrue(config.contains("userDummy"));
     Assert.assertTrue(config.contains("passDummy"));
     Assert.assertTrue(config.contains("999"));
-    Assert.assertTrue(config.contains("loginDummy"));
   }
 
   @Test

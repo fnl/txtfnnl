@@ -20,7 +20,6 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 
-import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
 
@@ -35,7 +34,7 @@ public class TestTokenAnnotator {
 
   @Test
   public void testConfigure() throws UIMAException, IOException {
-    final AnalysisEngineDescription aed = TokenAnnotator.configure();
+    final AnalysisEngineDescription aed = TokenAnnotator.configure().create();
     aed.doFullValidation();
   }
 
@@ -53,16 +52,15 @@ public class TestTokenAnnotator {
 
   @Test
   public void testDestroy() throws ResourceInitializationException, UIMAException, IOException {
-    annotator = AnalysisEngineFactory.createPrimitive(TokenAnnotator.configure());
+    annotator = AnalysisEngineFactory.createPrimitive(TokenAnnotator.configure().create());
     annotator.destroy();
     Assert.assertTrue("success", true);
   }
 
   @Test
   public void testProcess() throws UIMAException, IOException {
-    annotator = AnalysisEngineFactory.createPrimitive(TokenAnnotator.configure());
-    final JCas baseJCas = annotator.newJCas();
-    jcas = baseJCas.createView(Views.CONTENT_TEXT.toString());
+    annotator = AnalysisEngineFactory.createPrimitive(TokenAnnotator.configure().create());
+    jcas = annotator.newJCas();
     final String text = "This is a nice sentence. And this is another one.";
     final int[] beginPositions = { 0, 5, 8, 10, 15, 23, 25, 29, 34, 37, 45, 48 };
     final int[] endPositions = { 4, 7, 9, 14, 23, 24, 28, 33, 36, 44, 48, 49 };
@@ -93,7 +91,7 @@ public class TestTokenAnnotator {
     jcas.setDocumentText(text);
     addSentence(0, 24);
     addSentence(25, 49);
-    annotator.process(baseJCas.getCas());
+    annotator.process(jcas);
     int count = 0;
     final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(jcas);
     final AnnotationIndex<Annotation> annIdx = jcas.getAnnotationIndex(TokenAnnotation.type);

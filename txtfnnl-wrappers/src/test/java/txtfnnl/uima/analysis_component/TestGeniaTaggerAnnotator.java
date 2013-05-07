@@ -8,12 +8,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.powermock.api.easymock.PowerMock;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import org.easymock.EasyMock;
-
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -22,15 +16,18 @@ import org.junit.runner.RunWith;
 
 import org.apache.uima.analysis_engine.AnalysisEngine;
 import org.apache.uima.analysis_engine.AnalysisEngineDescription;
-import org.apache.uima.impl.ChildUimaContext_impl;
+import org.apache.uima.impl.RootUimaContext_impl;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
+import org.easymock.EasyMock;
+import org.powermock.api.easymock.PowerMock;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 
-import txtfnnl.uima.Views;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator.Builder;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 
@@ -38,7 +35,7 @@ import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
  * @author Florian Leitner
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ GeniaTaggerAnnotator.class, GeniaTagger.class, ChildUimaContext_impl.class,
+@PrepareForTest({ GeniaTaggerAnnotator.class, GeniaTagger.class, RootUimaContext_impl.class,
     AnalysisEngineFactory.class })
 public class TestGeniaTaggerAnnotator {
   Builder aeBuilder;
@@ -48,7 +45,7 @@ public class TestGeniaTaggerAnnotator {
     DisableLogging.disableLogging();
     aeBuilder = GeniaTaggerAnnotator.configure();
   }
-  
+
   @After
   public void tearDown() {
     DisableLogging.enableLogging(java.util.logging.Level.WARNING);
@@ -87,7 +84,7 @@ public class TestGeniaTaggerAnnotator {
     PowerMock.replay(tagger, GeniaTagger.class);
     PowerMock.replay(logger, Logger.class);
     AnalysisEngineDescription description = aeBuilder.setDirectory(dictionariesPath).create();
-    AnalysisEngineFactory.createAnalysisEngine(description, Views.CONTENT_TEXT.toString());
+    AnalysisEngineFactory.createPrimitive(description);
     PowerMock.verify(tagger, GeniaTagger.class);
     PowerMock.verify(logger, Logger.class);
   }
@@ -108,15 +105,13 @@ public class TestGeniaTaggerAnnotator {
     PowerMock.replay(tagger, GeniaTagger.class);
     PowerMock.replay(logger, Logger.class);
     AnalysisEngineDescription description = aeBuilder.setDirectory(dictionariesPath).create();
-    AnalysisEngine geniaAE = AnalysisEngineFactory.createAnalysisEngine(description,
-        Views.CONTENT_TEXT.toString());
+    AnalysisEngine geniaAE = AnalysisEngineFactory.createPrimitive(description);
     AnalysisEngine sentenceAE = AnalysisEngineFactory.createPrimitive(SentenceAnnotator
-        .configure());
-    JCas baseJCas = sentenceAE.newJCas();
-    JCas textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
-    textJCas.setDocumentText(sentence);
-    sentenceAE.process(baseJCas);
-    geniaAE.process(baseJCas);
+        .configure().create());
+    JCas jcas = sentenceAE.newJCas();
+    jcas.setDocumentText(sentence);
+    sentenceAE.process(jcas);
+    geniaAE.process(jcas);
     PowerMock.verify(tagger, GeniaTagger.class);
     PowerMock.verify(logger, Logger.class);
   }
@@ -139,29 +134,27 @@ public class TestGeniaTaggerAnnotator {
     PowerMock.replay(tagger, GeniaTagger.class);
     PowerMock.replay(logger, Logger.class);
     AnalysisEngineDescription description = aeBuilder.setDirectory(dictionariesPath).create();
-    AnalysisEngine geniaAE = AnalysisEngineFactory.createAnalysisEngine(description,
-        Views.CONTENT_TEXT.toString());
+    AnalysisEngine geniaAE = AnalysisEngineFactory.createPrimitive(description);
     AnalysisEngine sentenceAE = AnalysisEngineFactory.createPrimitive(SentenceAnnotator
-        .configure());
-    JCas baseJCas = sentenceAE.newJCas();
-    JCas textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());
-    textJCas.setDocumentText(sentence);
-    sentenceAE.process(baseJCas);
-    geniaAE.process(baseJCas);
+        .configure().create());
+    JCas jcas = sentenceAE.newJCas();
+    jcas.setDocumentText(sentence);
+    sentenceAE.process(jcas);
+    geniaAE.process(jcas);
     PowerMock.verify(tagger, GeniaTagger.class);
     PowerMock.verify(logger, Logger.class);
   }
-  
+
   private void mockTagger(GeniaTagger tagger, File dictionariesPath, Logger logger)
       throws Exception, IOException {
-    PowerMock.stub(PowerMock.method(ChildUimaContext_impl.class, "getLogger")).toReturn(logger);
+    PowerMock.stub(PowerMock.method(RootUimaContext_impl.class, "getLogger")).toReturn(logger);
     PowerMock.expectNew(GeniaTagger.class, dictionariesPath.getCanonicalPath(), logger).andReturn(
         tagger);
+    logger.log(Level.INFO, "initialized GENIA tagger");
     logger.logrb(Level.CONFIG,
         "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl", "initialize",
         "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_init_begin__CONFIG",
         "txtfnnl.uima.analysis_component.GeniaTaggerAnnotator");
-    logger.log(Level.INFO, "initialized GENIA tagger");
     logger.logrb(Level.CONFIG,
         "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl", "initialize",
         "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_init_successful__CONFIG",
@@ -170,12 +163,28 @@ public class TestGeniaTaggerAnnotator {
 
   private void mockProcess(String sentence, List<Token> result, GeniaTagger tagger, Logger logger)
       throws IOException {
+    EasyMock.expect(tagger.process(sentence)).andReturn(result);
+    logger.log(Level.FINE, "annotated {0} tokens", result.size());
+    logger.log(Level.INFO, "no newline-based splitting");
+    logger.logrb(Level.CONFIG,
+        "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl", "initialize",
+        "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_init_begin__CONFIG",
+        "txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator");
+    logger.logrb(Level.CONFIG,
+        "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl", "initialize",
+        "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_init_successful__CONFIG",
+        "txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator");
+    logger.logrb(Level.FINE, "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl",
+        "process", "org.apache.uima.impl.log_messages",
+        "UIMA_analysis_engine_process_begin__FINE",
+        "txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator");
+    logger.logrb(Level.FINE, "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl",
+        "process", "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_process_end__FINE",
+        "txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator");
     logger.logrb(Level.FINE, "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl",
         "process", "org.apache.uima.impl.log_messages",
         "UIMA_analysis_engine_process_begin__FINE",
         "txtfnnl.uima.analysis_component.GeniaTaggerAnnotator");
-    EasyMock.expect(tagger.process(sentence)).andReturn(result);
-    logger.log(Level.FINE, "annotated {0} tokens", result.size());
     logger.logrb(Level.FINE, "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl",
         "process", "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_process_end__FINE",
         "txtfnnl.uima.analysis_component.GeniaTaggerAnnotator");

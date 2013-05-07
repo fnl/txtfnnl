@@ -4,7 +4,7 @@
 	<parent>
 		<artifactId>txtfnnl</artifactId>
 		<groupId>txtfnnl</groupId>
-		<version>0.3</version>
+		<version>0.4</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<artifactId>txtfnnl-wrappers</artifactId>
@@ -26,7 +26,7 @@ Currently supported tools are:
     <dependency>
     	<groupId>txtfnnl</groupId>
     	<artifactId>txtfnnl-uima</artifactId>
-    	<version>0.3</version>
+    	<version>0.4</version>
     </dependency>
 		<dependency>
 			<groupId>org.uimafit</groupId>
@@ -62,7 +62,7 @@ Currently supported tools are:
     <dependency>
     	<groupId>txtfnnl</groupId>
     	<artifactId>txtfnnl-utils</artifactId>
-    	<version>0.3</version>
+    	<version>0.4</version>
     </dependency>
 	</dependencies>
   <build>

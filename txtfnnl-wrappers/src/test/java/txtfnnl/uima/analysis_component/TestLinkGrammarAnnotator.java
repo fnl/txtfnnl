@@ -53,7 +53,7 @@ public class TestLinkGrammarAnnotator {
     PowerMock.createPartialMock(JCasImpl.class, "addFsToIndexes");
     if (sentenceAnnotator == null)
       sentenceAnnotator = AnalysisEngineFactory.createAnalysisEngine(
-          SentenceAnnotator.configure(), Views.CONTENT_TEXT.toString());
+          SentenceAnnotator.configure().create(), Views.CONTENT_TEXT.toString());
     aeBuilder = LinkGrammarAnnotator.configure();
     baseJCas = sentenceAnnotator.newJCas();
     textJCas = baseJCas.createView(Views.CONTENT_TEXT.toString());

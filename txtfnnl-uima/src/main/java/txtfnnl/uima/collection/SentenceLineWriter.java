@@ -1,26 +1,19 @@
 package txtfnnl.uima.collection;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.regex.Pattern;
 
-import org.apache.uima.UIMAException;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
+import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CAS;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
-import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
-import org.uimafit.factory.AnalysisEngineFactory;
 
-import txtfnnl.uima.UIMAUtils;
-import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 
 /**
@@ -46,6 +39,10 @@ public class SentenceLineWriter extends TextWriter {
   public static final String PARAM_REPLACE_NEWLINES = "ReplaceNewlines";
   @ConfigurationParameter(name = PARAM_REPLACE_NEWLINES, defaultValue = "true")
   private Boolean replaceNewlines;
+  /** In addition to the sentences, write out all content between them, too (default: true). */
+  public static final String PARAM_INCLUDE_ALL_CONTENT = "IncludeNonSentenceContent";
+  @ConfigurationParameter(name = PARAM_INCLUDE_ALL_CONTENT, defaultValue = "true")
+  private boolean includeAllContent;
   // all space characters including the Unicode spaces (U+00A0 (&nbs;), and
   // the space chars in
   // U+2000 to U+200A, plus U+202F (narrow no-break space), U+205F (medium
@@ -59,71 +56,44 @@ public class SentenceLineWriter extends TextWriter {
   static final Pattern REGEX_LINEBREAK_SPACE = Pattern.compile("(\\r?\\n) ");
   static final Pattern REGEX_SINGLE_LINEBREAK = Pattern.compile("(?<!\\r?\\n)\\r?\\n(?!\\r?\\n)");
   static final String LINEBREAK = System.getProperty("line.separator");
-  /** In addition to the sentences, write out all content between them, too (default: true). */
-  public static final String PARAM_INCLUDE_ALL_CONTENT = "IncludeNonSentenceContent";
-  @ConfigurationParameter(name = PARAM_INCLUDE_ALL_CONTENT, defaultValue = "true")
-  private boolean includeAllContent;
 
-  /**
-   * Configure a SentenceLineWriter description. Note that if the {@link #outputDirectory} is
-   * <code>null</code> and {@link #printToStdout} is <code>false</code>, a
-   * {@link ResourceInitializationException} will occur when creating the AE.
-   * 
-   * @param outputDirectory path to the output directory (or null)
-   * @param encoding encoding to use for the text (or null)
-   * @param printToStdout whether to print to STDOUT or not
-   * @param overwriteFiles whether to overwrite existing files or not
-   * @param replaceNewlines whether to replace <i>single</i> line-breaks in sentences with
-   *        white-spaces and trim consecutive spaces or not
-   * @param includeContent add content between sentences to the output
-   * @return a configured AE description
-   * @throws IOException
-   * @throws UIMAException
-   */
-  @SuppressWarnings("serial")
-  public static AnalysisEngineDescription configure(final File outputDirectory,
-      final String encoding, final boolean printToStdout, final boolean overwriteFiles,
-      final boolean replaceNewlines, final boolean includeContent) throws UIMAException,
-      IOException {
-    return AnalysisEngineFactory.createPrimitiveDescription(SentenceLineWriter.class,
-        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-          {
-            put(PARAM_OUTPUT_DIRECTORY, outputDirectory);
-            put(PARAM_ENCODING, encoding);
-            put(PARAM_PRINT_TO_STDOUT, printToStdout);
-            put(PARAM_OVERWRITE_FILES, overwriteFiles);
-            put(PARAM_REPLACE_NEWLINES, replaceNewlines);
-            put(PARAM_INCLUDE_ALL_CONTENT, includeContent);
-          }
-        }));
+  public static class Builder extends TextWriter.Builder {
+    protected Builder(Class<? extends AnalysisComponent> klass) {
+      super(klass);
+    }
+
+    public Builder() {
+      this(SentenceLineWriter.class);
+    }
+
+    /** Do not replace newline characters within sentences with spaces. */
+    public Builder maintainNewlines() {
+      setOptionalParameter(PARAM_REPLACE_NEWLINES, Boolean.FALSE);
+      return this;
+    }
+
+    /**
+     * Do not write content between sentences.
+     * <p>
+     * By default, content between sentences is written on separate lines.
+     */
+    public Builder excludeOtherContent() {
+      setOptionalParameter(PARAM_INCLUDE_ALL_CONTENT, Boolean.FALSE);
+      return this;
+    }
   }
 
-  /**
-   * Configure a SentenceLineWriter description using all defaults. Defaults:
-   * <ul>
-   * <li>outputDirectory=<code>null</code> (instead, print to STDOUT)</li>
-   * <li>encoding=<code>null</code> (i.e., use system default)</li>
-   * <li>printToStdout=<code>true</code></li>
-   * <li>overwriteFiles=<code>false</code></li>
-   * <li>replaceNewlines=<code>true</code></li>
-   * <li>includeContent=<code>true</code></li>
-   * </ul>
-   * 
-   * @see #configure(File, String, boolean, boolean, boolean)
-   * @return a configured AE description
-   * @throws IOException
-   * @throws UIMAException
-   */
-  public static AnalysisEngineDescription configure() throws UIMAException, IOException {
-    return SentenceLineWriter.configure(null, null, true, false, true, true);
+  /** Configure a {@link SentenceLineWriter} description builder. */
+  public static Builder configure() {
+    return new Builder();
   }
 
   @Override
   public void process(CAS cas) throws AnalysisEngineProcessException {
     JCas textJCas;
     try {
-      textJCas = cas.getView(Views.CONTENT_TEXT.toString()).getJCas();
-      setStream(cas.getView(Views.CONTENT_RAW.toString()));
+      textJCas = cas.getView(textView).getJCas();
+      setStream(cas.getView(rawView));
     } catch (final CASException e) {
       throw new AnalysisEngineProcessException(e);
     } catch (final IOException e) {

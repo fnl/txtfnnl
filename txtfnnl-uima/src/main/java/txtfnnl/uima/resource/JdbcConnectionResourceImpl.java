@@ -1,14 +1,11 @@
 package txtfnnl.uima.resource;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.HashMap;
 
 import org.apache.uima.UIMAFramework;
 import org.apache.uima.resource.DataResource;
-import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.SharedResourceObject;
 import org.apache.uima.util.Level;
@@ -20,7 +17,6 @@ import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.ExternalResourceFactory;
 
 import txtfnnl.uima.SharedResourceBuilder;
-import txtfnnl.uima.UIMAUtils;
 
 /**
  * A JDBC resource to interface with arbitrary databases. Any DB that has a JDBC driver can be used
@@ -89,7 +85,7 @@ public class JdbcConnectionResourceImpl implements JdbcConnectionResource, Exter
   protected int isolationLevel;
   protected Logger logger = null;
 
-  public static class Builder extends SharedResourceBuilder {
+  public static class Builder extends SharedResourceBuilder implements AuthenticationResourceBuilder {
     protected Builder(Class<? extends SharedResourceObject> klass, String url, String driverClass) {
       super(klass, url);
       setRequiredParameter(PARAM_DRIVER_CLASS, driverClass);
@@ -160,87 +156,6 @@ public class JdbcConnectionResourceImpl implements JdbcConnectionResource, Exter
     return new Builder(databaseUrl, driverClassName);
   }
 
-  /**
-   * Configure a JDBC Connection Resource.
-   * 
-   * @param connectionUrl the JDBC URL to connect to ("<code>jdbc:</code> <i>[provider]</i>
-   *        <code>://</code><i>[host[:port]]</i> <code>/</code><i>[database]</i>")
-   * @param driverClass the driver's class name to use (see {@link #PARAM_DRIVER_CLASS})
-   * @param username the username to use (optional)
-   * @param password the password to use (optional)
-   * @param loginTimeout seconds before timing out the connection (optional)
-   * @param isolationLevel an isolation level name (see {@link #PARAM_ISOLATION_LEVEL}, optional)
-   * @param readOnly if <code>false</code>, the resulting connections can be used to write to the
-   *        DB
-   * @return a configured descriptor
-   * @throws IOException
-   */
-  @SuppressWarnings("serial")
-  public static ExternalResourceDescription configure(String connectionUrl,
-      final String driverClass, final String username, final String password,
-      final int loginTimeout, final String isolationLevel, final boolean readOnly)
-      throws IOException {
-    return ExternalResourceFactory.createExternalResourceDescription(
-        JdbcConnectionResourceImpl.class, connectionUrl,
-        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-          {
-            put(PARAM_DRIVER_CLASS, driverClass);
-            put(PARAM_USERNAME, username);
-            put(PARAM_PASSWORD, password);
-            put(PARAM_ISOLATION_LEVEL, isolationLevel);
-            put(PARAM_LOGIN_TIMEOUT, loginTimeout);
-            put(PARAM_READ_ONLY, readOnly);
-          }
-        }));
-  }
-
-  /**
-   * Configure a JDBC Connection Resource that requires no username or password.
-   * 
-   * @param connectionUrl the URL to connect to
-   * @param driverClass the driver's class name to use (see {@link #PARAM_DRIVER_CLASS})
-   * @param loginTimeout seconds before timing out the connection (optional)
-   * @param isolationLevel an isolation level name (see {@link #PARAM_ISOLATION_LEVEL}, optional)
-   * @param readOnly if <code>false</code>, the resulting connections can be used to write to the
-   *        DB
-   * @return a configured descriptor
-   * @throws IOException
-   */
-  public static ExternalResourceDescription configure(String connectionUrl, String driverClass,
-      int loginTimeout, String isolationLevel, boolean readOnly) throws IOException {
-    return JdbcConnectionResourceImpl.configure(connectionUrl, driverClass, null, null,
-        loginTimeout, isolationLevel, readOnly);
-  }
-
-  /**
-   * Configure a <b>read-only</b>, non-isolated JDBC Connection Resource.
-   * 
-   * @param connectionUrl the URL to connect to
-   * @param driverClass the driver's class name to use (see {@link #PARAM_DRIVER_CLASS})
-   * @param username the username to use (optional)
-   * @param password the password to use (optional)
-   * @return a configured descriptor
-   * @throws IOException
-   */
-  public static ExternalResourceDescription configure(String connectionUrl, String driverClass,
-      String username, String password) throws IOException {
-    return JdbcConnectionResourceImpl.configure(connectionUrl, driverClass, username, password,
-        -1, null, true);
-  }
-
-  /**
-   * Configure a <b>read-only</b>, non-isolated JDBC Connection Resource that requires no username
-   * or password.
-   * 
-   * @param connectionUrl the URL to connect to
-   * @param driverClass the driver's class name to use (see {@link #PARAM_DRIVER_CLASS})
-   * @return a configured descriptor
-   * @throws IOException
-   */
-  /*  public static ExternalResourceDescription configure(String connectionUrl, String driverClass)
-        throws IOException {
-      return JdbcConnectionResourceImpl.configure(connectionUrl, driverClass, null, null);
-    }*/
   /** {@inheritDoc} */
   public synchronized Connection getConnection() throws SQLException {
     logger.log(Level.INFO, "connecting to '" + connectionUrl + "'");

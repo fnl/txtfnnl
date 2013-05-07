@@ -14,7 +14,6 @@ import org.apache.uima.UIMAException;
 import txtfnnl.uima.analysis_component.BioLemmatizerAnnotator;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
 import txtfnnl.uima.analysis_component.NOOPAnnotator;
-import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
 import txtfnnl.uima.collection.XmiWriter;
 
@@ -45,8 +44,7 @@ public class Preprocessor extends Pipeline {
     // fix option output-directory: always write files, never use STDOUT
     opts.addOption("o", "output-directory", true, "output directory for writing files [CWD]");
     // sentence splitter options
-    opts.addOption("S", "split-anywhere", false, "do not use newlines for splitting");
-    opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
+    Pipeline.addSentenceAnnotatorOptions(opts);
     // tokenizer options setup
     opts.addOption("G", "genia", true, "use GENIA (giving its model dir) instead of OpenNLP");
     try {
@@ -57,38 +55,28 @@ public class Preprocessor extends Pipeline {
     }
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl pre [options] <directory|files...>\n");
-    // sentence splitter
-    String splitSentences = "successive"; // S, s
-    if (cmd.hasOption('s')) {
-      splitSentences = "single";
-    } else if (cmd.hasOption('S')) {
-      splitSentences = null;
-    }
     // (GENIA) tokenizer
     final String geniaDir = cmd.getOptionValue('G');
     // output (format)
-    final String encoding = Pipeline.outputEncoding(cmd);
-    File outputDirectory = Pipeline.outputDirectory(cmd);
-    final boolean overwriteFiles = Pipeline.outputOverwriteFiles(cmd);
-    if (outputDirectory == null) {
-      outputDirectory = new File(System.getProperty("user.dir"));
-    }
+    File outputDirectory = Pipeline.outputDirectory(cmd) == null ? new File(
+        System.getProperty("user.dir")) : Pipeline.outputDirectory(cmd);
+    XmiWriter.Builder writer = Pipeline.configureWriter(cmd, XmiWriter.configure(outputDirectory));
     try {
       final Pipeline tagger = new Pipeline(4); // tika, splitter, tokenizer, lemmatizer
       tagger.setReader(cmd);
       tagger.configureTika(cmd);
-      tagger.set(1, SentenceAnnotator.configure(splitSentences));
+      tagger.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
       // GENIA or OpenNLP tokenizer
       if (geniaDir == null) {
-        tagger.set(2, TokenAnnotator.configure());
-        tagger.set(3, BioLemmatizerAnnotator.configure());
+        tagger.set(2, Pipeline.textEngine(TokenAnnotator.configure().create()));
+        tagger.set(3, Pipeline.textEngine(BioLemmatizerAnnotator.configure().create()));
       } else {
-        tagger.set(2, GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir)).create());
+        GeniaTaggerAnnotator.Builder genia = GeniaTaggerAnnotator.configure();
+        tagger.set(2, Pipeline.textEngine(genia.setDirectory(new File(geniaDir)).create()));
         // the GENIA Tagger already stems - nothing more to do
-        tagger.set(3, NOOPAnnotator.configure());
+        tagger.set(3, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
       }
-      tagger.setConsumer(XmiWriter.configure(outputDirectory, encoding, overwriteFiles, false,
-          true));
+      tagger.setConsumer(Pipeline.multiviewEngine(writer.create()));
       tagger.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

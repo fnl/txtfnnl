@@ -23,7 +23,7 @@ import org.apache.uima.jcas.tcas.Annotation;
 import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 
-import txtfnnl.uima.Views;
+import txtfnnl.uima.Namespaces;
 import txtfnnl.uima.resource.LineBasedStringArrayResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.SentenceAnnotation;
@@ -55,8 +55,7 @@ public class TestSyntaxPatternAnnotator {
   }
 
   private JCas getJCas(String[][][] sentences) throws UIMAException {
-    JCas basecas = engine.newJCas();
-    JCas jcas = basecas.createView(Views.CONTENT_TEXT.toString());
+    JCas jcas = engine.newJCas();
     StringBuffer docText = new StringBuffer();
     List<SentenceAnnotation> sentenceAnns = new LinkedList<SentenceAnnotation>();
     List<TokenAnnotation> tokenAnns = new LinkedList<TokenAnnotation>();
@@ -74,7 +73,7 @@ public class TestSyntaxPatternAnnotator {
       ann.addToIndexes();
     for (TokenAnnotation ann : tokenAnns)
       ann.addToIndexes();
-    return basecas;
+    return jcas;
   }
 
   private String addTokens(JCas jcas, int offset, String[][] tokens,
@@ -101,7 +100,7 @@ public class TestSyntaxPatternAnnotator {
           ann.setChunkBegin(start);
           start = false;
         }
-        ann.setNamespace("http://nlp2rdf.lod2.eu/schema/doc/sso/"); // TODO
+        ann.setNamespace(Namespaces.NLP.URL);
         ann.setPos(token[1]);
         ann.setStem(token[2]);
         tokenAnns.add(ann);
@@ -128,8 +127,7 @@ public class TestSyntaxPatternAnnotator {
         + "\trel\tinteraction\tsem\tactor\tsem\taction\tsem\tqualifier\tsem\tactor");
     JCas doc = getJCas(tokens);
     engine.process(doc);
-    JCas text = doc.getView(Views.CONTENT_TEXT.toString());
-    FSIterator<Annotation> it = SemanticAnnotation.getIterator(text);
+    FSIterator<Annotation> it = SemanticAnnotation.getIterator(doc);
     String[] spans = { "The CD5 factor", "bind", "at", "the XYZ gene", "A INK protein",
         "regulating", "a XYZ promoter" };
     String[] semIds = { "actor", "action", "qualifier", "actor", "actor", "action", "actor" };
@@ -159,8 +157,7 @@ public class TestSyntaxPatternAnnotator {
         + "\trel\tinteraction\tsem\tregulator\tsem\taction\tsem\ttarget");
     JCas doc = getJCas(tokens);
     engine.process(doc);
-    JCas text = doc.getView(Views.CONTENT_TEXT.toString());
-    FSIterator<Annotation> it = SemanticAnnotation.getIterator(text);
+    FSIterator<Annotation> it = SemanticAnnotation.getIterator(doc);
     String[] spans = { "The CD5 factor", "bind", "XYZ", "A INK protein", "regulating", "XYZ" };
     String[] semIds = { "regulator", "action", "target", "regulator", "action", "target" };
     int i = 0;
@@ -184,8 +181,7 @@ public class TestSyntaxPatternAnnotator {
     // TODO: somehow, matching fails after the second DT has been found/matched!
     JCas doc = getJCas(tokens);
     engine.process(doc);
-    JCas text = doc.getView(Views.CONTENT_TEXT.toString());
-    FSIterator<Annotation> it = SemanticAnnotation.getIterator(text);
+    FSIterator<Annotation> it = SemanticAnnotation.getIterator(doc);
     String[] spans = { "ATP/ADP-binding", "Hsp90 molecular chaperone" };
     String[] semIds = { "regulator", "target" };
     int i = 0;

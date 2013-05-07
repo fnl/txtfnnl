@@ -115,10 +115,10 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
   private Set<Entity> unknownEntities; // entities not in the DB
 
   public static class Builder extends KnownEvidenceAnnotator.Builder {
-    public Builder(String namespace, String[] queries, File entityMap,
-        ExternalResourceDescription jdbcResource) throws IOException {
-      super(KnownEntityAnnotator.class, EntityStringMapResource.configure("file:" +
-          entityMap.getCanonicalPath()));
+    public Builder(String namespace, String[] queries,
+        ExternalResourceDescription entityMapResource, ExternalResourceDescription jdbcResource)
+        throws IOException {
+      super(KnownEntityAnnotator.class, entityMapResource);
       setRequiredParameter(PARAM_NAMESPACE, namespace);
       setRequiredParameter(PARAM_QUERIES, queries);
       setRequiredParameter(MODEL_KEY_JDBC_CONNECTION, jdbcResource);
@@ -133,11 +133,14 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
    * @param entityMap containing filename to entity type, namespace, and ID mappings
    * @param jdbcResource a (configured) JdbcConnectionResource descriptor
    * @return an AE Builder
-   * @throws IOException
+   * @throws IOException if the entity map does not exist
+   * @throws ResourceInitializationException if the entity map cannot be initialized
    */
   public static Builder configure(String namespace, String[] queries, File entityMap,
-      ExternalResourceDescription jdbcResource) throws IOException {
-    return new Builder(namespace, queries, entityMap, jdbcResource);
+      ExternalResourceDescription jdbcResource) throws IOException,
+      ResourceInitializationException {
+    return new Builder(namespace, queries, EntityStringMapResource.configure(
+        "file:" + entityMap.getCanonicalPath()).create(), jdbcResource);
   }
 
   @Override

@@ -32,7 +32,7 @@ public class TestFileReader {
   public void setUp() throws Exception {
     fileSystemReader = CollectionReaderFactory.createCollectionReader(FileReader
         .configure(new String[] { "src/test/resources/test.html",
-            "src/test/resources/test-subdir/test-sub.html" }));
+            "src/test/resources/test-subdir/test-sub.html" }).create());
     baseCasMock = EasyMock.createMock(CAS.class);
     rawCasMock = EasyMock.createMock(CAS.class);
     jCasMock = EasyMock.createMock(JCas.class);

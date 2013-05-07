@@ -12,19 +12,29 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.uima.UIMAException;
+import org.apache.uima.analysis_engine.AnalysisEngine;
 import org.apache.uima.analysis_engine.AnalysisEngineDescription;
+import org.apache.uima.collection.CollectionReader;
 import org.apache.uima.collection.CollectionReaderDescription;
 import org.apache.uima.resource.ExternalResourceDescription;
+import org.apache.uima.resource.ResourceInitializationException;
 
+import org.uimafit.factory.AnalysisEngineFactory;
+import org.uimafit.factory.CollectionReaderFactory;
 import org.uimafit.pipeline.SimplePipeline;
 
 import txtfnnl.tika.sax.CleanBodyContentHandler;
 import txtfnnl.tika.sax.ElsevierXMLContentHandler;
 import txtfnnl.tika.sax.XMLContentHandler;
+import txtfnnl.tika.uima.AbstractTikaAnnotator;
 import txtfnnl.tika.uima.TikaAnnotator;
 import txtfnnl.tika.uima.TikaExtractor;
+import txtfnnl.uima.Views;
+import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.collection.DirectoryReader;
 import txtfnnl.uima.collection.FileReader;
+import txtfnnl.uima.collection.OutputWriter;
+import txtfnnl.uima.resource.AuthenticationResourceBuilder;
 import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
 import txtfnnl.utils.IOUtils;
 
@@ -47,8 +57,8 @@ import txtfnnl.utils.IOUtils;
  * @author Florian Leitner
  */
 public class Pipeline {
-  private CollectionReaderDescription collectionReader;
-  private AnalysisEngineDescription[] pipeline;
+  private CollectionReader collectionReader;
+  private AnalysisEngine[] pipeline;
 
   /**
    * Add default command-line options for any pipeline. The added options are:
@@ -107,6 +117,22 @@ public class Pipeline {
     opts.addOption("g", "normalize-greek", false, "normalize greek letters in input");
     opts.addOption("x", "xml-handler", true,
         "select XML handler: 'default' (Tika), 'clean' (skips whitespaces), or 'elsevier'");
+  }
+
+  /**
+   * Add OpenNLP sentence segmentation command-line options for any pipeline. The added options are
+   * <ul>
+   * <li><code>s</code>, <code>split-anywhere</code></li>
+   * <li><code>S</code>, <code>single-newlines</code></li>
+   * <li><code>J</code>, <code>sentence-model</code></li>
+   * </ul>
+   * 
+   * @param opts to expand
+   */
+  public static void addSentenceAnnotatorOptions(Options opts) {
+    opts.addOption("S", "split-anywhere", false, "do not use newlines for splitting");
+    opts.addOption("s", "single-newlines", false, "split sentences on single newlines");
+    opts.addOption("J", "sentence-model", true, "set a different model file (default: en)");
   }
 
   /**
@@ -182,14 +208,16 @@ public class Pipeline {
     return l;
   }
 
-  /** Return the output encoding option value or <code>null</code> if unset. */
-  public static String outputEncoding(CommandLine cmd) {
-    return cmd.getOptionValue('E');
+  /** Return the input encoding option value or the <code>file.encoding</code> property if not set. */
+  public static String inputEncoding(CommandLine cmd) {
+    return cmd.getOptionValue('e') == null ? System.getProperty("file.encoding") : cmd
+        .getOptionValue('e');
   }
 
   /**
-   * Ensure a readable output directory or return <code>null</code> if unset. Calls
-   * {@link System#exit(int)} if the option isn't <code>null</code> or a writeable directory.
+   * Ensure a readable output directory or return <code>null</code> if not set. Does a
+   * {@link System#exit(int)} with value <code>1</code> if the option isn't either
+   * <code>null</code> or a writeable directory.
    */
   public static File outputDirectory(CommandLine cmd) {
     File outputDirectory = null;
@@ -204,9 +232,102 @@ public class Pipeline {
     return outputDirectory;
   }
 
+  /** Configure a Writer Builder using the command line options. */
+  public static <B extends OutputWriter.Builder> B configureWriter(CommandLine cmd, B writer) {
+    writer.setEncoding(Pipeline.outputEncoding(cmd));
+    writer.setOutputDirectory(Pipeline.outputDirectory(cmd));
+    if (Pipeline.outputOverwriteFiles(cmd)) writer.overwriteFiles();
+    return writer;
+  }
+
+  /** Return the output encoding option value or <code>null</code> if not set. */
+  private static String outputEncoding(CommandLine cmd) {
+    return cmd.getOptionValue('E');
+  }
+
   /** Check for the replace (overwrite) files command line option. */
-  public static boolean outputOverwriteFiles(CommandLine cmd) {
+  private static boolean outputOverwriteFiles(CommandLine cmd) {
     return cmd.hasOption('r');
+  }
+
+  public static AnalysisEngineDescription getSentenceAnnotator(CommandLine cmd)
+      throws ResourceInitializationException {
+    SentenceAnnotator.Builder b = SentenceAnnotator.configure();
+    if (cmd.hasOption('s')) b.splitOnSingleNewlines();
+    else if (cmd.hasOption('S')) b.splitIgnoringNewlines();
+    else b.splitOnSuccessiveNewlines();
+    if (cmd.hasOption('J')) b.setModelResourceUrl("file:" + cmd.getOptionValue('J'));
+    return b.create();
+  }
+
+  /**
+   * Get a configured JDBC connection resource descriptor.
+   * 
+   * @param cmd parsed command line options
+   * @param l pipeline's the logger
+   * @param defaultDriverClass the default driver class to use if not given
+   * @param defaultProvider the default DB provider (for that driver class) if not given
+   * @param defaultDbName the default DB (name) to connect to if not given
+   * @return the descriptor instance
+   * @throws IOException
+   * @throws ClassNotFoundException
+   * @throws ResourceInitializationException
+   */
+  public static ExternalResourceDescription getJdbcConnectionResource(CommandLine cmd, Logger l,
+      String defaultDriverClass, String defaultProvider, String defaultDbName)
+      throws ResourceInitializationException, ClassNotFoundException {
+    final String driverClass = getJdbcDriver(cmd, defaultDriverClass);
+    final String dbUrl = getJdbcUrl(cmd, l, defaultProvider, defaultDbName);
+    JdbcConnectionResourceImpl.Builder b = JdbcConnectionResourceImpl
+        .configure(dbUrl, driverClass);
+    configureAuthentication(cmd, b);
+    return b.create();
+  }
+
+  /**
+   * Configure (JDBC) authentication options on an authentication-enabled resource.
+   * 
+   * @param cmd parsed command line options
+   * @param resource the resource to configure
+   */
+  public static void configureAuthentication(CommandLine cmd,
+      AuthenticationResourceBuilder resource) {
+    resource.setUsername(cmd.getOptionValue('p'));
+    resource.setPassword(cmd.getOptionValue('u'));
+  }
+
+  /**
+   * Get and log a valid JDBC connection URL.
+   * 
+   * @param cmd parsed command line options
+   * @param l pipeline's the logger
+   * @param defaultProvider the default DB provider (for a driver class) if none is given
+   * @param defaultDbName the default DB (name) to connect to if none is given
+   * @return the JDBC URL
+   */
+  public static String getJdbcUrl(CommandLine cmd, Logger l, String defaultProvider,
+      String defaultDbName) {
+    final String dbHost = cmd.getOptionValue('H', "localhost");
+    final String dbProvider = cmd.getOptionValue('P', defaultProvider);
+    final String dbName = cmd.getOptionValue('d', defaultDbName);
+    String dbUrl = String.format("jdbc:%s://%s/%s", dbProvider, dbHost, dbName);
+    l.log(Level.INFO, "JDBC URL: {0}", dbUrl);
+    return dbUrl;
+  }
+
+  /**
+   * Get and initialize a driver for JDBC connections.
+   * 
+   * @param cmd parsed command line options
+   * @param defaultDriverClass the default driver class name to use if none is given
+   * @return the qualified driver class name that was initialized
+   * @throws ClassNotFoundException
+   */
+  public static String getJdbcDriver(CommandLine cmd, String defaultDriverClass)
+      throws ClassNotFoundException {
+    final String driverClass = cmd.getOptionValue('D', defaultDriverClass);
+    Class.forName(driverClass);
+    return driverClass;
   }
 
   /**
@@ -228,32 +349,22 @@ public class Pipeline {
     return null;
   }
 
-  /**
-   * Get a configured JDBC connection resource descriptor.
-   * 
-   * @param cmd parsed command line options
-   * @param l pipeline's the logger
-   * @param defaultDriverClass the default driver class to use if not given
-   * @param defaultProvider the default DB provider (for that driver class) if not given
-   * @param defaultDbName the default DB (name) to connect to if not given
-   * @return the descriptor instance
-   * @throws IOException
-   * @throws ClassNotFoundException
-   */
-  public static ExternalResourceDescription getJdbcResource(CommandLine cmd, Logger l,
-      String defaultDriverClass, String defaultProvider, String defaultDbName) throws IOException,
-      ClassNotFoundException {
-    final String driverClass = cmd.getOptionValue('D', defaultDriverClass);
-    final String dbHost = cmd.getOptionValue('H', "localhost");
-    final String dbProvider = cmd.getOptionValue('P', defaultProvider);
-    final String dbName = cmd.getOptionValue('d', defaultDbName);
-    final String dbPassword = cmd.getOptionValue('p');
-    final String dbUsername = cmd.getOptionValue('u');
-    String dbUrl; // will be generated from the options P, H, and d
-    Class.forName(driverClass);
-    dbUrl = String.format("jdbc:%s://%s/%s", dbProvider, dbHost, dbName);
-    l.log(Level.INFO, "JDBC URL: {0}", dbUrl);
-    return JdbcConnectionResourceImpl.configure(dbUrl, driverClass, dbUsername, dbPassword);
+  /** Create an AE from a descriptor that uses CASes with multiple views. */
+  public static AnalysisEngine multiviewEngine(AnalysisEngineDescription aed)
+      throws ResourceInitializationException {
+    return AnalysisEngineFactory.createPrimitive(aed);
+  }
+
+  /** Create an AE from a descriptor that uses CASes with a single (raw) view. */
+  public static AnalysisEngine rawEngine(AnalysisEngineDescription aed)
+      throws ResourceInitializationException {
+    return AnalysisEngineFactory.createAnalysisEngine(aed, Views.CONTENT_RAW.toString());
+  }
+
+  /** Create an AE from a descriptor that uses CASes with a single (text) view. */
+  public static AnalysisEngine textEngine(AnalysisEngineDescription aed)
+      throws ResourceInitializationException {
+    return AnalysisEngineFactory.createAnalysisEngine(aed, Views.CONTENT_TEXT.toString());
   }
 
   /**
@@ -264,10 +375,15 @@ public class Pipeline {
    * @param numEngines number of analysis engines the pipeline will contain of without counting the
    *        "last" engine that should be the CAS consumer
    */
-  public Pipeline(CollectionReaderDescription reader, int numEngines) {
+  public Pipeline(CollectionReader reader, int numEngines) {
     collectionReader = reader;
     if (numEngines < 0) throw new IllegalArgumentException("numEngines=" + numEngines);
-    pipeline = new AnalysisEngineDescription[numEngines + 1];
+    pipeline = new AnalysisEngine[numEngines + 1];
+  }
+
+  public Pipeline(int numEngines, CollectionReaderDescription desc)
+      throws ResourceInitializationException {
+    this(CollectionReaderFactory.createCollectionReader(desc), numEngines);
   }
 
   /**
@@ -295,8 +411,12 @@ public class Pipeline {
    * 
    * @param reader a collection reader configuration
    */
-  public Pipeline(CollectionReaderDescription reader) {
+  public Pipeline(CollectionReader reader) {
     this(reader, 1);
+  }
+
+  public Pipeline(CollectionReaderDescription desc) throws ResourceInitializationException {
+    this(CollectionReaderFactory.createCollectionReader(desc));
   }
 
   /**
@@ -306,7 +426,7 @@ public class Pipeline {
    * @param reader a collection reader configuration
    * @param engines the AE descriptions, <i>including the final CAS consumer</i>
    */
-  public Pipeline(CollectionReaderDescription reader, AnalysisEngineDescription... engines) {
+  public Pipeline(CollectionReader reader, AnalysisEngine... engines) {
     collectionReader = reader;
     set(engines);
   }
@@ -317,20 +437,25 @@ public class Pipeline {
    * 
    * @param engines the AE descriptions, <i>including the final CAS consumer</i>
    */
-  public Pipeline(AnalysisEngineDescription... engines) {
+  public Pipeline(AnalysisEngine... engines) {
     this(null, engines);
   }
 
   // COLLECTION READER METHODS
   /** Get the currently configured reader for this pipeline. */
-  public CollectionReaderDescription getReader() {
+  public CollectionReader getReader() {
     return collectionReader;
   }
 
-  /** Set a collection reader for this pipeline. */
-  public CollectionReaderDescription setReader(CollectionReaderDescription reader) {
-    final CollectionReaderDescription last = collectionReader;
-    collectionReader = reader;
+  /**
+   * Set a collection reader for this pipeline.
+   * 
+   * @throws ResourceInitializationException
+   */
+  public CollectionReader setReader(CollectionReaderDescription desc, Object... configurationData)
+      throws ResourceInitializationException {
+    final CollectionReader last = collectionReader;
+    collectionReader = CollectionReaderFactory.createCollectionReader(desc, configurationData);
     return last;
   }
 
@@ -342,7 +467,7 @@ public class Pipeline {
    * @throws IOException
    * @throws UIMAException
    */
-  public CollectionReaderDescription setReader(CommandLine cmd) throws IOException, UIMAException {
+  public CollectionReader setReader(CommandLine cmd) throws IOException, UIMAException {
     final String[] inputFiles = cmd.getArgs();
     final boolean recursive = cmd.hasOption('R');
     final String mimeType = cmd.getOptionValue('M');
@@ -389,9 +514,9 @@ public class Pipeline {
    * @throws IOException
    * @throws UIMAException
    */
-  public CollectionReaderDescription setReader(String[] inputFiles, String mimeType)
-      throws IOException, UIMAException {
-    return setReader(FileReader.configure(inputFiles, mimeType));
+  public CollectionReader setReader(String[] inputFiles, String mimeType) throws IOException,
+      UIMAException {
+    return setReader(FileReader.configure(inputFiles).setMimeType(mimeType).create());
   }
 
   /**
@@ -403,9 +528,8 @@ public class Pipeline {
    * @throws UIMAException
    * @see Pipeline#setReader(String[], String)
    */
-  public CollectionReaderDescription setReader(String[] inputFiles) throws IOException,
-      UIMAException {
-    return setReader(FileReader.configure(inputFiles));
+  public CollectionReader setReader(String[] inputFiles) throws IOException, UIMAException {
+    return setReader(FileReader.configure(inputFiles).create());
   }
 
   /**
@@ -418,10 +542,11 @@ public class Pipeline {
    * @throws IOException
    * @throws UIMAException
    */
-  public CollectionReaderDescription setReader(File inputDirectory, String mimeType,
-      boolean recursive) throws IOException, UIMAException {
-    return setReader(DirectoryReader.configure(inputDirectory.getCanonicalPath(), mimeType,
-        recursive));
+  public CollectionReader setReader(File inputDirectory, String mimeType, boolean recursive)
+      throws IOException, UIMAException {
+    DirectoryReader.Builder b = DirectoryReader.configure(inputDirectory).setMimeType(mimeType);
+    if (recursive) b.recurseSubdirectories();
+    return setReader(b.create());
   }
 
   /**
@@ -434,9 +559,9 @@ public class Pipeline {
    * @throws UIMAException
    * @see Pipeline#setReader(File, String, boolean)
    */
-  public CollectionReaderDescription setReader(File inputDirectory, String mimeType)
-      throws IOException, UIMAException {
-    return setReader(DirectoryReader.configure(inputDirectory.getCanonicalPath(), mimeType));
+  public CollectionReader setReader(File inputDirectory, String mimeType) throws IOException,
+      UIMAException {
+    return setReader(DirectoryReader.configure(inputDirectory).setMimeType(mimeType).create());
   }
 
   /**
@@ -449,9 +574,11 @@ public class Pipeline {
    * @throws UIMAException
    * @see Pipeline#setReader(File, String, boolean)
    */
-  public CollectionReaderDescription setReader(File inputDirectory, boolean recursive)
-      throws IOException, UIMAException {
-    return setReader(DirectoryReader.configure(inputDirectory.getCanonicalPath(), recursive));
+  public CollectionReader setReader(File inputDirectory, boolean recursive) throws IOException,
+      UIMAException {
+    DirectoryReader.Builder b = DirectoryReader.configure(inputDirectory);
+    if (recursive) b.recurseSubdirectories();
+    return setReader(b.create());
   }
 
   /**
@@ -464,9 +591,8 @@ public class Pipeline {
    * @throws UIMAException
    * @see Pipeline#setReader(File, String, boolean)
    */
-  public CollectionReaderDescription setReader(File inputDirectory) throws IOException,
-      UIMAException {
-    return setReader(DirectoryReader.configure(inputDirectory.getCanonicalPath()));
+  public CollectionReader setReader(File inputDirectory) throws IOException, UIMAException {
+    return setReader(DirectoryReader.configure(inputDirectory).create());
   }
 
   // CAS CONSUMER METHODS
@@ -475,8 +601,8 @@ public class Pipeline {
    * 
    * @return a formerly configured AE/CAS consumer (if any)
    */
-  public AnalysisEngineDescription setConsumer(AnalysisEngineDescription consumer) {
-    final AnalysisEngineDescription before = pipeline[size()];
+  public AnalysisEngine setConsumer(AnalysisEngine consumer) {
+    final AnalysisEngine before = pipeline[size()];
     pipeline[size()] = consumer;
     return before;
   }
@@ -507,32 +633,28 @@ public class Pipeline {
    * @throws IOException
    * @throws UIMAException
    */
-  public AnalysisEngineDescription configureTika(int idx, boolean simple, String encoding,
+  public AnalysisEngine configureTika(int idx, boolean simple, String encoding,
       boolean normalizeGreek, XmlHandler handler) throws UIMAException, IOException {
     if (pipeline.length < 2)
       throw new IllegalStateException("trying to configure a Tika AE on a pipeline of length 1");
     if (idx + 1 == pipeline.length)
       throw new IllegalStateException(
           "trying to configure a Tike AE as last element of a pipeline");
-    AnalysisEngineDescription tika;
-    String xmlHandlerClass;
+    AbstractTikaAnnotator.Builder tikaConfig = (simple) ? TikaExtractor.configure()
+        : TikaAnnotator.configure();
     switch (handler) {
     case CLEAN:
-      xmlHandlerClass = CleanBodyContentHandler.class.getName();
+      tikaConfig.setXmlHandlerClass(CleanBodyContentHandler.class);
       break;
     case ELSEVIER:
-      xmlHandlerClass = ElsevierXMLContentHandler.class.getName();
+      tikaConfig.setXmlHandlerClass(ElsevierXMLContentHandler.class);
       break;
     case DEFAULT:
     default:
-      xmlHandlerClass = XMLContentHandler.class.getName();
+      tikaConfig.setXmlHandlerClass(XMLContentHandler.class);
     }
-    if (simple) {
-      tika = TikaExtractor.configure(encoding, normalizeGreek, xmlHandlerClass);
-    } else {
-      tika = TikaAnnotator.configure(encoding, normalizeGreek, xmlHandlerClass);
-    }
-    return set(idx, tika);
+    if (normalizeGreek) tikaConfig.normalizeGreek();
+    return set(idx, AnalysisEngineFactory.createPrimitive(tikaConfig.create()));
   }
 
   /**
@@ -541,8 +663,8 @@ public class Pipeline {
    * 
    * @see Pipeline#configureTika(int, boolean, String, boolean, XmlHandler)
    */
-  public AnalysisEngineDescription configureTika(boolean simple, String encoding,
-      boolean normalizeGreek, XmlHandler handler) throws UIMAException, IOException {
+  public AnalysisEngine configureTika(boolean simple, String encoding, boolean normalizeGreek,
+      XmlHandler handler) throws UIMAException, IOException {
     return configureTika(0, simple, encoding, normalizeGreek, handler);
   }
 
@@ -555,7 +677,7 @@ public class Pipeline {
    * 
    * @see Pipeline#configureTika(int, boolean, String, boolean, XmlHandler)
    */
-  public AnalysisEngineDescription configureTika(int idx, boolean simple, CommandLine cmd)
+  public AnalysisEngine configureTika(int idx, boolean simple, CommandLine cmd)
       throws IOException, UIMAException {
     final XmlHandler handler = Pipeline.getTikaXmlHandler(cmd);
     final String encoding = cmd.getOptionValue('e');
@@ -569,8 +691,8 @@ public class Pipeline {
    * 
    * @see Pipeline#configureTika(int, boolean, String, boolean, XmlHandler)
    */
-  public AnalysisEngineDescription configureTika(boolean simple, CommandLine cmd)
-      throws IOException, UIMAException {
+  public AnalysisEngine configureTika(boolean simple, CommandLine cmd) throws IOException,
+      UIMAException {
     return configureTika(0, simple, cmd);
   }
 
@@ -580,8 +702,7 @@ public class Pipeline {
    * 
    * @see Pipeline#configureTika(int, boolean, String, boolean, XmlHandler)
    */
-  public AnalysisEngineDescription configureTika(CommandLine cmd) throws IOException,
-      UIMAException {
+  public AnalysisEngine configureTika(CommandLine cmd) throws IOException, UIMAException {
     return configureTika(true, cmd);
   }
 
@@ -591,7 +712,7 @@ public class Pipeline {
    * 
    * @see Pipeline#configureTika(int, boolean, String, boolean, XmlHandler)
    */
-  public AnalysisEngineDescription configureTika() throws IOException, UIMAException {
+  public AnalysisEngine configureTika() throws IOException, UIMAException {
     return configureTika(true, null, false, XmlHandler.DEFAULT);
   }
 
@@ -600,29 +721,29 @@ public class Pipeline {
    * Set the first Analysis Engine, returning the originally set AE. Consider that commonly this
    * position will be occupied by a Tika AE, however.
    */
-  public AnalysisEngineDescription setFirst(AnalysisEngineDescription engine) {
-    final AnalysisEngineDescription originalEngine = pipeline[0];
+  public AnalysisEngine setFirst(AnalysisEngine engine) {
+    final AnalysisEngine originalEngine = pipeline[0];
     pipeline[0] = engine;
     return originalEngine;
   }
 
   /** Set a particular Analysis Engine, returning the originally set AE. */
-  public AnalysisEngineDescription set(int index, AnalysisEngineDescription engine) {
-    final AnalysisEngineDescription originalEngine = pipeline[index];
+  public AnalysisEngine set(int index, AnalysisEngine engine) {
+    final AnalysisEngine originalEngine = pipeline[index];
     pipeline[index] = engine;
     return originalEngine;
   }
 
   /** Get a particular Analysis Engine. */
-  public AnalysisEngineDescription get(int index) {
+  public AnalysisEngine get(int index) {
     return pipeline[index];
   }
 
   /**
    * Set all Analysis Engines, including the CAS Consumer, returning the original list of AEs.
    */
-  public AnalysisEngineDescription[] set(AnalysisEngineDescription[] engines) {
-    final AnalysisEngineDescription[] before = pipeline;
+  public AnalysisEngine[] set(AnalysisEngine[] engines) {
+    final AnalysisEngine[] before = pipeline;
     if (engines.length < 1) throw new IllegalArgumentException("empty engine description array");
     pipeline = engines;
     return before;
@@ -643,7 +764,7 @@ public class Pipeline {
    */
   public boolean isReady() {
     if (collectionReader == null) return false;
-    for (final AnalysisEngineDescription engine : pipeline)
+    for (final AnalysisEngine engine : pipeline)
       if (engine == null) return false;
     return true;
   }

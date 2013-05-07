@@ -16,9 +16,7 @@ import java.util.Stack;
 
 import org.apache.uima.UIMAException;
 import org.apache.uima.UimaContext;
-import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
@@ -28,13 +26,10 @@ import org.apache.uima.util.Logger;
 
 import org.uimafit.component.JCasAnnotator_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
-import org.uimafit.factory.AnalysisEngineFactory;
 
 import txtfnnl.subprocess.ReadlineRuntime;
 import txtfnnl.subprocess.RuntimeKiller;
 import txtfnnl.uima.AnalysisComponentBuilder;
-import txtfnnl.uima.UIMAUtils;
-import txtfnnl.uima.Views;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.SyntaxAnnotation;
 import txtfnnl.utils.Offset;
@@ -506,56 +501,6 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
     }
   }
 
-  /**
-   * Configure a LinkGrammarAnnotator description.
-   * 
-   * @param dictPath the path to the directory containing the corresponding LG dictionary
-   * @param timeout soft and hard of the parser in seconds - the LG parser should stop after the
-   *        given number of seconds (soft) and the parser process is killed after twice that time
-   *        has passed (hard)
-   * @return an AE description
-   * @throws UIMAException
-   * @throws IOException
-   */
-  @SuppressWarnings("serial")
-  public static AnalysisEngineDescription configure(final File dictPath, final int timeout)
-      throws UIMAException, IOException {
-    return AnalysisEngineFactory.createPrimitiveDescription(LinkGrammarAnnotator.class,
-        UIMAUtils.makeParameterArray(new HashMap<String, Object>() {
-          {
-            put(PARAM_DICTIONARIES_PATH, dictPath);
-            put(PARAM_TIMEOUT_SECONDS, timeout);
-          }
-        }));
-  }
-
-  /**
-   * Configure a LinkGrammarAnnotator description using the default timeout.
-   * 
-   * @param dictPath the path to the directory containing the corresponding LG dictionary
-   * @return an AE description
-   * @throws UIMAException
-   * @throws IOException
-   */
-  public static AnalysisEngineDescription configure(File dictPath) throws UIMAException,
-      IOException {
-    return LinkGrammarAnnotator.configure(dictPath, 15);
-  }
-
-  /**
-   * Configure a LinkGrammarAnnotator description using the default dictionary path.
-   * 
-   * @param timeout soft and hard of the parser in seconds - the LG parser should stop after the
-   *        given number of seconds (soft) and the parser process is killed after twice that time
-   *        has passed (hard)
-   * @return an AE description
-   * @throws UIMAException
-   * @throws IOException
-   */
-  public static AnalysisEngineDescription configure(int timeout) throws UIMAException, IOException {
-    return LinkGrammarAnnotator.configure(null, timeout);
-  }
-
   /** Configure a {@link LinkGrammarAnnotator} description builder. */
   public static Builder configure() throws UIMAException, IOException {
     return new Builder();
@@ -576,21 +521,14 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
 
   @Override
   public void process(JCas jcas) throws AnalysisEngineProcessException {
-    // TODO use default view
-    JCas textCas;
-    try {
-      textCas = jcas.getView(Views.CONTENT_TEXT.toString());
-    } catch (final CASException e) {
-      throw new AnalysisEngineProcessException(e);
-    }
-    final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(textCas);
+    final FSIterator<Annotation> sentenceIt = SentenceAnnotation.getIterator(jcas);
     final List<SyntaxAnnotation> phrases = new LinkedList<SyntaxAnnotation>();
     while (sentenceIt.hasNext()) {
       final Annotation sentenceAnn = sentenceIt.next();
-      phrases.addAll(parseSentence(sentenceAnn.getCoveredText(), sentenceAnn.getBegin(), textCas));
+      phrases.addAll(parseSentence(sentenceAnn.getCoveredText(), sentenceAnn.getBegin(), jcas));
     }
     for (final SyntaxAnnotation ann : phrases) {
-      textCas.addFsToIndexes(ann);
+      jcas.addFsToIndexes(ann);
     }
   }
 
@@ -735,11 +673,11 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
           continue;
         }
         // XXX TreeAnnotation type? (w/ pointer to parent annotation)
-        // TODO graph-based relationship annotations combined with text annotations
+        // TODO: graph-based relationship annotations combined with text annotations
         // (see comments above, too)
         ann = new SyntaxAnnotation(jcas, n.getOffset());
         ann.setAnnotator(URI);
-        ann.setConfidence(1.0); // TODO get LGP confidence score?
+        ann.setConfidence(1.0); // TODO: LGP confidence score?
         ann.setNamespace(NAMESPACE);
         ann.setIdentifier(n.data);
         phrases.add(ann);
