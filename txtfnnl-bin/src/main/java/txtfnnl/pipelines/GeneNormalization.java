@@ -17,6 +17,8 @@ import txtfnnl.uima.analysis_component.NOOPAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
 import txtfnnl.uima.collection.AnnotationLineWriter;
+import txtfnnl.uima.collection.OutputWriter;
+import txtfnnl.uima.collection.XmiWriter;
 import txtfnnl.uima.resource.GnamedGazetteerResource;
 
 /**
@@ -93,10 +95,15 @@ public class GeneNormalization extends Pipeline {
     gazetteer.boundaryMatch();
     Pipeline.configureAuthentication(cmd, gazetteer);
     // output
-    AnnotationLineWriter.Builder writer = Pipeline.configureWriter(cmd,
-        AnnotationLineWriter.configure());
-    writer.setAnnotatorUri(GeneAnnotator.URI).setAnnotationNamespace(geneAnnotationNamespace)
-        .printSurroundings().printPosTag();
+    OutputWriter.Builder writer;
+    if (Pipeline.rawXmi(cmd)) {
+      writer = Pipeline.configureWriter(cmd,
+          XmiWriter.configure(Pipeline.ensureOutputDirectory(cmd)));
+    } else {
+      writer = Pipeline.configureWriter(cmd, AnnotationLineWriter.configure())
+          .setAnnotatorUri(GeneAnnotator.URI).setAnnotationNamespace(geneAnnotationNamespace)
+          .printSurroundings().printPosTag();
+    }
     try {
       // 0:tika, 1:splitter, 2:tokenizer, (3:NOOP), 4:gazetteer
       final Pipeline gn = new Pipeline(5);
@@ -120,7 +127,7 @@ public class GeneNormalization extends Pipeline {
       geneAnnotator.setTextNamespace(SentenceAnnotator.NAMESPACE).setTextIdentifier(
           SentenceAnnotator.IDENTIFIER);
       gn.set(4, Pipeline.textEngine(geneAnnotator.create()));
-      gn.setConsumer(Pipeline.multiviewEngine(writer.create()));
+      gn.setConsumer(Pipeline.textEngine(writer.create()));
       gn.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

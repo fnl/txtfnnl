@@ -10,7 +10,9 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.uima.UIMAException;
 
+import txtfnnl.uima.collection.OutputWriter;
 import txtfnnl.uima.collection.SentenceLineWriter;
+import txtfnnl.uima.collection.XmiWriter;
 
 /**
  * A plaintext sentence extractor pipeline for (nearly arbitrary) input files.
@@ -48,16 +50,23 @@ public class SentenceSplitter {
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl split [options] <directory|files...>\n");
     // output (format)
-    SentenceLineWriter.Builder writer = Pipeline.configureWriter(cmd,
-        SentenceLineWriter.configure());
-    if (cmd.hasOption('n')) writer.maintainNewlines();
-    if (!cmd.hasOption('a')) writer.excludeOtherContent();
+    OutputWriter.Builder writer;
+    if (Pipeline.rawXmi(cmd)) {
+      writer = Pipeline.configureWriter(cmd,
+          XmiWriter.configure(Pipeline.ensureOutputDirectory(cmd)));
+    } else {
+      SentenceLineWriter.Builder slwb = Pipeline.configureWriter(cmd,
+          SentenceLineWriter.configure());
+      if (cmd.hasOption('n')) slwb.maintainNewlines();
+      if (!cmd.hasOption('a')) slwb.excludeOtherContent();
+      writer = slwb;
+    }
     try {
       final Pipeline splitter = new Pipeline(2); // tika and the splitter
       splitter.setReader(cmd);
       splitter.configureTika(cmd);
       splitter.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
-      splitter.setConsumer(Pipeline.multiviewEngine(writer.create()));
+      splitter.setConsumer(Pipeline.textEngine(writer.create()));
       splitter.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

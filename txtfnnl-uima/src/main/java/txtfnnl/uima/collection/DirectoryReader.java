@@ -125,11 +125,13 @@ public class DirectoryReader extends CasCollectionReader_ImplBase {
   private static List<File> addFilesFromDir(File dir, boolean recurse) {
     final File[] entries = dir.listFiles();
     final List<File> collector = new LinkedList<File>();
-    for (int i = 0; i < entries.length; i++) {
-      if (entries[i].isFile()) {
-        collector.add(entries[i]);
-      } else if (recurse && entries[i].isDirectory()) {
-        collector.addAll(DirectoryReader.addFilesFromDir(entries[i], recurse));
+    if (entries != null) {
+      for (int i = 0; i < entries.length; i++) {
+        if (entries[i].isFile()) {
+          collector.add(entries[i]);
+        } else if (recurse && entries[i].isDirectory()) {
+          collector.addAll(DirectoryReader.addFilesFromDir(entries[i], recurse));
+        }
       }
     }
     return collector;

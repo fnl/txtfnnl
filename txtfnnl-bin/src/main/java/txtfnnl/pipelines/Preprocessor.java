@@ -58,9 +58,8 @@ public class Preprocessor extends Pipeline {
     // (GENIA) tokenizer
     final String geniaDir = cmd.getOptionValue('G');
     // output (format)
-    File outputDirectory = Pipeline.outputDirectory(cmd) == null ? new File(
-        System.getProperty("user.dir")) : Pipeline.outputDirectory(cmd);
-    XmiWriter.Builder writer = Pipeline.configureWriter(cmd, XmiWriter.configure(outputDirectory));
+    XmiWriter.Builder writer = Pipeline.configureWriter(cmd,
+        XmiWriter.configure(Pipeline.ensureOutputDirectory(cmd)));
     try {
       final Pipeline tagger = new Pipeline(4); // tika, splitter, tokenizer, lemmatizer
       tagger.setReader(cmd);
@@ -76,7 +75,7 @@ public class Preprocessor extends Pipeline {
         // the GENIA Tagger already stems - nothing more to do
         tagger.set(3, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
       }
-      tagger.setConsumer(Pipeline.multiviewEngine(writer.create()));
+      tagger.setConsumer(Pipeline.textEngine(writer.create()));
       tagger.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

@@ -172,13 +172,11 @@ public final class RelationshipPatternLineWriter extends TextWriter {
   @Override
   public void process(CAS cas) throws AnalysisEngineProcessException {
     JCas textJCas;
-    CAS rawJCas;
     String documentId;
     try {
-      textJCas = cas.getView(textView).getJCas();
-      rawJCas = cas.getView(rawView);
-      setStream(rawJCas);
-      documentId = new File(new URI(rawJCas.getSofaDataURI()).getPath()).getName();
+      textJCas = cas.getJCas();
+      setStream(textJCas);
+      documentId = new File(new URI(textJCas.getSofaDataURI()).getPath()).getName();
     } catch (final CASException e) {
       throw new AnalysisEngineProcessException(e);
     } catch (final IOException e) {

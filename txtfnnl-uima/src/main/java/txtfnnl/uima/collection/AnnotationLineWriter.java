@@ -144,12 +144,12 @@ public class AnnotationLineWriter extends TextWriter {
   public void process(CAS cas) throws AnalysisEngineProcessException {
     JCas textJCas;
     try {
-      textJCas = cas.getView(textView).getJCas();
-      setStream(cas.getView(rawView));
-    } catch (final CASException e) {
-      throw new AnalysisEngineProcessException(e);
-    } catch (final IOException e) {
-      throw new AnalysisEngineProcessException(e);
+      textJCas = cas.getJCas();
+      setStream(textJCas);
+    } catch (CASException e1) {
+      throw new AnalysisEngineProcessException(e1);
+    } catch (final IOException e2) {
+      throw new AnalysisEngineProcessException(e2);
     }
     FSMatchConstraint cons = TextAnnotation.makeConstraint(textJCas, annotatorUri, annotationNs,
         annotationId);

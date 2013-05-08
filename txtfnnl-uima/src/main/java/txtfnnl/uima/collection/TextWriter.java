@@ -17,9 +17,6 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
-import org.uimafit.descriptor.ConfigurationParameter;
-
-import txtfnnl.uima.Views;
 import txtfnnl.utils.IOUtils;
 
 /**
@@ -33,15 +30,6 @@ import txtfnnl.utils.IOUtils;
  * @author Florian Leitner
  */
 public class TextWriter extends OutputWriter {
-  /** The name of the raw view to expect. */
-  public static final String PARAM_RAW_VIEW = "RawViewName";
-  @ConfigurationParameter(name = PARAM_RAW_VIEW, mandatory = false)
-  protected String rawView = null;
-  /** The name of the text view to expect. */
-  public static final String PARAM_TEXT_VIEW = "TextViewName";
-  @ConfigurationParameter(name = PARAM_TEXT_VIEW, mandatory = false)
-  protected String textView = null;
-  protected int counter; // to create "new" output file names if necessary
   protected Logger logger;
   protected Writer outputWriter;
 
@@ -54,7 +42,7 @@ public class TextWriter extends OutputWriter {
     public Builder() {
       this(TextWriter.class);
     }
-    
+
     /**
      * (Re-) Set ("force") printing to STDOUT.
      * <p>
@@ -63,16 +51,6 @@ public class TextWriter extends OutputWriter {
      */
     public Builder printToStdout() {
       setOptionalParameter(PARAM_PRINT_TO_STDOUT, Boolean.TRUE);
-      return this;
-    }
-
-    public Builder setRawView(String name) {
-      setOptionalParameter(PARAM_RAW_VIEW, name);
-      return this;
-    }
-
-    public Builder setTextView(String name) {
-      setOptionalParameter(PARAM_TEXT_VIEW, name);
       return this;
     }
   }
@@ -86,8 +64,6 @@ public class TextWriter extends OutputWriter {
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
     logger = ctx.getLogger();
-    if (rawView == null) rawView = Views.CONTENT_RAW.toString();
-    if (textView == null) textView = Views.CONTENT_TEXT.toString();
     if (outputDirectory != null && (!outputDirectory.isDirectory() || !outputDirectory.canWrite()))
       throw new ResourceInitializationException(new IOException("'" +
           outputDirectory.getAbsolutePath() + "' not a writeable directory"));
@@ -123,34 +99,31 @@ public class TextWriter extends OutputWriter {
       logger.log(Level.INFO, "writing to '" + outputDirectory.getAbsolutePath() + "'");
     }
     logger.log(Level.INFO, "initialized {0}", this.getClass().getName());
-    counter = 0;
   }
 
   @Override
   public void process(CAS cas) throws AnalysisEngineProcessException {
-    JCas textJCas;
-    CAS rawCas;
+    JCas jcas;
     try {
-      textJCas = cas.getView(textView).getJCas();
-      rawCas = cas.getView(rawView);
-    } catch (final CASException e) {
-      throw new AnalysisEngineProcessException(e);
+      jcas = cas.getJCas();
+    } catch (CASException e1) {
+      throw new AnalysisEngineProcessException(e1);
     }
     try {
-      setStream(rawCas);
+      setStream(jcas);
       if (outputDirectory != null) {
         try {
-          outputWriter.write(textJCas.getDocumentText());
+          outputWriter.write(jcas.getDocumentText());
         } catch (final IOException e) {
           throw new AnalysisEngineProcessException(e);
         }
       }
       if (printToStdout) {
-        System.out.print(textJCas.getDocumentText());
+        System.out.print(jcas.getDocumentText());
       }
       unsetStream();
-    } catch (final IOException e) {
-      throw new AnalysisEngineProcessException(e);
+    } catch (final IOException e2) {
+      throw new AnalysisEngineProcessException(e2);
     }
   }
 
@@ -158,23 +131,13 @@ public class TextWriter extends OutputWriter {
    * Sets the handlers for this CAS used by the call to {@link #write(String)} according to the
    * initial setup parameter choices.
    * 
-   * @param doc the current CAS being processed
+   * @param jcas the current CAS being processed
    * @throws CASException
    * @throws IOException
    */
-  void setStream(CAS doc) throws IOException {
+  void setStream(JCas jcas) throws IOException {
     if (outputDirectory != null) {
-      String inputName = (new File(doc.getSofaDataURI())).getName();
-      if (inputName == null || inputName.length() == 0) {
-        inputName = String.format("doc-%06d", ++counter);
-      }
-      File outputFile = new File(outputDirectory, inputName + ".txt");
-      if (!overwriteFiles && outputFile.exists()) {
-        int idx = 2;
-        while (outputFile.exists()) {
-          outputFile = new File(outputDirectory, inputName + "." + idx++ + ".txt");
-        }
-      }
+      File outputFile = openOutputFile(jcas, "txt");
       if (encoding == null) {
         logger.log(
             Level.INFO,

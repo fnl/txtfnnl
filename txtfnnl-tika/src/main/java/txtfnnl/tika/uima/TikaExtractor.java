@@ -21,7 +21,7 @@ public class TikaExtractor extends AbstractTikaAnnotator {
 
   public static class Builder extends AbstractTikaAnnotator.Builder {
     public Builder() {
-      super(TikaAnnotator.class);
+      super(TikaExtractor.class);
     }
   }
   

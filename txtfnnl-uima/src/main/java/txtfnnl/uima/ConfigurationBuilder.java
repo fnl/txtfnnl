@@ -41,13 +41,13 @@ public abstract class ConfigurationBuilder<T extends MetaDataObject> {
 
   /** Set an optional parameter (name must not be null). */
   protected void setOptionalParameter(String name, Object value) {
-    if (name == null) throw new IllegalArgumentException("paramter name cannot be null");
+    if (name == null) throw new IllegalArgumentException("parameter name cannot be null");
     parameters.put(name, value);
   }
 
   /** Set a required parameter (both name and value must not be null). */
   protected void setRequiredParameter(String name, Object value) {
-    if (value == null) throw new IllegalArgumentException("paramter value cannot be null");
+    if (value == null) throw new IllegalArgumentException("parameter value cannot be null");
     setOptionalParameter(name, value);
   }
 

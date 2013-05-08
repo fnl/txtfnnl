@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -19,16 +20,22 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.uima.UIMAException;
 import org.apache.uima.analysis_engine.AnalysisEngine;
+import org.apache.uima.cas.CAS;
+import org.apache.uima.collection.CollectionException;
 import org.apache.uima.collection.CollectionReader;
 import org.apache.uima.collection.CollectionReaderDescription;
-import org.apache.uima.collection.impl.CollectionReaderDescription_impl;
 import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.util.Progress;
 
 import org.easymock.EasyMock;
-import org.uimafit.factory.AnalysisEngineFactory;
+import org.uimafit.component.CasCollectionReader_ImplBase;
 import org.uimafit.factory.CollectionReaderFactory;
 
 import txtfnnl.pipelines.Pipeline.XmlHandler;
+import txtfnnl.tika.uima.TikaAnnotator;
+import txtfnnl.tika.uima.TikaExtractor;
+import txtfnnl.uima.collection.DirectoryReader;
+import txtfnnl.uima.collection.FileReader;
 import txtfnnl.uima.collection.TextWriter;
 
 public class TestPipeline {
@@ -67,12 +74,21 @@ public class TestPipeline {
     }
   }
 
-  @Test(expected = IllegalStateException.class)
-  public final void testGetHandler_IllegalHandler() throws ParseException {
+  @Test(expected = IllegalArgumentException.class)
+  public final void testGetHandler_IllegalHandler() throws ParseException, UnsupportedEncodingException {
     final Options opts = new Options();
     Pipeline.addTikaOptions(opts);
-    final CommandLine cmd = (new PosixParser()).parse(opts, new String[] { "-x", "dummy" });
-    Pipeline.getTikaXmlHandler(cmd);
+    final CommandLine cmd = (new PosixParser()).parse(opts, new String[] { "-x", "illegal" });
+    final ByteArrayOutputStream tmperr = new ByteArrayOutputStream();
+    final PrintStream errout = System.err;
+    System.setErr(new PrintStream(tmperr, true, "UTF-8")); // redirect STDOUT
+    try {
+      Pipeline.getTikaXmlHandler(cmd);
+    } finally {
+      System.setErr(errout);
+      String capture = tmperr.toString("UTF-8"); // capture STDOUT
+      Assert.assertEquals("no such XML handler: illegal\n", capture);
+    }
   }
 
   @Test
@@ -86,11 +102,28 @@ public class TestPipeline {
     Assert.assertEquals(Pipeline.class.getName(), l.getName());
   }
 
+  public static class DummyReader extends CasCollectionReader_ImplBase {
+    public void getNext(CAS aCAS) throws IOException, CollectionException {}
+
+    public boolean hasNext() throws IOException, CollectionException {
+      return false;
+    }
+
+    public Progress[] getProgress() {
+      return null;
+    }
+
+    public static CollectionReaderDescription create() throws ResourceInitializationException {
+      return CollectionReaderFactory.createDescription(DummyReader.class);
+    }
+  }
+
   @Test
   public final void testPipeline_ReaderInt() throws ResourceInitializationException {
-    final CollectionReaderDescription r = new CollectionReaderDescription_impl();
-    final Pipeline p = new Pipeline(0, r);
-    Assert.assertEquals(r, p.getReader());
+    final CollectionReaderDescription crd = DummyReader.create();
+    final CollectionReader cr = CollectionReaderFactory.createCollectionReader(crd);
+    final Pipeline p = new Pipeline(0, crd);
+    Assert.assertEquals(cr.getClass(), p.getReader().getClass());
     Assert.assertEquals(0, p.size());
   }
 
@@ -115,17 +148,18 @@ public class TestPipeline {
 
   @Test
   public final void testPipeline_Reader() throws ResourceInitializationException {
-    final CollectionReaderDescription r = new CollectionReaderDescription_impl();
-    final Pipeline p = new Pipeline(r);
-    Assert.assertEquals(r, p.getReader());
+    final CollectionReaderDescription crd = DummyReader.create();
+    final CollectionReader cr = CollectionReaderFactory.createCollectionReader(crd);
+    final Pipeline p = new Pipeline(cr);
+    Assert.assertEquals(cr, p.getReader());
     Assert.assertEquals(1, p.size());
   }
 
   @Test
   public final void testPipeline_ReaderEngines() throws ResourceInitializationException {
-    final CollectionReaderDescription r = new CollectionReaderDescription_impl();
-    final Pipeline p = new Pipeline(CollectionReaderFactory.createCollectionReader(r),
-        new AnalysisEngine[3]);
+    final CollectionReader r = CollectionReaderFactory
+        .createCollectionReader(DummyReader.create());
+    final Pipeline p = new Pipeline(r, new AnalysisEngine[3]);
     Assert.assertEquals(r, p.getReader());
     Assert.assertEquals(2, p.size());
   }
@@ -138,17 +172,19 @@ public class TestPipeline {
 
   @Test
   public final void testGetReader() throws ResourceInitializationException {
-    final CollectionReaderDescription r = new CollectionReaderDescription_impl();
-    final Pipeline p = new Pipeline(CollectionReaderFactory.createCollectionReader(r));
+    final CollectionReader r = CollectionReaderFactory
+        .createCollectionReader(DummyReader.create());
+    final Pipeline p = new Pipeline(r);
     Assert.assertEquals(r, p.getReader());
   }
 
   @Test
   public final void testSetReader_Reader() throws ResourceInitializationException {
     final Pipeline p = new Pipeline();
-    final CollectionReaderDescription r = new CollectionReaderDescription_impl();
+    final CollectionReaderDescription r = DummyReader.create();
+    final CollectionReader cr = CollectionReaderFactory.createCollectionReader(r);
     Assert.assertNull(p.setReader(r));
-    Assert.assertEquals(r, p.setReader(r));
+    Assert.assertEquals(cr.getClass(), p.setReader(r).getClass());
   }
 
   @Test
@@ -160,7 +196,7 @@ public class TestPipeline {
     final Pipeline p = new Pipeline();
     Assert.assertNull(p.setReader(cmd));
     final CollectionReader r = p.getReader();
-    // FIXME Assert.assertEquals(DirectoryReader.class.getName(), r.getImplementationName());
+    Assert.assertEquals(DirectoryReader.class.getName(), r.getClass().getName());
   }
 
   @Test
@@ -173,7 +209,7 @@ public class TestPipeline {
     final Pipeline p = new Pipeline();
     Assert.assertNull(p.setReader(cmd));
     final CollectionReader r = p.getReader();
-    // FIXME Assert.assertEquals(DirectoryReader.class.getName(), r.getImplementationName());
+    Assert.assertEquals(DirectoryReader.class.getName(), r.getClass().getName());
   }
 
   @Test(expected = IOException.class)
@@ -190,7 +226,7 @@ public class TestPipeline {
       Assert.assertNull(p.setReader(cmd));
     } finally {
       System.setErr(stderr);
-      Assert.assertEquals("path 'a' not a (readable) directory\n", tmperr.toString("UTF-8"));
+      Assert.assertEquals("cannot read 'a'\n", tmperr.toString("UTF-8"));
     }
   }
 
@@ -205,7 +241,7 @@ public class TestPipeline {
     final Pipeline p = new Pipeline();
     Assert.assertNull(p.setReader(cmd));
     final CollectionReader r = p.getReader();
-    // FIXME Assert.assertEquals(FileReader.class.getName(), r.getImplementationName());
+    Assert.assertEquals(FileReader.class.getName(), r.getClass().getName());
   }
 
   @Test
@@ -220,7 +256,7 @@ public class TestPipeline {
     final Pipeline p = new Pipeline();
     Assert.assertNull(p.setReader(cmd));
     final CollectionReader r = p.getReader();
-    // FIXME Assert.assertEquals(FileReader.class.getName(), r.getImplementationName());
+    Assert.assertEquals(FileReader.class.getName(), r.getClass().getName());
   }
 
   @Test(expected = IOException.class)
@@ -237,56 +273,62 @@ public class TestPipeline {
       Assert.assertNull(p.setReader(cmd));
     } finally {
       System.setErr(stderr);
-      Assert.assertEquals("path 'a' not a (readable) file\n", tmperr.toString("UTF-8"));
+      Assert.assertEquals("cannot read 'a'\n", tmperr.toString("UTF-8"));
     }
   }
 
   @Test
   public final void testSetReader_FilesMime() throws UIMAException, IOException {
     final Pipeline p = new Pipeline();
-    Assert.assertNull(p.setReader(new String[] { "file" }, "MIME"));
-    // FIXME Assert.assertEquals(FileReader.class.getName(),
-    // p.getReader().getImplementationName());
+    final File tmpfile = File.createTempFile("test", "pipeline");
+    Assert.assertTrue(tmpfile.exists() && tmpfile.canRead());
+    Assert.assertNull(p.setReader(new String[] { tmpfile.getAbsolutePath() }, "MIME"));
+    Assert.assertEquals(FileReader.class, p.getReader().getClass());
   }
 
   @Test
   public final void testSetReader_Files() throws UIMAException, IOException {
     final Pipeline p = new Pipeline();
-    Assert.assertNull(p.setReader(new String[] { "file" }));
-    // FIXME Assert.assertEquals(FileReader.class.getName(),
-    // p.getReader().getImplementationName());
+    final File tmpfile = File.createTempFile("test", "pipeline");
+    Assert.assertTrue(tmpfile.exists() && tmpfile.canRead());
+    Assert.assertNull(p.setReader(new String[] { tmpfile.getAbsolutePath() }));
+    Assert.assertEquals(FileReader.class, p.getReader().getClass());
   }
 
   @Test
   public final void testSetReader_DirMimeRecursive() throws UIMAException, IOException {
     final Pipeline p = new Pipeline();
-    Assert.assertNull(p.setReader(new File("dir"), "MIME", true));
-    // FIXME Assert.assertEquals(DirectoryReader.class.getName(),
-    // p.getReader().getImplementationName());
+    final File tmpdir = File.createTempFile("test", "pipeline").getParentFile();
+    Assert.assertTrue(tmpdir.exists() && tmpdir.canRead());
+    Assert.assertNull(p.setReader(tmpdir, "MIME", true));
+    Assert.assertEquals(DirectoryReader.class, p.getReader().getClass());
   }
 
   @Test
   public final void testSetReader_DirMime() throws UIMAException, IOException {
     final Pipeline p = new Pipeline();
-    Assert.assertNull(p.setReader(new File("dir"), "MIME"));
-    // FIXME Assert.assertEquals(DirectoryReader.class.getName(),
-    // p.getReader().getImplementationName());
+    final File tmpdir = File.createTempFile("test", "pipeline").getParentFile();
+    Assert.assertTrue(tmpdir.exists() && tmpdir.canRead());
+    Assert.assertNull(p.setReader(tmpdir, "MIME"));
+    Assert.assertEquals(DirectoryReader.class, p.getReader().getClass());
   }
 
   @Test
   public final void testSetReader_DirRecursive() throws UIMAException, IOException {
     final Pipeline p = new Pipeline();
-    Assert.assertNull(p.setReader(new File("dir"), true));
-    // FIXME Assert.assertEquals(DirectoryReader.class.getName(),
-    // p.getReader().getImplementationName());
+    final File tmpdir = File.createTempFile("test", "pipeline").getParentFile();
+    Assert.assertTrue(tmpdir.exists() && tmpdir.canRead());
+    Assert.assertNull(p.setReader(tmpdir, true));
+    Assert.assertEquals(DirectoryReader.class, p.getReader().getClass());
   }
 
   @Test
   public final void testSetReader_Dir() throws UIMAException, IOException {
     final Pipeline p = new Pipeline();
-    Assert.assertNull(p.setReader(new File("dir")));
-    // FIXME Assert.assertEquals(DirectoryReader.class.getName(),
-    // p.getReader().getImplementationName());
+    final File tmpdir = File.createTempFile("test", "pipeline").getParentFile();
+    Assert.assertTrue(tmpdir.exists() && tmpdir.canRead());
+    Assert.assertNull(p.setReader(tmpdir));
+    Assert.assertEquals(DirectoryReader.class, p.getReader().getClass());
   }
 
   @Test
@@ -301,14 +343,16 @@ public class TestPipeline {
   public final void testConfigureTika_UsingDefaultValues() throws UIMAException, IOException {
     final Pipeline p = new Pipeline();
     Assert.assertNull(p.configureTika(0, true, "encoding", true, XmlHandler.DEFAULT));
-    // FIXME Assert.assertEquals(TikaExtractor.class.getName(), p.get(0).getImplementationName());
+    Assert.assertEquals(TikaExtractor.class.getName(), p.get(0).getAnalysisEngineMetaData()
+        .getName());
   }
 
   @Test
   public final void testConfigureTika_UsingTikaAnnotator() throws UIMAException, IOException {
     final Pipeline p = new Pipeline();
     Assert.assertNull(p.configureTika(0, false, "encoding", true, XmlHandler.DEFAULT));
-    // FIXME Assert.assertEquals(TikaAnnotator.class.getName(), p.get(0).getImplementationName());
+    Assert.assertEquals(TikaAnnotator.class.getName(), p.get(0).getAnalysisEngineMetaData()
+        .getName());
   }
 
   @Test
@@ -319,7 +363,8 @@ public class TestPipeline {
     final CommandLine cmd = (new PosixParser()).parse(opts, new String[] {});
     final Pipeline p = new Pipeline();
     Assert.assertNull(p.configureTika(cmd));
-    // FIXME Assert.assertEquals(TikaExtractor.class.getName(), p.get(0).getImplementationName());
+    Assert.assertEquals(TikaExtractor.class.getName(), p.get(0).getAnalysisEngineMetaData()
+        .getName());
   }
 
   @Test(expected = IllegalStateException.class)
@@ -339,7 +384,8 @@ public class TestPipeline {
       IOException {
     final Pipeline p = new Pipeline();
     Assert.assertNull(p.configureTika(true, "encoding", true, XmlHandler.DEFAULT));
-    // FIXME Assert.assertEquals(TikaExtractor.class.getName(), p.get(0).getImplementationName());
+    Assert.assertEquals(TikaExtractor.class.getName(), p.get(0).getAnalysisEngineMetaData()
+        .getName());
   }
 
   @Test
@@ -406,10 +452,9 @@ public class TestPipeline {
     final Pipeline p = new Pipeline();
     p.setReader(new String[] { tmp.getAbsolutePath() });
     p.configureTika();
-    p.setConsumer(AnalysisEngineFactory.createPrimitive(TextWriter.configure().create()));
+    p.setConsumer(Pipeline.textEngine(TextWriter.configure().printToStdout().create()));
     try {
-      System.setOut(new PrintStream(tmpout, true, "UTF-8")); // redirect
-                                                             // STDOUT
+      System.setOut(new PrintStream(tmpout, true, "UTF-8")); // redirect STDOUT
       p.run();
       result = tmpout.toString("UTF-8"); // capture STDOUT
     } finally {

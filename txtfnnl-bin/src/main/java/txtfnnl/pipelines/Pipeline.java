@@ -98,6 +98,7 @@ public class Pipeline {
     opts.addOption("E", "output-encoding", true, "use encoding [" +
         (IOUtils.isMacOSX() ? "UTF-8" : Charset.defaultCharset()) + "]");
     opts.addOption("o", "output-directory", true, "output directory for writing files [STDOUT]");
+    opts.addOption("X", "raw-xmi", false, "output XMI instead of text");
     opts.addOption("r", "replace-files", false,
         "replace files in the output directory if they exist [false]");
   }
@@ -215,9 +216,9 @@ public class Pipeline {
   }
 
   /**
-   * Ensure a readable output directory or return <code>null</code> if not set. Does a
+   * Return a readable output directory or return <code>null</code> if not set. Does a
    * {@link System#exit(int)} with value <code>1</code> if the option isn't either
-   * <code>null</code> or a writeable directory.
+   * <code>null</code> or a writeable directory path.
    */
   public static File outputDirectory(CommandLine cmd) {
     File outputDirectory = null;
@@ -232,10 +233,31 @@ public class Pipeline {
     return outputDirectory;
   }
 
+  /**
+   * Ensure a readable output directory by returning the option value or otherwise use the current
+   * user directory.
+   * <p>
+   * Does a {@link System#exit(int)} with value <code>1</code> if the directory option is not a
+   * writeable directory path.
+   */
+  public static File ensureOutputDirectory(CommandLine cmd) {
+    File outputDirectory = new File(System.getProperty("user.dir"));
+    if (cmd.hasOption('o')) outputDirectory = outputDirectory(cmd);
+    return outputDirectory;
+  }
+
+  /**
+   * Return <code>true</code> if raw XMI should be produced rather than the standard output format.
+   */
+  public static boolean rawXmi(CommandLine cmd) {
+    return cmd.hasOption('X');
+  }
+
   /** Configure a Writer Builder using the command line options. */
   public static <B extends OutputWriter.Builder> B configureWriter(CommandLine cmd, B writer) {
-    writer.setEncoding(Pipeline.outputEncoding(cmd));
-    writer.setOutputDirectory(Pipeline.outputDirectory(cmd));
+    if (Pipeline.outputEncoding(cmd) != null) writer.setEncoding(Pipeline.outputEncoding(cmd));
+    if (Pipeline.outputDirectory(cmd) != null)
+      writer.setOutputDirectory(Pipeline.outputDirectory(cmd));
     if (Pipeline.outputOverwriteFiles(cmd)) writer.overwriteFiles();
     return writer;
   }
@@ -342,11 +364,10 @@ public class Pipeline {
     if ("default".equals(handler)) return XmlHandler.DEFAULT;
     else if ("clean".equals(handler)) return XmlHandler.CLEAN;
     else if ("elsevier".equals(handler)) return XmlHandler.ELSEVIER;
-    // unknown handler
+    // else: unknown handler
     System.err.print("no such XML handler: ");
     System.err.println(handler);
-    System.exit(1); // == EXIT ==
-    return null;
+    throw new IllegalArgumentException("illegal XML handler choice " + handler);
   }
 
   /** Create an AE from a descriptor that uses CASes with multiple views. */
@@ -448,15 +469,25 @@ public class Pipeline {
   }
 
   /**
-   * Set a collection reader for this pipeline.
+   * Set the collection reader for this pipeline.
+   * 
+   * @throws ResourceInitializationException
+   */
+  public CollectionReader setReader(CollectionReader reader)
+      throws ResourceInitializationException {
+    final CollectionReader last = collectionReader;
+    collectionReader = reader;
+    return last;
+  }
+
+  /**
+   * Set the collection reader for this pipeline via its descriptor and configuration parameters.
    * 
    * @throws ResourceInitializationException
    */
   public CollectionReader setReader(CollectionReaderDescription desc, Object... configurationData)
       throws ResourceInitializationException {
-    final CollectionReader last = collectionReader;
-    collectionReader = CollectionReaderFactory.createCollectionReader(desc, configurationData);
-    return last;
+    return setReader(CollectionReaderFactory.createCollectionReader(desc, configurationData));
   }
 
   /**
@@ -500,7 +531,7 @@ public class Pipeline {
   }
 
   protected void throwNotReadable(final String path) throws IOException {
-    final String msg = String.format("cannot read %s", path);
+    final String msg = String.format("cannot read '%s'", path);
     System.err.println(msg);
     throw new IOException(msg);
   }

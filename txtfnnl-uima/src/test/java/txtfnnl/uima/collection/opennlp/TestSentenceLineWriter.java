@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Arrays;
 import java.util.logging.Level;
 
 import org.junit.Assert;
@@ -21,7 +22,6 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
 
-import txtfnnl.uima.Views;
 import txtfnnl.uima.collection.SentenceLineWriter;
 import txtfnnl.uima.collection.TextWriter;
 import txtfnnl.uima.tcas.SentenceAnnotation;
@@ -82,7 +82,7 @@ public class TestSentenceLineWriter {
   @Test
   public void testProcessJCasOutputDir() throws UIMAException, IOException {
     final File tmpDir = IOUtils.mkTmpDir();
-    final File existing = new File(tmpDir, "test.txt.txt");
+    final File existing = new File(tmpDir, "doc-000001.txt");
     Assert.assertTrue(existing.createNewFile());
     final AnalysisEngine slw = AnalysisEngineFactory.createPrimitive(SentenceLineWriter
         .configure().setOutputDirectory(tmpDir).setEncoding("UTF-32").create());
@@ -90,9 +90,11 @@ public class TestSentenceLineWriter {
         System.getProperty("line.separator") + SEPARATOR + System.getProperty("line.separator") +
         SENTENCE_2.replace('\n', ' ').trim() + System.getProperty("line.separator");
     processHelper(slw);
-    final File created = new File(tmpDir, "test.txt.2.txt");
+    final File created = new File(tmpDir, "doc-000001.2.txt");
+    Assert.assertTrue(
+        created.getAbsolutePath() + " does not exist in " + Arrays.toString(tmpDir.list()),
+        created.exists());
     final FileInputStream fis = new FileInputStream(created);
-    Assert.assertTrue(created.exists());
     Assert.assertEquals(result, IOUtils.read(fis, "UTF-32"));
     existing.delete();
     created.delete();
@@ -101,14 +103,12 @@ public class TestSentenceLineWriter {
 
   ByteArrayOutputStream processHelper(AnalysisEngine sentenceLineWriter)
       throws ResourceInitializationException, CASException, AnalysisEngineProcessException {
-    final JCas baseCas = sentenceLineWriter.newJCas();
-    final JCas rawCas = baseCas.createView(Views.CONTENT_RAW.toString());
-    final JCas textCas = baseCas.createView(Views.CONTENT_TEXT.toString());
-    rawCas.setSofaDataURI("http://example.com/test.txt", "mime/dummy");
+    final JCas jCas = sentenceLineWriter.newJCas();
+    // jCas.setSofaDataURI("http://example.com/test.txt", "mime/dummy");
     final String text = SENTENCE_1 + SEPARATOR + SENTENCE_2;
-    textCas.setDocumentText(text);
-    final SentenceAnnotation a1 = new SentenceAnnotation(textCas);
-    final SentenceAnnotation a2 = new SentenceAnnotation(textCas);
+    jCas.setDocumentText(text);
+    final SentenceAnnotation a1 = new SentenceAnnotation(jCas);
+    final SentenceAnnotation a2 = new SentenceAnnotation(jCas);
     int offset = text.indexOf(SENTENCE_1.trim());
     a1.setBegin(offset);
     a1.setEnd(offset + SENTENCE_1.trim().length());
@@ -123,7 +123,7 @@ public class TestSentenceLineWriter {
     a2.addToIndexes();
     final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     System.setOut(new PrintStream(outputStream));
-    sentenceLineWriter.process(baseCas);
+    sentenceLineWriter.process(jCas);
     return outputStream;
   }
 }

@@ -20,8 +20,10 @@ import txtfnnl.uima.analysis_component.NOOPAnnotator;
 import txtfnnl.uima.analysis_component.SentenceFilter;
 import txtfnnl.uima.analysis_component.SyntaxPatternAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
+import txtfnnl.uima.collection.OutputWriter;
 import txtfnnl.uima.collection.SemanticAnnotationWriter;
 import txtfnnl.uima.collection.SentenceLineWriter;
+import txtfnnl.uima.collection.XmiWriter;
 import txtfnnl.uima.resource.LineBasedStringArrayResource;
 
 /**
@@ -90,8 +92,17 @@ public class PatternExtractor extends Pipeline {
       System.err.println("patterns file missing");
       System.exit(1); // == EXIT ==
     }
-    // output (format)
+    // output
     final boolean completeSentence = cmd.hasOption('c');
+    OutputWriter.Builder writer;
+    if (Pipeline.rawXmi(cmd)) {
+      writer = Pipeline.configureWriter(cmd,
+          XmiWriter.configure(Pipeline.ensureOutputDirectory(cmd)));
+    } else if (completeSentence) {
+      writer = Pipeline.configureWriter(cmd, SentenceLineWriter.configure());
+    } else {
+      writer = Pipeline.configureWriter(cmd, SemanticAnnotationWriter.configure());
+    }
     try {
       ExternalResourceDescription patternResource = LineBasedStringArrayResource.configure(
           "file:" + patterns.getCanonicalPath()).create();
@@ -112,21 +123,10 @@ public class PatternExtractor extends Pipeline {
         // the GENIA Tagger already lemmatizes; nothing to do
         grep.set(4, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
       }
-      if (completeSentence) {
-        grep.set(
-            5,
-            Pipeline.textEngine(SyntaxPatternAnnotator.configure(patternResource)
-                .removeUnmatched().create()));
-        SentenceLineWriter.Builder writer = Pipeline.configureWriter(cmd,
-            SentenceLineWriter.configure());
-        grep.setConsumer(Pipeline.multiviewEngine(writer.create()));
-      } else {
-        grep.set(5,
-            Pipeline.textEngine(SyntaxPatternAnnotator.configure(patternResource).create()));
-        SemanticAnnotationWriter.Builder writer = Pipeline.configureWriter(cmd,
-            SemanticAnnotationWriter.configure());
-        grep.setConsumer(Pipeline.multiviewEngine(writer.create()));
-      }
+      SyntaxPatternAnnotator.Builder spab = SyntaxPatternAnnotator.configure(patternResource);
+      if (completeSentence) spab.removeUnmatched();
+      grep.set(5, Pipeline.textEngine(spab.create()));
+      grep.setConsumer(Pipeline.textEngine(writer.create()));
       grep.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

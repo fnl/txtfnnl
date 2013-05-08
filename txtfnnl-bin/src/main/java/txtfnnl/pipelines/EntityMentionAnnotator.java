@@ -76,14 +76,13 @@ public class EntityMentionAnnotator {
     final Logger l = Pipeline.loggingSetup(cmd, opts,
         "txtfnnl entities [options] <directory|files...>\n");
     // output options
-    File outputDirectory = Pipeline.outputDirectory(cmd);
-    if (outputDirectory == null) outputDirectory = new File(System.getProperty("user.dir"));
-    XmiWriter.Builder writer = Pipeline.configureWriter(cmd, XmiWriter.configure(outputDirectory));
+    XmiWriter.Builder writer = Pipeline.configureWriter(cmd,
+        XmiWriter.configure(Pipeline.ensureOutputDirectory(cmd)));
     // DB resource
     ExternalResourceDescription jdbcResource = null;
     try {
-      jdbcResource = Pipeline.getJdbcConnectionResource(cmd, l, DEFAULT_JDBC_DRIVER, DEFAULT_DB_PROVIDER,
-          DEFAULT_DATABASE);
+      jdbcResource = Pipeline.getJdbcConnectionResource(cmd, l, DEFAULT_JDBC_DRIVER,
+          DEFAULT_DB_PROVIDER, DEFAULT_DATABASE);
     } catch (final ClassNotFoundException e) {
       System.err.println("JDBC resoruce setup failed:");
       System.err.println(e.toString());
@@ -143,7 +142,7 @@ public class EntityMentionAnnotator {
       pipeline.setReader(cmd);
       pipeline.configureTika(cmd);
       pipeline.set(1, Pipeline.multiviewEngine(builder.create()));
-      pipeline.setConsumer(Pipeline.multiviewEngine(writer.create()));
+      pipeline.setConsumer(Pipeline.textEngine(writer.create()));
       pipeline.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

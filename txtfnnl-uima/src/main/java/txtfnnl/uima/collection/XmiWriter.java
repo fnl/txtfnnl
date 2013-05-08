@@ -3,8 +3,6 @@ package txtfnnl.uima.collection;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 import javax.xml.transform.OutputKeys;
 
@@ -14,13 +12,12 @@ import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.CAS;
+import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.impl.XmiCasSerializer;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.XMLSerializer;
 
 import org.uimafit.descriptor.ConfigurationParameter;
-
-import txtfnnl.uima.Views;
 
 /**
  * A CAS consumer that serializes the documents to XMI.
@@ -38,11 +35,12 @@ public class XmiWriter extends OutputWriter {
   private boolean formatXmi;
   /**
    * Serialize to XML 1.1 (all Unicode characters allowed); defaults to <code>true</code>.
+   * <p>
+   * Disabling this serializes to XML 1.0.
    */
   public static final String PARAM_USE_XML_11 = "UseXml11";
   @ConfigurationParameter(name = PARAM_USE_XML_11, defaultValue = "true")
   private boolean useXml11;
-  private int counter = 0; // to create "new" output file names if necessary
 
   public static class Builder extends OutputWriter.Builder {
     protected Builder(Class<? extends AnalysisComponent> klass, File outputDirectory) {
@@ -53,7 +51,7 @@ public class XmiWriter extends OutputWriter {
     public Builder(File outputDirectory) {
       this(XmiWriter.class, outputDirectory);
     }
-    
+
     /** Set an output directory instead of writing to STDOUT. */
     @Override
     public Builder setOutputDirectory(File outputDirectory) {
@@ -67,8 +65,8 @@ public class XmiWriter extends OutputWriter {
       return this;
     }
 
-    /** Use (outdated, old) XML 1.0 (instead of 1.1). */
-    public Builder useOldXml() {
+    /** Use/serialize to XML 1.0 (instead of 1.1). */
+    public Builder writeOldXml() {
       setOptionalParameter(PARAM_USE_XML_11, Boolean.FALSE);
       return this;
     }
@@ -99,29 +97,13 @@ public class XmiWriter extends OutputWriter {
    */
   @Override
   public void process(CAS cas) throws AnalysisEngineProcessException {
-    final String uri = cas.getView(Views.CONTENT_RAW.toString()).getSofaDataURI();
-    String outFileBaseName;
-    File outFile;
     try {
-      final File inFile = new File(new URI(uri));
-      outFileBaseName = inFile.getName();
-    } catch (final URISyntaxException e) {
-      outFileBaseName = String.format("doc-%06d", ++counter);
-    } catch (final NullPointerException e) {
-      outFileBaseName = String.format("doc-%06d", ++counter);
-    }
-    outFile = new File(outputDirectory, outFileBaseName + ".xmi");
-    if (!overwriteFiles && outFile.exists()) {
-      int idx = 2;
-      while (outFile.exists()) {
-        outFile = new File(outputDirectory, outFileBaseName + "." + idx++ + ".xmi");
-      }
-    }
-    try {
-      writeXmi(cas, outFile);
+      writeXmi(cas, openOutputFile(cas.getJCas(), "xmi"));
     } catch (final SAXException e) {
       throw new AnalysisEngineProcessException(e);
     } catch (final IOException e) {
+      throw new AnalysisEngineProcessException(e);
+    } catch (CASException e) {
       throw new AnalysisEngineProcessException(e);
     }
   }
@@ -140,12 +122,9 @@ public class XmiWriter extends OutputWriter {
       out = new FileOutputStream(file);
       final XmiCasSerializer xmi = new XmiCasSerializer(cas.getTypeSystem());
       final XMLSerializer xml = new XMLSerializer(out, formatXmi);
-      if (useXml11) {
-        xml.setOutputProperty(OutputKeys.VERSION, "1.1");
-      }
-      if (encoding != null) {
-        xml.setOutputProperty(OutputKeys.ENCODING, encoding);
-      }
+      if (useXml11) xml.setOutputProperty(OutputKeys.VERSION, "1.1");
+      // else xml.setOutputProperty(OutputKeys.VERSION, "1.0");
+      if (encoding != null) xml.setOutputProperty(OutputKeys.ENCODING, encoding);
       xmi.serialize(cas, xml.getContentHandler());
     } finally {
       if (out != null) {

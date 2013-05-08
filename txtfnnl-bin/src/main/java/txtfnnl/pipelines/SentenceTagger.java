@@ -15,7 +15,9 @@ import txtfnnl.uima.analysis_component.BioLemmatizerAnnotator;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
 import txtfnnl.uima.analysis_component.NOOPAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
+import txtfnnl.uima.collection.OutputWriter;
 import txtfnnl.uima.collection.TaggedSentenceLineWriter;
+import txtfnnl.uima.collection.XmiWriter;
 
 /**
  * A plaintext tagger for (nearly arbitrary) input files to annotate sentences, tokens, lemmas, PoS
@@ -55,8 +57,13 @@ public class SentenceTagger extends Pipeline {
     // (GENIA) tokenizer
     final String geniaDir = cmd.getOptionValue('G');
     // output (format)
-    TaggedSentenceLineWriter.Builder writer = Pipeline.configureWriter(cmd,
-        TaggedSentenceLineWriter.configure());
+    OutputWriter.Builder writer;
+    if (Pipeline.rawXmi(cmd)) {
+      writer = Pipeline.configureWriter(cmd,
+          XmiWriter.configure(Pipeline.ensureOutputDirectory(cmd)));
+    } else {
+      writer = Pipeline.configureWriter(cmd, TaggedSentenceLineWriter.configure());
+    }
     try {
       final Pipeline tagger = new Pipeline(4); // tika, splitter, tokenizer, lemmatizer
       tagger.setReader(cmd);
@@ -71,7 +78,7 @@ public class SentenceTagger extends Pipeline {
         // the GENIA Tagger already stems - nothing more to do
         tagger.set(3, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
       }
-      tagger.setConsumer(Pipeline.multiviewEngine(writer.create()));
+      tagger.setConsumer(Pipeline.textEngine(writer.create()));
       tagger.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

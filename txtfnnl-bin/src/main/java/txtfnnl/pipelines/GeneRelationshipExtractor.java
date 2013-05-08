@@ -23,7 +23,9 @@ import txtfnnl.uima.analysis_component.RelationshipFilter;
 import txtfnnl.uima.analysis_component.SentenceFilter;
 import txtfnnl.uima.analysis_component.SyntaxPatternAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
+import txtfnnl.uima.collection.OutputWriter;
 import txtfnnl.uima.collection.RelationshipWriter;
+import txtfnnl.uima.collection.XmiWriter;
 import txtfnnl.uima.resource.GnamedGazetteerResource;
 import txtfnnl.uima.resource.LineBasedStringArrayResource;
 
@@ -161,8 +163,13 @@ public class GeneRelationshipExtractor extends Pipeline {
       System.exit(1); // == EXIT ==
     }
     // output (format)
-    RelationshipWriter.Builder writer = Pipeline.configureWriter(cmd,
-        RelationshipWriter.configure());
+    OutputWriter.Builder writer;
+    if (Pipeline.rawXmi(cmd)) {
+      writer = Pipeline.configureWriter(cmd,
+          XmiWriter.configure(Pipeline.ensureOutputDirectory(cmd)));
+    } else {
+      writer = Pipeline.configureWriter(cmd, RelationshipWriter.configure());
+    }
     try {
       ExternalResourceDescription patternResource = LineBasedStringArrayResource.configure(
           "file:" + patterns.getCanonicalPath()).create();
@@ -218,7 +225,7 @@ public class GeneRelationshipExtractor extends Pipeline {
               .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
               .setMappingIdentifier("target").setEntityAnnotatorUri(GazetteerAnnotator.URI)
               .setEntityNamespace("Entrez").create()));
-      rex.setConsumer(Pipeline.multiviewEngine(writer.create()));
+      rex.setConsumer(Pipeline.textEngine(writer.create()));
       rex.run();
     } catch (final UIMAException e) {
       l.severe(e.toString());

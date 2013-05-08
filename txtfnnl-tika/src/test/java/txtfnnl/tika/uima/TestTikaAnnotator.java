@@ -129,6 +129,12 @@ public class TestTikaAnnotator {
     jCas = baseJCas.getView(Views.CONTENT_TEXT.toString());
     Assert.assertEquals("test\n\nagain", jCas.getDocumentText());
     int count = 0;
+    for (final DocumentAnnotation ann : JCasUtil.select(jCas, DocumentAnnotation.class)) {
+      Assert.assertEquals("Content-Type", ann.getNamespace());
+      Assert.assertEquals("text/xml", ann.getIdentifier());
+      ++count;
+    }
+    Assert.assertEquals(1, count);
     for (final StructureAnnotation ann : JCasUtil.select(jCas, StructureAnnotation.class)) {
       Assert.assertEquals("url#", ann.getNamespace());
       Assert.assertEquals("ce:para", ann.getIdentifier());
@@ -140,7 +146,7 @@ public class TestTikaAnnotator {
       Assert.assertEquals("1", p.getValue());
       count++;
     }
-    Assert.assertEquals(2, count);
+    Assert.assertEquals(3, count);
   }
 
   @Test
@@ -167,12 +173,30 @@ public class TestTikaAnnotator {
   public void testEncoding() throws CASRuntimeException, IOException, UIMAException {
     final AnalysisEngine tikaAnnotator = getEngine("UTF-8", true, null);
     final JCas baseJCas = tikaAnnotator.newJCas();
-    JCas jCas = baseJCas.createView(Views.CONTENT_RAW.toString());
+    JCas rawCas = baseJCas.createView(Views.CONTENT_RAW.toString());
     final File infile = new File("src/test/resources/encoding.html");
-    jCas.setSofaDataURI("file:" + infile.getCanonicalPath(), null);
+    rawCas.setSofaDataURI("file:" + infile.getCanonicalPath(), null);
     tikaAnnotator.process(baseJCas);
-    jCas = baseJCas.getView(Views.CONTENT_TEXT.toString());
-    final String text = jCas.getDocumentText();
+    JCas textCas = baseJCas.getView(Views.CONTENT_TEXT.toString());
+    final String text = textCas.getDocumentText();
     Assert.assertTrue(text, text.indexOf("and HIF-1alpha. A new p300") > -1);
+    int count = 0;
+    for (final DocumentAnnotation ann : JCasUtil.select(textCas, DocumentAnnotation.class)) {
+      if (ann.getNamespace().equals("title")) {
+        Assert.assertEquals("Functional role of p35srj, a novel p300/CBP binding protein, "
+            + "during transactivation by HIF-1", ann.getIdentifier());
+      } else if (ann.getNamespace().equals("Content-Location")) {
+        Assert.assertEquals("http://www.ncbi.nlm.nih.gov/pmc/articles/PMC316375/",
+            ann.getIdentifier());
+      } else if (ann.getNamespace().equals("Content-Encoding")) {
+        Assert.assertEquals("UTF-8", ann.getIdentifier());
+      } else if (ann.getNamespace().equals("resourceName")) {
+        Assert.assertEquals("encoding.html", ann.getIdentifier());
+      } else {
+        Assert.fail();
+      }
+      count++;
+    }
+    Assert.assertEquals(4, count);
   }
 }
