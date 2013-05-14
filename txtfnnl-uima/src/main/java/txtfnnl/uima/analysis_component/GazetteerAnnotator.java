@@ -176,12 +176,12 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     return new Builder(entityNamespace, gazetteerResourceDescription);
   }
 
-  private static interface FilterStrategy {
+  protected static interface FilterStrategy {
     public void process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
         Set<String> ids);
   }
 
-  private static class SelectWhitelist implements FilterStrategy {
+  protected static class SelectWhitelist implements FilterStrategy {
     private Set<String> allowedMatches;
     private GazetteerAnnotator annotator;
 
@@ -197,7 +197,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     }
   }
 
-  private static class FilterBlacklist implements FilterStrategy {
+  protected static class FilterBlacklist implements FilterStrategy {
     private Set<String> filteredMatches;
     private GazetteerAnnotator annotator;
 
@@ -213,7 +213,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     }
   }
 
-  private static class SelectAndFilter implements FilterStrategy {
+  protected static class SelectAndFilter implements FilterStrategy {
     private Set<String> allowedMatches;
     private Set<String> filteredMatches;
     private GazetteerAnnotator annotator;
@@ -232,7 +232,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     }
   }
 
-  private static class NoStrategy implements FilterStrategy {
+  protected static class NoStrategy implements FilterStrategy {
     private GazetteerAnnotator annotator;
 
     public NoStrategy(GazetteerAnnotator ga) {
