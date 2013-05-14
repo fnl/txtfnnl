@@ -276,7 +276,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
         Map<SemanticAnnotation, Collection<TokenAnnotation>> tokensContainingSemAnns) {
       Collection<TokenAnnotation> tokens = tokensCoveredBySemAnn.get(ann);
       if (tokens == null) tokens = tokensContainingSemAnns.get(ann);
-      if (tokens == null) {
+      if (tokens == null || tokens.size() == 0) {
         before = null;
         current = null;
         first = null;
