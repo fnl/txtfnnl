@@ -174,11 +174,15 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
     afterSet = tokenSets.get("after");
     prefixSet = tokenSets.get("prefix");
     suffixSet = tokenSets.get("suffix");
+    logger.log(Level.INFO, "received {0} PoS tags and {1}/{2}/{3}/{4} tokens", new Object[] {
+        (posTagSet == null) ? 0 : posTagSet.size(), (beforeSet == null) ? 0 : beforeSet.size(),
+        (prefixSet == null) ? 0 : prefixSet.size(), (suffixSet == null) ? 0 : suffixSet.size(),
+        (afterSet == null) ? 0 : afterSet.size(), });
   }
 
   /** Initialization helper to create the sets. */
   private Set<String> makeSetIfProvided(String[] items) {
-    if (items.length > 0) {
+    if (items != null && items.length > 0) {
       Set<String> s = new HashSet<String>();
       for (String i : items)
         s.add(i);
