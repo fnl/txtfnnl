@@ -258,8 +258,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
   private void logSurrounding(TokenSurrounding surr, SemanticAnnotation ann) {
     logger.log(Level.SEVERE, "ann= '" + ann.getCoveredText() + "' surr.before=" +
         ((surr.before == null) ? "N/A" : "'" + surr.before.getCoveredText() + "'") +
-        " surr.first=" +
-        ((surr.first == null) ? "N/A" : "'" + surr.first.getCoveredText() + "'") + 
+        " surr.first=" + ((surr.first == null) ? "N/A" : "'" + surr.first.getCoveredText() + "'") +
         " surr.current='" + surr.current.getCoveredText() + "' surr.after=" +
         ((surr.after == null) ? "N/A" : "'" + surr.after.getCoveredText() + "'"));
   }
@@ -299,7 +298,6 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
         tokens = new LinkedList<TokenAnnotation>(tokens);
         tokens.addAll(tokensContainingSemAnns.get(ann));
       }
-        
       if (tokens == null || tokens.size() == 0) {
         before = null;
         current = null;
@@ -315,9 +313,21 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
           });
           current = multi[multi.length - 1];
           first = multi[0];
+          if (ann.getBegin() < first.getBegin())
+            throw new RuntimeException("first token " + first.toString() +
+                " does not overlap with ann " + ann.toString());
+          if (ann.getEnd() > current.getEnd())
+            throw new RuntimeException("last token " + current.toString() +
+                " does not overlap with ann " + ann.toString());
         } else {
           current = tokens.iterator().next();
           first = null;
+          if (ann.getBegin() < current.getBegin())
+            throw new RuntimeException("token begin " + current.toString() +
+                " does not overlap with ann " + ann.toString());
+          if (ann.getEnd() > current.getEnd())
+            throw new RuntimeException("token end " + current.toString() +
+                " does not overlap with ann " + ann.toString());
         }
         List<TokenAnnotation> r = JCasUtil.selectPreceding(jcas, TokenAnnotation.class, ann, 1);
         if (r.size() == 1) before = r.get(0);
