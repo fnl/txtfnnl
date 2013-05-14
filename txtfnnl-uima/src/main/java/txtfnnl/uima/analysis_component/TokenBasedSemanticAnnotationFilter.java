@@ -125,8 +125,8 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
      * the relevant tags. <strong>However</strong>, if the semantic annotation has no tokens, it is
      * not not filtered by this parameter, even if a PoS tag list was set!
      * 
-     * @param posTags
-     * @return
+     * @param posTags to select/whitelist
+     * @return the configuation builder
      */
     public Builder setPosTags(String[] posTags) {
       setOptionalParameter(PARAM_POS_TAGS, posTags);
@@ -237,7 +237,12 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
       if (surr.current == null) {
         if (doSelect) removalBuffer.add(ann);
         else logger.log(Level.INFO, ann.toString() + " not covered by tokens");
+<<<<<<< HEAD
       } else if (posTagSet != null && remove(surr.current.getPos(), posTagSet, true)) {
+=======
+      }
+      if (posTagSet != null && remove(surr.current.getPos(), posTagSet, true)) {
+>>>>>>> origin/master
         removalBuffer.add(ann);
       } else if (beforeSet != null &&
           ((surr.before == null && doSelect) || (surr.before != null && remove(
