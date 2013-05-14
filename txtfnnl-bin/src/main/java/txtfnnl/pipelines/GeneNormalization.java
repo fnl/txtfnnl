@@ -14,17 +14,21 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.uima.UIMAException;
+import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 
+import txtfnnl.uima.ConfigurationBuilder;
 import txtfnnl.uima.analysis_component.GeneAnnotator;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
 import txtfnnl.uima.analysis_component.NOOPAnnotator;
+import txtfnnl.uima.analysis_component.TokenBasedSemanticAnnotationFilter;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
 import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
 import txtfnnl.uima.collection.AnnotationLineWriter;
 import txtfnnl.uima.collection.OutputWriter;
 import txtfnnl.uima.collection.XmiWriter;
 import txtfnnl.uima.resource.GnamedGazetteerResource;
+import txtfnnl.uima.resource.QualifiedStringSetResource;
 
 /**
  * A pipeline to detect gene and protein names that match names recorded in databases.
@@ -59,12 +63,12 @@ public class GeneNormalization extends Pipeline {
     final Options opts = new Options();
     final String geneAnnotationNamespace = "gene";
     CommandLine cmd = null;
+    // standard pipeline options
     Pipeline.addLogHelpAndInputOptions(opts);
     Pipeline.addTikaOptions(opts);
     Pipeline.addJdbcResourceOptions(opts, DEFAULT_JDBC_DRIVER, DEFAULT_DB_PROVIDER,
         DEFAULT_DATABASE);
     Pipeline.addOutputOptions(opts);
-    // sentence splitter options
     Pipeline.addSentenceAnnotatorOptions(opts);
     // tokenizer options setup
     opts.addOption("G", "genia", true,
@@ -73,9 +77,14 @@ public class GeneNormalization extends Pipeline {
     opts.addOption("Q", "query", true, "SQL query that produces gene ID, tax ID, name triplets");
     // gene annotator options
     opts.addOption("f", "filter-matches", true, "a blacklist (file) of exact matches");
-    opts.addOption("F", "whitelist", true, "invert filter to behave as a whitelist");
+    opts.addOption("F", "whitelist-matches", false,
+        "invert filter matches to behave as a whitelist");
     opts.addOption("c", "cutoff-similarity", true,
         "min. string similarity required to annotate [0.5]");
+    // filter options
+    opts.addOption("r", "required-pos-tags", true, "a whitelist (file) of required PoS tags");
+    opts.addOption("t", "filter-tokens", true, "a two-column (file) list of filter matches");
+    opts.addOption("T", "whitelist-tokens", false, "invert token filter to behave as a whitelist");
     try {
       cmd = parser.parse(opts, arguments);
     } catch (final ParseException e) {
@@ -107,8 +116,7 @@ public class GeneNormalization extends Pipeline {
     // Gene annotator setup
     GeneAnnotator.Builder geneAnnotator = null;
     try {
-      geneAnnotator = GeneAnnotator.configure(geneAnnotationNamespace,
-          gazetteer.create());
+      geneAnnotator = GeneAnnotator.configure(geneAnnotationNamespace, gazetteer.create());
     } catch (ResourceInitializationException e) {
       l.severe(e.toString());
       System.err.println(e.getLocalizedMessage());
@@ -116,35 +124,37 @@ public class GeneNormalization extends Pipeline {
       System.exit(1); // == EXIT ==
     }
     double cutoff = cmd.hasOption('c') ? Double.parseDouble(cmd.getOptionValue('c')) : 0.5;
-    String[] blacklist = null;
-    if (cmd.hasOption('f')) {
-      BufferedReader reader;
-      LinkedList<String> list = new LinkedList<String>();
-      String line;
-      int idx = 0;
-      try {
-        reader = new BufferedReader(new FileReader(new File(cmd.getOptionValue('f'))));
-        while ((line = reader.readLine()) != null)
-          list.add(line);
-      } catch (FileNotFoundException e) {
-        l.severe(e.toString());
-        System.err.println(e.getLocalizedMessage());
-        System.exit(1); // == EXIT ==
-      } catch (IOException e) {
-        l.severe(e.toString());
-        System.err.println(e.getLocalizedMessage());
-        System.exit(1); // == EXIT ==
-      }
-      blacklist = new String[list.size()];
-      for (String name : list)
-        blacklist[idx++] = name;
-    }
-    boolean isWhite = cmd.hasOption('F');
+    String[] blacklist = cmd.hasOption('f') ? makeList(cmd.getOptionValue('f'), l) : null;
     geneAnnotator.setTextNamespace(SentenceAnnotator.NAMESPACE)
         .setTextIdentifier(SentenceAnnotator.IDENTIFIER).setMinimumSimilarity(cutoff);
     if (blacklist != null) {
-      if (isWhite) geneAnnotator.setWhitelist(blacklist);
+      if (cmd.hasOption('F')) geneAnnotator.setWhitelist(blacklist);
       else geneAnnotator.setBlacklist(blacklist);
+    }
+    // Filter setup
+    ConfigurationBuilder<AnalysisEngineDescription> finalSemanticFilter;
+    if (cmd.hasOption('w') || cmd.hasOption('t')) {
+      TokenBasedSemanticAnnotationFilter.Builder semanticFilter = TokenBasedSemanticAnnotationFilter
+          .configure();
+      if (cmd.hasOption('w')) semanticFilter.setPosTags(makeList(cmd.getOptionValue('w'), l));
+      if (cmd.hasOption('t')) {
+        if (cmd.hasOption('T')) semanticFilter.whitelist();
+        try {
+          semanticFilter.setSurroundingTokens(QualifiedStringSetResource.configure(
+              "file:" + cmd.getOptionValue('t')).create());
+        } catch (ResourceInitializationException e) {
+          l.severe(e.toString());
+          System.err.println(e.getLocalizedMessage());
+          e.printStackTrace();
+          System.exit(1); // == EXIT ==
+        }
+      }
+      semanticFilter.setAnnotatorUri(GeneAnnotator.URI);
+      semanticFilter.setNamespace(geneAnnotationNamespace);
+      finalSemanticFilter = semanticFilter;
+    } else {
+      // no filter parameters have been specified - nothing to do
+      finalSemanticFilter = NOOPAnnotator.configure();
     }
     // output
     OutputWriter.Builder writer;
@@ -157,8 +167,8 @@ public class GeneNormalization extends Pipeline {
           .printSurroundings().printPosTag();
     }
     try {
-      // 0:tika, 1:splitter, 2:tokenizer, (3:NOOP), 4:gazetteer
-      final Pipeline gn = new Pipeline(5);
+      // 0:tika, 1:splitter, 2:tokenizer, (3:NOOP), 4:gazetteer, 5:filter
+      final Pipeline gn = new Pipeline(6);
       gn.setReader(cmd);
       gn.configureTika(cmd);
       gn.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
@@ -175,6 +185,7 @@ public class GeneNormalization extends Pipeline {
         gn.set(3, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
       }
       gn.set(4, Pipeline.textEngine(geneAnnotator.create()));
+      gn.set(5, Pipeline.textEngine(finalSemanticFilter.create()));
       gn.setConsumer(Pipeline.textEngine(writer.create()));
       gn.run();
     } catch (final UIMAException e) {
@@ -189,5 +200,30 @@ public class GeneNormalization extends Pipeline {
       System.exit(1); // == EXIT ==
     }
     System.exit(0);
+  }
+
+  private static String[] makeList(String filename, final Logger l) {
+    String[] theList;
+    BufferedReader reader;
+    LinkedList<String> list = new LinkedList<String>();
+    String line;
+    int idx = 0;
+    try {
+      reader = new BufferedReader(new FileReader(new File(filename)));
+      while ((line = reader.readLine()) != null)
+        list.add(line);
+    } catch (FileNotFoundException e) {
+      l.severe(e.toString());
+      System.err.println(e.getLocalizedMessage());
+      System.exit(1); // == EXIT ==
+    } catch (IOException e) {
+      l.severe(e.toString());
+      System.err.println(e.getLocalizedMessage());
+      System.exit(1); // == EXIT ==
+    }
+    theList = new String[list.size()];
+    for (String name : list)
+      theList[idx++] = name;
+    return theList;
   }
 }

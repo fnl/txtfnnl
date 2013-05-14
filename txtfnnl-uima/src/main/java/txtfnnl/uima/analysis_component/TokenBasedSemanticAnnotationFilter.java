@@ -18,23 +18,32 @@ import org.apache.uima.cas.FSIterator;
 import org.apache.uima.cas.FSMatchConstraint;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
+import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
 import org.uimafit.component.JCasAnnotator_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
+import org.uimafit.descriptor.ExternalResource;
 import org.uimafit.util.JCasUtil;
 
 import txtfnnl.uima.AnalysisComponentBuilder;
+import txtfnnl.uima.resource.LineBasedStringMapResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
 import txtfnnl.utils.Offset;
 
 /**
- * Filter (or select/whitelist) {@link SemanticAnnotation SemanticAnnotations} based on the
+ * Filter (or select/whitelist) {@link SemanticAnnotation semantic annotations} based on the
  * contained and surrounding {@link TokenAnnotation tokens}, including the PoS tag of the semantic
  * annotation's (header) token.
+ * <p>
+ * The "surrounding" of the semantic annotation consists of the last non-overlapping token before
+ * the annotation, the first non-overlapping token after the annotation, and possible affixes. An
+ * annotation's prefix is the text span between the begin of the overlapping token and the actual
+ * annotation; I.e., a prefix only exists if the annotation starts after the token. The same is the
+ * case for a suffix, spanning from the end of the annotation to the end of the overlapping token.
  * 
  * @author Florian Leitner
  */
@@ -58,30 +67,22 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
           + "based on the token matches.",
       defaultValue = "false")
   private boolean doSelect;
-  public static final String PARAM_BEFORE_TOKENS = "BeforeTokens";
-  @ConfigurationParameter(name = PARAM_BEFORE_TOKENS,
-      description = "Tokens before the text annotation to check for.")
-  private String[] beforeToken;
-  private Set<String> beforeSet = null;
-  public static final String PARAM_AFTER_TOKENS = "AfterTokens";
-  @ConfigurationParameter(name = PARAM_AFTER_TOKENS,
-      description = "Tokens after the text annotation to check for.")
-  private String[] afterToken;
-  private Set<String> afterSet = null;
-  public static final String PARAM_TOKEN_PREFIXES = "TokenPrefix";
-  @ConfigurationParameter(name = PARAM_TOKEN_PREFIXES,
-      description = "Prefixes to compare to at the beginning of the text annotation.")
-  private String[] tokenPrefixes;
-  private Set<String> prefixSet = null;
-  public static final String PARAM_TOKEN_SUFFIXES = "TokenSuffix";
-  @ConfigurationParameter(name = PARAM_TOKEN_SUFFIXES,
-      description = "Suffixes to compare to at the end of the text annotation.")
-  private String[] tokenSuffixes;
-  private Set<String> suffixSet = null;
   public static final String PARAM_POS_TAGS = "PosTags";
   @ConfigurationParameter(name = PARAM_POS_TAGS, description = "List of required PoS tag matches.")
   private String[] posTags;
   private Set<String> posTagSet = null;
+  /**
+   * Surrounding tokens and affixes to compare to the semantic annotation being checked.
+   * <p>
+   * StringMap keys: "before", "after", "prefix", and "suffix"; Anything else will be ignored.
+   */
+  public static final String MODEL_KEY_TOKEN_SETS = "TokenSets";
+  @ExternalResource(key = MODEL_KEY_TOKEN_SETS, mandatory = false)
+  private LineBasedStringMapResource<Set<String>> tokenSets;
+  private Set<String> beforeSet = null;
+  private Set<String> afterSet = null;
+  private Set<String> prefixSet = null;
+  private Set<String> suffixSet = null;
   // internal state
   private Logger logger;
 
@@ -135,8 +136,8 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
 
     /**
      * Instead of filtering (removing) matches of tokens, filter (remove) all semantic annotations
-     * that have no match to <string>all</strong> the defined sets, thereby <em>selecting</em> for
-     * annotation with matches.
+     * that have no match to <string>any</strong> of the defined sets, thereby <em>selecting</em>
+     * for annotation with matches.
      */
     public Builder whitelist() {
       setOptionalParameter(PARAM_SELECT_TOKENS, true);
@@ -144,40 +145,16 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
     }
 
     /**
-     * Filter (or select) annotations where the first token before the annotation matches to any
-     * String in this array.
+     * Filter (or select) annotations where the token <code>before</code> or <code>after</code> the
+     * annotation or the annotation's <code>prefix</code> or <code>suffix</code> matches to any
+     * String defined in the sets of this resource keyed with any of these names.
+     * <p>
+     * The resource is assumed to be a {@link LineBasedStringMapResource} mapping to collections of
+     * String Sets. The mappings should be keyed by the above codewords. Any mapping using another
+     * codeword is simply ignored.
      */
-    public Builder setBeforeTokens(String[] tokens) {
-      setOptionalParameter(PARAM_BEFORE_TOKENS, tokens);
-      return this;
-    }
-
-    /**
-     * Filter (or select) annotations where the first token after the annotation matches to any
-     * String in this array.
-     */
-    public Builder setAfterTokens(String[] tokens) {
-      setOptionalParameter(PARAM_AFTER_TOKENS, tokens);
-      return this;
-    }
-
-    /**
-     * Filter (or select) annotations where a prefix of an annotation that does not coincide with a
-     * token start (i.e., the string between the token begin and the annotation begin) matches to
-     * any String in this array.
-     */
-    public Builder setTokenPrefixes(String[] affixes) {
-      setOptionalParameter(PARAM_TOKEN_PREFIXES, affixes);
-      return this;
-    }
-
-    /**
-     * Filter (or select) annotations where a suffix of an annotation that does not coincide with a
-     * token end (i.e., the string between the annotation end and the token end) matches to any
-     * String in this array.
-     */
-    public Builder setTokenSuffixes(String[] affixes) {
-      setOptionalParameter(PARAM_TOKEN_SUFFIXES, affixes);
+    public Builder setSurroundingTokens(ExternalResourceDescription desc) {
+      setOptionalParameter(MODEL_KEY_TOKEN_SETS, desc);
       return this;
     }
   }
@@ -193,10 +170,10 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
     super.initialize(ctx);
     logger = ctx.getLogger();
     posTagSet = makeSetIfProvided(posTags);
-    beforeSet = makeSetIfProvided(beforeToken);
-    afterSet = makeSetIfProvided(afterToken);
-    prefixSet = makeSetIfProvided(tokenPrefixes);
-    suffixSet = makeSetIfProvided(tokenSuffixes);
+    beforeSet = tokenSets.get("before");
+    afterSet = tokenSets.get("after");
+    prefixSet = tokenSets.get("prefix");
+    suffixSet = tokenSets.get("suffix");
   }
 
   /** Initialization helper to create the sets. */
