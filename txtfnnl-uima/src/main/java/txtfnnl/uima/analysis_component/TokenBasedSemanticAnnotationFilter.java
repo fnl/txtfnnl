@@ -115,7 +115,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
     /**
      * If set, the PoS tag of the head token of the checked semantic annotation (and that covers
      * one or more tokens) must match to an entry in this list, otherwise the annotation is removed
-     * (i.e., whitelisting) .
+     * (i.e., whitelisting).
      * <p>
      * If the semantic annotation spans multiple tokens, its <strong>last</strong> ("head") token
      * is used as reference. Unlike other parameters, if a semantic annotation has no PoS, and this
@@ -237,12 +237,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
       if (surr.current == null) {
         if (doSelect) removalBuffer.add(ann);
         else logger.log(Level.INFO, ann.toString() + " not covered by tokens");
-<<<<<<< HEAD
       } else if (posTagSet != null && remove(surr.current.getPos(), posTagSet, true)) {
-=======
-      }
-      if (posTagSet != null && remove(surr.current.getPos(), posTagSet, true)) {
->>>>>>> origin/master
         removalBuffer.add(ann);
       } else if (beforeSet != null &&
           ((surr.before == null && doSelect) || (surr.before != null && remove(
