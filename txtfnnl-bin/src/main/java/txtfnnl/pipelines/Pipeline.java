@@ -272,6 +272,7 @@ public class Pipeline {
     return cmd.hasOption('r');
   }
 
+  /** Get a correctly configured {@link SentenceAnnotator} wrt. the command line options. */
   public static AnalysisEngineDescription getSentenceAnnotator(CommandLine cmd)
       throws ResourceInitializationException {
     SentenceAnnotator.Builder b = SentenceAnnotator.configure();
@@ -427,15 +428,21 @@ public class Pipeline {
   }
 
   /**
-   * Configure a pipeline for a collection reader, one analysis engine, and a CAS consumer. The all
-   * but the collection reader must be set at a later stage.
+   * Configure a pipeline for a collection reader, one analysis engine, and a CAS consumer. All but
+   * the collection reader - and including the size of the pipeline - must be set at a later stage.
    * 
-   * @param reader a collection reader configuration
+   * @param reader a configured collection reader
    */
   public Pipeline(CollectionReader reader) {
     this(reader, 1);
   }
 
+  /**
+   * Configure a pipeline for a collection reader, one analysis engine, and a CAS consumer. All but
+   * the collection reader - and including the size of the pipeline - must be set at a later stage.
+   * 
+   * @param reader a collection reader configuration description
+   */
   public Pipeline(CollectionReaderDescription desc) throws ResourceInitializationException {
     this(CollectionReaderFactory.createCollectionReader(desc));
   }
@@ -530,6 +537,7 @@ public class Pipeline {
     else return setReader(inputDirectory, mimeType, recursive); // file reader
   }
 
+  /** Helper method to throw similar errors when a file or directory path cannot be read. */
   protected void throwNotReadable(final String path) throws IOException {
     final String msg = String.format("cannot read '%s'", path);
     System.err.println(msg);
