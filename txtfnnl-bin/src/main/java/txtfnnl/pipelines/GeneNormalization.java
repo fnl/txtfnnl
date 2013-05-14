@@ -1,7 +1,11 @@
 package txtfnnl.pipelines;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
+import java.util.LinkedList;
 import java.util.logging.Logger;
 
 import org.apache.commons.cli.CommandLine;
@@ -10,6 +14,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.uima.UIMAException;
+import org.apache.uima.resource.ResourceInitializationException;
 
 import txtfnnl.uima.analysis_component.GeneAnnotator;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
@@ -66,6 +71,11 @@ public class GeneNormalization extends Pipeline {
         "use GENIA (with the dir containing 'morphdic/') instead of OpenNLP");
     // query options
     opts.addOption("Q", "query", true, "SQL query that produces gene ID, tax ID, name triplets");
+    // gene annotator options
+    opts.addOption("f", "filter-matches", true, "a blacklist (file) of exact matches");
+    opts.addOption("F", "whitelist", true, "invert filter to behave as a whitelist");
+    opts.addOption("c", "cutoff-similarity", true,
+        "min. string similarity required to annotate [0.5]");
     try {
       cmd = parser.parse(opts, arguments);
     } catch (final ParseException e) {
@@ -94,6 +104,48 @@ public class GeneNormalization extends Pipeline {
     gazetteer.idMatching();
     gazetteer.boundaryMatch();
     Pipeline.configureAuthentication(cmd, gazetteer);
+    // Gene annotator setup
+    GeneAnnotator.Builder geneAnnotator = null;
+    try {
+      geneAnnotator = GeneAnnotator.configure(geneAnnotationNamespace,
+          gazetteer.create());
+    } catch (ResourceInitializationException e) {
+      l.severe(e.toString());
+      System.err.println(e.getLocalizedMessage());
+      e.printStackTrace();
+      System.exit(1); // == EXIT ==
+    }
+    double cutoff = cmd.hasOption('c') ? Double.parseDouble(cmd.getOptionValue('c')) : 0.5;
+    String[] blacklist = null;
+    if (cmd.hasOption('f')) {
+      BufferedReader reader;
+      LinkedList<String> list = new LinkedList<String>();
+      String line;
+      int idx = 0;
+      try {
+        reader = new BufferedReader(new FileReader(new File(cmd.getOptionValue('f'))));
+        while ((line = reader.readLine()) != null)
+          list.add(line);
+      } catch (FileNotFoundException e) {
+        l.severe(e.toString());
+        System.err.println(e.getLocalizedMessage());
+        System.exit(1); // == EXIT ==
+      } catch (IOException e) {
+        l.severe(e.toString());
+        System.err.println(e.getLocalizedMessage());
+        System.exit(1); // == EXIT ==
+      }
+      blacklist = new String[list.size()];
+      for (String name : list)
+        blacklist[idx++] = name;
+    }
+    boolean isWhite = cmd.hasOption('F');
+    geneAnnotator.setTextNamespace(SentenceAnnotator.NAMESPACE)
+        .setTextIdentifier(SentenceAnnotator.IDENTIFIER).setMinimumSimilarity(cutoff);
+    if (blacklist != null) {
+      if (isWhite) geneAnnotator.setWhitelist(blacklist);
+      else geneAnnotator.setBlacklist(blacklist);
+    }
     // output
     OutputWriter.Builder writer;
     if (Pipeline.rawXmi(cmd)) {
@@ -112,7 +164,7 @@ public class GeneNormalization extends Pipeline {
       gn.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
       if (geniaDir == null) {
         gn.set(2, Pipeline.textEngine(TokenAnnotator.configure().create()));
-        // TODO: lemmatization might not be needed?
+        // TODO: lemmatization is not needed?
         // gn.set(3, Pipeline.textEngine(BioLemmatizerAnnotator.configure().create()));
         gn.set(3, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
       } else {
@@ -122,10 +174,6 @@ public class GeneNormalization extends Pipeline {
         // the GENIA Tagger already lemmatizes; nothing to do here
         gn.set(3, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
       }
-      GeneAnnotator.Builder geneAnnotator = GeneAnnotator.configure(geneAnnotationNamespace,
-          gazetteer.create());
-      geneAnnotator.setTextNamespace(SentenceAnnotator.NAMESPACE).setTextIdentifier(
-          SentenceAnnotator.IDENTIFIER);
       gn.set(4, Pipeline.textEngine(geneAnnotator.create()));
       gn.setConsumer(Pipeline.textEngine(writer.create()));
       gn.run();
@@ -137,6 +185,7 @@ public class GeneNormalization extends Pipeline {
     } catch (final IOException e) {
       l.severe(e.toString());
       System.err.println(e.getLocalizedMessage());
+      e.printStackTrace();
       System.exit(1); // == EXIT ==
     }
     System.exit(0);

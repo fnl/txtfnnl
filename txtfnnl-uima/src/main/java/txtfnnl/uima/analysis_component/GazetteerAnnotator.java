@@ -1,5 +1,7 @@
 package txtfnnl.uima.analysis_component;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +70,25 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   public static final String PARAM_TEXT_IDENTIFIER = "TextIdentifier";
   @ConfigurationParameter(name = PARAM_TEXT_IDENTIFIER, mandatory = false)
   protected String sourceIdentifier = null;
+  /**
+   * The minimum string similarity value required to annotate the match.
+   * <p>
+   * Defaults to 0.0, i.e., no limitation. The value must be in the <code>[0.0, 1.0)</code> range,
+   * where 0.0 means any match is OK, and 1.0 would indicate to not annotate anything at all.
+   */
+  public static final String PARAM_MIN_SIMILARITY = "MinSimilarity";
+  @ConfigurationParameter(name = PARAM_MIN_SIMILARITY, mandatory = false, defaultValue = "0.0")
+  private float minSimilarity;
+  /** A list of matches to allow (if set, all others will be ignored). */
+  public static final String PARAM_WHITELIST = "Whitelist";
+  @ConfigurationParameter(name = PARAM_WHITELIST, mandatory = false)
+  private String[] whitelist;
+  /** A list of matches to remove (useless in conjunction with a whitelist). */
+  public static final String PARAM_BLACKLIST = "Blacklist";
+  @ConfigurationParameter(name = PARAM_BLACKLIST, mandatory = false)
+  private String[] blacklist;
+  /** The filter strategy chosen based on whitelist and blacklist settings. */
+  private FilterStrategy filter;
   /** The GazetteerResource used for entity matching. */
   public static final String MODEL_KEY_GAZETTEER = "Gazetteer";
   @ExternalResource(key = MODEL_KEY_GAZETTEER)
@@ -101,6 +122,39 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     }
 
     /**
+     * Set a minimum string similarity value required to annotate the match. The value should be in
+     * the <code>[0.0, 1.0)</code> range, where 0.0 means any match is OK, and 1.0 would indicate
+     * to not annotate anything at all (so it should be less than 1.0).
+     */
+    public Builder setMinimumSimilarity(double d) {
+      assert 0.0 <= d && d < 1.0 : "bad minimum simliarity value " + Double.toString(d);
+      setOptionalParameter(PARAM_MIN_SIMILARITY, new Float(d));
+      return this;
+    }
+
+    /**
+     * Define a list of exact matches that should be annotated (white-listing); Any other matches
+     * will not be annotated.
+     */
+    public Builder setWhitelist(String[] whitelist) {
+      setOptionalParameter(PARAM_WHITELIST, whitelist);
+      return this;
+    }
+
+    /**
+     * Define a list of exact matches that should not be annotated ("stop words"); Any other
+     * matches will be annotated.
+     * <p>
+     * Note that defining both a whitelist and a blacklist is probably a mistake: anything not on
+     * the whitelist will not be annotated, while if the mention is found in both lists, it will
+     * not be annotated, either.
+     */
+    public Builder setBlacklist(String[] blacklist) {
+      setOptionalParameter(PARAM_BLACKLIST, blacklist);
+      return this;
+    }
+
+    /**
      * Define the {@link TextAnnotation annotation} namespace to get the covered text from for the
      * Gazetteer's matcher.
      */
@@ -122,45 +176,121 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     return new Builder(entityNamespace, gazetteerResourceDescription);
   }
 
+  private static interface FilterStrategy {
+    public void process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
+        Set<String> ids);
+  }
+
+  private static class SelectWhitelist implements FilterStrategy {
+    private Set<String> allowedMatches;
+    private GazetteerAnnotator annotator;
+
+    public SelectWhitelist(String[] whitelist, GazetteerAnnotator ga) {
+      allowedMatches = new HashSet<String>(Arrays.asList(whitelist));
+      annotator = ga;
+    }
+
+    public void process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
+        Set<String> ids) {
+      if (allowedMatches.contains(match))
+        buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
+    }
+  }
+
+  private static class FilterBlacklist implements FilterStrategy {
+    private Set<String> filteredMatches;
+    private GazetteerAnnotator annotator;
+
+    public FilterBlacklist(String[] blacklist, GazetteerAnnotator ga) {
+      filteredMatches = new HashSet<String>(Arrays.asList(blacklist));
+      annotator = ga;
+    }
+
+    public void process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
+        Set<String> ids) {
+      if (!filteredMatches.contains(match))
+        buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
+    }
+  }
+
+  private static class SelectAndFilter implements FilterStrategy {
+    private Set<String> allowedMatches;
+    private Set<String> filteredMatches;
+    private GazetteerAnnotator annotator;
+
+    public SelectAndFilter(String[] whitelist, String[] blacklist, GazetteerAnnotator ga) {
+      allowedMatches = new HashSet<String>(Arrays.asList(whitelist));
+      filteredMatches = new HashSet<String>(Arrays.asList(blacklist));
+      annotator = ga;
+      annotator.logger.log(Level.WARNING, "defining both a while- and a blacklist");
+    }
+
+    public void process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
+        Set<String> ids) {
+      if (allowedMatches.contains(match) && !filteredMatches.contains(match))
+        buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
+    }
+  }
+
+  private static class NoStrategy implements FilterStrategy {
+    private GazetteerAnnotator annotator;
+
+    public NoStrategy(GazetteerAnnotator ga) {
+      annotator = ga;
+    }
+
+    public void process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
+        Set<String> ids) {
+      buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
+    }
+  }
+
   @Override
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
     logger = ctx.getLogger();
     logger.log(Level.INFO, "{0} Gazetteer initialized with {1} entities", new Object[] {
         entityNamespace, gazetteer.size() });
+    if (whitelist != null && whitelist.length > 0) {
+      if (blacklist != null && blacklist.length > 0) filter = new SelectAndFilter(whitelist,
+          blacklist, this);
+      else filter = new SelectWhitelist(whitelist, this);
+    } else if (blacklist != null && blacklist.length > 0) {
+      filter = new FilterBlacklist(blacklist, this);
+    } else {
+      filter = new NoStrategy(this);
+    }
     count = 0;
   }
 
   @Override
   public void process(JCas jcas) throws AnalysisEngineProcessException {
     String docText = jcas.getDocumentText();
+    List<SemanticAnnotation> buffer = new LinkedList<SemanticAnnotation>();
     if (sourceNamespace == null) {
       Map<Offset, Set<String>> matches = matchText(docText);
       for (Offset offset : matches.keySet()) {
-        String name = docText.substring(offset.start(), offset.end());
-        for (SemanticAnnotation ann : makeAnnotations(jcas, name, matches.get(offset), offset))
-          ann.addToIndexes();
+        String match = docText.substring(offset.start(), offset.end());
+        filter.process(jcas, buffer, match, offset, matches.get(offset));
       }
     } else {
       FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, sourceNamespace,
           sourceIdentifier);
       FSIterator<Annotation> it = TextAnnotation.getIterator(jcas);
       it = jcas.createFilteredIterator(it, cons);
-      List<SemanticAnnotation> buffer = new LinkedList<SemanticAnnotation>();
       while (it.hasNext()) {
         // findEntities -> annotateEntities
         Annotation ann = it.next();
-        
         Map<Offset, Set<String>> matches = matchText(ann.getCoveredText());
         for (Offset pos : matches.keySet()) {
           Offset offset = new Offset(pos.start() + ann.getBegin(), pos.end() + ann.getBegin());
-          String name = docText.substring(offset.start(), offset.end());
-          buffer.addAll(makeAnnotations(jcas, name, matches.get(pos), offset));
+          String match = docText.substring(offset.start(), offset.end());
+          filter.process(jcas, buffer, match, offset, matches.get(pos));
         }
       }
-      for (SemanticAnnotation ann : buffer)
-        ann.addToIndexes();
     }
+    for (SemanticAnnotation ann : buffer)
+      ann.addToIndexes();
   }
 
   protected Map<Offset, Set<String>> matchText(String text) {
@@ -186,7 +316,9 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         double conf = 0.0;
         for (String n : officialNames)
           conf = Math.max(conf, measure.similarity(n, name));
-        anns.add(annotate(dbId, jcas, offset, conf));
+        if (conf < minSimilarity) logger.log(Level.FINE,
+            "ignoring low-similarity match for {0} on ''{1}''", new String[] { dbId, name });
+        else anns.add(annotate(dbId, jcas, offset, conf));
       }
     }
     return anns;
