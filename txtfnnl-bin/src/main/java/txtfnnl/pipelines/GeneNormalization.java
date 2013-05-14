@@ -133,10 +133,10 @@ public class GeneNormalization extends Pipeline {
     }
     // Filter setup
     ConfigurationBuilder<AnalysisEngineDescription> finalSemanticFilter;
-    if (cmd.hasOption('w') || cmd.hasOption('t')) {
+    if (cmd.hasOption('r') || cmd.hasOption('t')) {
       TokenBasedSemanticAnnotationFilter.Builder semanticFilter = TokenBasedSemanticAnnotationFilter
           .configure();
-      if (cmd.hasOption('w')) semanticFilter.setPosTags(makeList(cmd.getOptionValue('w'), l));
+      if (cmd.hasOption('r')) semanticFilter.setPosTags(makeList(cmd.getOptionValue('w'), l));
       if (cmd.hasOption('t')) {
         if (cmd.hasOption('T')) semanticFilter.whitelist();
         try {
