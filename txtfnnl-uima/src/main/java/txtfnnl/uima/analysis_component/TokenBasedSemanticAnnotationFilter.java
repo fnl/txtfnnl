@@ -217,7 +217,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
       }
       if (surr.current == null) {
         if (doSelect) removalBuffer.add(ann);
-        else logger.log(Level.INFO, ann.toString() + " not covered by tokens");
+        else logger.log(Level.FINE, ann.toString() + " not covered by tokens");
       } else if (posTagSet != null && remove(surr.current.getPos(), posTagSet, true)) {
         removalBuffer.add(ann);
       } else if (beforeSet != null &&
@@ -229,20 +229,39 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
               surr.after.getCoveredText(), afterSet, doSelect)))) {
         removalBuffer.add(ann);
       } else if (suffixSet != null) {
-        String affix = surr.current.getCoveredText().substring(
-            ann.getEnd() - surr.current.getBegin());
-        if (affix.length() > 0 && remove(affix, suffixSet, doSelect)) {
-          removalBuffer.add(ann);
-        } else {
-          checkPrefix(ann, surr, removalBuffer);
+        try {
+          String affix = surr.current.getCoveredText().substring(
+              ann.getEnd() - surr.current.getBegin());
+          if (affix.length() > 0 && remove(affix, suffixSet, doSelect)) {
+            removalBuffer.add(ann);
+          } else {
+            checkPrefix(ann, surr, removalBuffer);
+          }
+        } catch (StringIndexOutOfBoundsException e) {
+          logSurrounding(surr, ann);
+          throw e;
         }
       } else if (prefixSet != null) {
-        checkPrefix(ann, surr, removalBuffer);
+        try {
+          checkPrefix(ann, surr, removalBuffer);
+        } catch (StringIndexOutOfBoundsException e) {
+          logSurrounding(surr, ann);
+          throw e;
+        }
       }
     }
     logger.log(Level.FINE, "removing " + removalBuffer.size() + " semantic annotations");
     for (SemanticAnnotation ann : removalBuffer)
       ann.removeFromIndexes();
+  }
+
+  private void logSurrounding(TokenSurrounding surr, SemanticAnnotation ann) {
+    logger.log(Level.SEVERE, "ann= '" + ann.getCoveredText() + "' surr.before=" +
+        ((surr.before == null) ? "N/A" : "'" + surr.before.getCoveredText() + "'") +
+        " surr.first=" +
+        ((surr.first == null) ? "N/A" : "'" + surr.first.getCoveredText() + "'") + 
+        " surr.current='" + surr.current.getCoveredText() + "' surr.after=" +
+        ((surr.after == null) ? "N/A" : "'" + surr.after.getCoveredText() + "'"));
   }
 
   /**
@@ -276,6 +295,8 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
         Map<SemanticAnnotation, Collection<TokenAnnotation>> tokensContainingSemAnns) {
       Collection<TokenAnnotation> tokens = tokensCoveredBySemAnn.get(ann);
       if (tokens == null) tokens = tokensContainingSemAnns.get(ann);
+      else if (tokensContainingSemAnns.containsKey(ann))
+        tokens.addAll(tokensContainingSemAnns.get(ann));
       if (tokens == null || tokens.size() == 0) {
         before = null;
         current = null;
