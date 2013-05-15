@@ -341,10 +341,13 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
 
     @Override
     public String toString() {
-      return "surr.before=" + ((before == null) ? "N/A" : "'" + before.getCoveredText() + "'") +
-          " surr.first=" + ((first == null) ? "N/A" : "'" + first.getCoveredText() + "'") +
-          " surr.current='" + current.getCoveredText() + "' surr.after=" +
-          ((after == null) ? "N/A" : "'" + after.getCoveredText() + "'");
+      return "surr.before=" + makeString(before) + " surr.first=" + makeString(first) +
+          " surr.current=" + makeString(current) + " surr.after=" + makeString(after);
+    }
+
+    private static String makeString(TokenAnnotation tok) {
+      if (tok == null) return "N/A";
+      else return "'" + tok.getCoveredText() + "' @ " + tok.getOffset().toString();
     }
   }
 
