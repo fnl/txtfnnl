@@ -255,12 +255,13 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
       ann.removeFromIndexes();
   }
 
-  private void logSurrounding(TokenSurrounding surr, SemanticAnnotation ann) {
+  private boolean logSurrounding(TokenSurrounding surr, SemanticAnnotation ann) {
     logger.log(Level.SEVERE, "ann= '" + ann.getCoveredText() + "' surr.before=" +
         ((surr.before == null) ? "N/A" : "'" + surr.before.getCoveredText() + "'") +
         " surr.first=" + ((surr.first == null) ? "N/A" : "'" + surr.first.getCoveredText() + "'") +
         " surr.current='" + surr.current.getCoveredText() + "' surr.after=" +
         ((surr.after == null) ? "N/A" : "'" + surr.after.getCoveredText() + "'"));
+    return true;
   }
 
   /**
@@ -313,18 +314,13 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
           });
           current = multi[multi.length - 1];
           first = multi[0];
-          if (ann.getBegin() < first.getBegin())
-            throw new RuntimeException("first token " + first.toString() +
-                " does not overlap with ann " + ann.toString());
-          if (ann.getEnd() > current.getEnd())
-            throw new RuntimeException("last token " + current.toString() +
-                " does not overlap with ann " + ann.toString());
         } else {
           current = tokens.iterator().next();
           first = null;
-          if (ann.getBegin() < current.getBegin())
-            throw new RuntimeException("token begin " + current.toString() +
-                " does not overlap with ann " + ann.toString());
+          // FIXME: java.lang.RuntimeException: token end
+          // TokenAnnotation{http://www.nactem.ac.uk/tsujii/GENIA/tagger$http://nlp2rdf.lod2.eu/schema/doc/sso/:Word#1.0@1847:1849}
+          // does not overlap with ann
+          // SemanticAnnotation{txtfnnl.uima.analysis_component.GeneAnnotator$gene:41144#0.8@1847:1852}
           if (ann.getEnd() > current.getEnd())
             throw new RuntimeException("token end " + current.toString() +
                 " does not overlap with ann " + ann.toString());
@@ -335,7 +331,26 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
         r = JCasUtil.selectFollowing(jcas, TokenAnnotation.class, ann, 1);
         if (r.size() == 1) after = r.get(0);
         else after = null;
+        if (first != null && ann.getBegin() < first.getBegin()) throw new RuntimeException(
+            "first token " + first.toString() + " does not overlap with ann " + ann.toString() +
+                "\nann= '" + ann.getCoveredText() + "'\n" + this.toString());
+        else if (current != null && ann.getBegin() < current.getBegin())
+          throw new RuntimeException("token begin " + current.toString() +
+              " does not overlap with ann " + ann.toString() + "\nann= '" + ann.getCoveredText() +
+              "'\n" + this.toString());
+        if (current != null && ann.getEnd() > current.getEnd())
+          throw new RuntimeException("last token " + current.toString() +
+              " does not overlap with ann " + ann.toString() + "\nann= '" + ann.getCoveredText() +
+              "'\n" + this.toString());
       }
+    }
+
+    @Override
+    public String toString() {
+      return "surr.before=" + ((before == null) ? "N/A" : "'" + before.getCoveredText() + "'") +
+          " surr.first=" + ((first == null) ? "N/A" : "'" + first.getCoveredText() + "'") +
+          " surr.current='" + current.getCoveredText() + "' surr.after=" +
+          ((after == null) ? "N/A" : "'" + after.getCoveredText() + "'");
     }
   }
 
