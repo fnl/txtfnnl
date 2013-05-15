@@ -317,13 +317,6 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
         } else {
           current = tokens.iterator().next();
           first = null;
-          // FIXME: java.lang.RuntimeException: token end
-          // TokenAnnotation{http://www.nactem.ac.uk/tsujii/GENIA/tagger$http://nlp2rdf.lod2.eu/schema/doc/sso/:Word#1.0@1847:1849}
-          // does not overlap with ann
-          // SemanticAnnotation{txtfnnl.uima.analysis_component.GeneAnnotator$gene:41144#0.8@1847:1852}
-          if (ann.getEnd() > current.getEnd())
-            throw new RuntimeException("token end " + current.toString() +
-                " does not overlap with ann " + ann.toString());
         }
         List<TokenAnnotation> r = JCasUtil.selectPreceding(jcas, TokenAnnotation.class, ann, 1);
         if (r.size() == 1) before = r.get(0);
