@@ -312,10 +312,14 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
               return a.getOffset().compareTo(b.getOffset());
             }
           });
-          if (multi[multi.length - 1].getEnd() < ann.getEnd()) current = null;
-          else current = multi[multi.length - 1];
-          if (multi[0].getBegin() > ann.getBegin()) first = null;
-          else first = multi[0];
+          if (multi[0].getBegin() > ann.getBegin() ||
+              multi[multi.length - 1].getEnd() < ann.getEnd()) {
+            current = null;
+            first = null;
+          } else {
+            current = multi[multi.length - 1];
+            first = multi[0];
+          }
         } else {
           TokenAnnotation tmp = tokens.iterator().next();
           if (tmp.getBegin() > ann.getBegin() || tmp.getEnd() < ann.getEnd()) current = null;
