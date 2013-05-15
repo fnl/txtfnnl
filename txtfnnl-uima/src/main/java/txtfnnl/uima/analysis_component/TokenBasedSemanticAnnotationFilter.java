@@ -332,16 +332,17 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
         if (r.size() == 1) after = r.get(0);
         else after = null;
         if (first != null && ann.getBegin() < first.getBegin()) throw new RuntimeException(
-            "first token " + first.toString() + " does not overlap with ann " + ann.toString() +
-                "\nann= '" + ann.getCoveredText() + "'\n" + this.toString());
-        else if (current != null && ann.getBegin() < current.getBegin())
-          throw new RuntimeException("token begin " + current.toString() +
-              " does not overlap with ann " + ann.toString() + "\nann= '" + ann.getCoveredText() +
-              "'\n" + this.toString());
+            "first token @ " + first.getOffset().toString() + " does not overlap with ann @ " +
+                ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
+                this.toString());
+        else if (first == null && current != null && ann.getBegin() < current.getBegin())
+          throw new RuntimeException("token begin @ " + current.getOffset().toString() +
+              " does not overlap with ann @ " + ann.getOffset().toString() + "\nann= '" +
+              ann.getCoveredText() + "'\n" + this.toString());
         if (current != null && ann.getEnd() > current.getEnd())
-          throw new RuntimeException("last token " + current.toString() +
-              " does not overlap with ann " + ann.toString() + "\nann= '" + ann.getCoveredText() +
-              "'\n" + this.toString());
+          throw new RuntimeException("last token @ " + current.getOffset().toString() +
+              " does not overlap with ann @ " + ann.getOffset().toString() + "\nann= '" +
+              ann.getCoveredText() + "'\n" + this.toString());
       }
     }
 
