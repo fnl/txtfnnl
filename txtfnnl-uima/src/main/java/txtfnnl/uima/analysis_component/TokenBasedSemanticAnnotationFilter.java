@@ -312,30 +312,33 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
               return a.getOffset().compareTo(b.getOffset());
             }
           });
-          current = multi[multi.length - 1];
-          first = multi[0];
+          if (multi[multi.length - 1].getEnd() < ann.getEnd()) current = null;
+          else current = multi[multi.length - 1];
+          if (multi[0].getBegin() > ann.getBegin()) first = null;
+          else first = multi[0];
         } else {
-          current = tokens.iterator().next();
+          TokenAnnotation tmp = tokens.iterator().next();
+          if (tmp.getBegin() > ann.getBegin() || tmp.getEnd() < ann.getEnd()) current = null;
+          else current = tmp;
           first = null;
         }
         List<TokenAnnotation> r = JCasUtil.selectPreceding(jcas, TokenAnnotation.class, ann, 1);
-        if (r.size() == 1) before = r.get(0);
+        if (r.size() == 1 && ann.getBegin() - r.get(0).getEnd() < 10) before = r.get(0);
         else before = null;
         r = JCasUtil.selectFollowing(jcas, TokenAnnotation.class, ann, 1);
-        if (r.size() == 1) after = r.get(0);
+        if (r.size() == 1 && r.get(0).getBegin() - ann.getEnd() < 10) after = r.get(0);
         else after = null;
         if (first != null && ann.getBegin() < first.getBegin()) throw new RuntimeException(
-            "first token @ " + first.getOffset().toString() + " does not overlap with ann @ " +
-                ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
-                this.toString());
+            "first.begin does not overlap with ann @ " + ann.getOffset().toString() + "\nann= '" +
+                ann.getCoveredText() + "'\n" + this.toString());
         else if (first == null && current != null && ann.getBegin() < current.getBegin())
-          throw new RuntimeException("token begin @ " + current.getOffset().toString() +
-              " does not overlap with ann @ " + ann.getOffset().toString() + "\nann= '" +
-              ann.getCoveredText() + "'\n" + this.toString());
+          throw new RuntimeException("current.begin does not overlap with ann @ " +
+              ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
+              this.toString());
         if (current != null && ann.getEnd() > current.getEnd())
-          throw new RuntimeException("last token @ " + current.getOffset().toString() +
-              " does not overlap with ann @ " + ann.getOffset().toString() + "\nann= '" +
-              ann.getCoveredText() + "'\n" + this.toString());
+          throw new RuntimeException("current.end does not overlap with ann @ " +
+              ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
+              this.toString());
       }
     }
 
