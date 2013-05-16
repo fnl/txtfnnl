@@ -175,9 +175,9 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
     prefixSet = tokenSets.get("prefix");
     suffixSet = tokenSets.get("suffix");
     logger.log(Level.INFO, "received {0} PoS tags and {1}/{2}/{3}/{4} tokens", new Object[] {
-        (posTagSet == null) ? 0 : posTagSet.size(), (beforeSet == null) ? 0 : beforeSet.size(),
-        (prefixSet == null) ? 0 : prefixSet.size(), (suffixSet == null) ? 0 : suffixSet.size(),
-        (afterSet == null) ? 0 : afterSet.size(), });
+        (posTagSet == null) ? -1 : posTagSet.size(), (beforeSet == null) ? -1 : beforeSet.size(),
+        (prefixSet == null) ? -1 : prefixSet.size(), (suffixSet == null) ? -1 : suffixSet.size(),
+        (afterSet == null) ? -1 : afterSet.size(), });
   }
 
   /** Initialization helper to create the sets. */
@@ -209,45 +209,32 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
         jcas, SemanticAnnotation.class, TokenAnnotation.class);
     TokenSurrounding surr = null;
     Offset last = null;
+    boolean autoRemove = false;
     List<SemanticAnnotation> removalBuffer = new LinkedList<SemanticAnnotation>();
     while (iter.hasNext()) {
       SemanticAnnotation ann = (SemanticAnnotation) iter.next();
       if (!ann.getOffset().equals(last)) {
         surr = new TokenSurrounding(jcas, ann, coveredTokens, innerTokens);
+        last = ann.getOffset();
+        autoRemove = false;
+      } else {
+        if (autoRemove) removalBuffer.add(ann);
+        continue;
       }
-      if (surr.current == null) {
-        if (doSelect) removalBuffer.add(ann);
-        else logger.log(Level.FINE, ann.toString() + " not covered by tokens");
-      } else if (posTagSet != null && remove(surr.current.getPos(), posTagSet, true)) {
+      if (posTagSet != null && surr.prefix != null &&
+          remove(surr.prefix.getPos(), posTagSet, true)) {
         removalBuffer.add(ann);
-      } else if (beforeSet != null &&
-          ((surr.before == null && doSelect) || (surr.before != null && remove(
-              surr.before.getCoveredText(), beforeSet, doSelect)))) {
+        autoRemove = true;
+        continue;
+      }
+      if (checkVicinity(beforeSet, surr.before) ||
+          checkVicinity(afterSet, surr.after) ||
+          checkAffix(prefixSet, (surr.prefix == null) ? null : surr.prefix.getCoveredText()
+              .substring(0, ann.getBegin() - surr.prefix.getBegin())) ||
+          checkAffix(suffixSet, (surr.suffix == null) ? null : surr.suffix.getCoveredText()
+              .substring(ann.getEnd() - surr.suffix.getBegin()))) {
         removalBuffer.add(ann);
-      } else if (afterSet != null &&
-          ((surr.after == null && doSelect) || (surr.after != null && remove(
-              surr.after.getCoveredText(), afterSet, doSelect)))) {
-        removalBuffer.add(ann);
-      } else if (suffixSet != null) {
-        try {
-          String affix = surr.current.getCoveredText().substring(
-              ann.getEnd() - surr.current.getBegin());
-          if (affix.length() > 0 && remove(affix, suffixSet, doSelect)) {
-            removalBuffer.add(ann);
-          } else {
-            checkPrefix(ann, surr, removalBuffer);
-          }
-        } catch (StringIndexOutOfBoundsException e) {
-          logSurrounding(surr, ann);
-          throw e;
-        }
-      } else if (prefixSet != null) {
-        try {
-          checkPrefix(ann, surr, removalBuffer);
-        } catch (StringIndexOutOfBoundsException e) {
-          logSurrounding(surr, ann);
-          throw e;
-        }
+        autoRemove = true;
       }
     }
     logger.log(Level.FINE, "removing " + removalBuffer.size() + " semantic annotations");
@@ -255,13 +242,29 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
       ann.removeFromIndexes();
   }
 
-  private boolean logSurrounding(TokenSurrounding surr, SemanticAnnotation ann) {
-    logger.log(Level.SEVERE, "ann= '" + ann.getCoveredText() + "' surr.before=" +
-        ((surr.before == null) ? "N/A" : "'" + surr.before.getCoveredText() + "'") +
-        " surr.first=" + ((surr.first == null) ? "N/A" : "'" + surr.first.getCoveredText() + "'") +
-        " surr.current='" + surr.current.getCoveredText() + "' surr.after=" +
-        ((surr.after == null) ? "N/A" : "'" + surr.after.getCoveredText() + "'"));
-    return true;
+  private boolean checkAffix(Set<String> aSet, String text) {
+    if (aSet != null) {
+      if (text == null) {
+        if (doSelect) return true;
+      } else if (remove(text, aSet, doSelect)) { return true; }
+    }
+    return false;
+  }
+
+  private boolean checkVicinity(Set<String> aSet, TokenAnnotation aToken) {
+    if (aSet != null) {
+      if (aToken == null) {
+        if (doSelect) return true;
+      } else if (remove(aToken.getCoveredText(), aSet, doSelect)) { return true; }
+    }
+    return false;
+  }
+
+  /** Return <code>true</code> if the value for the given set indicates removal of the annotation. */
+  private static boolean remove(String value, Set<String> testSet, boolean doSelect) {
+    if (doSelect && !testSet.contains(value)) return true;
+    else if (!doSelect && testSet.contains(value)) return true;
+    else return false;
   }
 
   /**
@@ -272,14 +275,14 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
     /** The token before the relevant semantic annotation. */
     final TokenAnnotation before;
     /** The (last) token covering the relevant semantic annotation. */
-    final TokenAnnotation current;
+    final TokenAnnotation prefix;
     /**
      * The first token covering the relevant semantic annotation or <code>null</code>.
      * <p>
      * This value only gets set if there are multiple tokens that span the relevant
      * {@link SemanticAnnotation}.
      */
-    final TokenAnnotation first;
+    final TokenAnnotation suffix;
     /** The token after the relevant semantic annotation. */
     final TokenAnnotation after;
 
@@ -293,6 +296,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
     public TokenSurrounding(JCas jcas, SemanticAnnotation ann,
         Map<SemanticAnnotation, Collection<TokenAnnotation>> tokensCoveredBySemAnn,
         Map<SemanticAnnotation, Collection<TokenAnnotation>> tokensContainingSemAnns) {
+      // prefix and suffix
       Collection<TokenAnnotation> tokens = tokensCoveredBySemAnn.get(ann);
       if (tokens == null) tokens = tokensContainingSemAnns.get(ann);
       else if (tokensContainingSemAnns.containsKey(ann)) {
@@ -300,10 +304,8 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
         tokens.addAll(tokensContainingSemAnns.get(ann));
       }
       if (tokens == null || tokens.size() == 0) {
-        before = null;
-        current = null;
-        first = null;
-        after = null;
+        prefix = null;
+        suffix = null;
       } else {
         if (tokens.size() > 1) {
           TokenAnnotation[] multi = tokens.toArray(new TokenAnnotation[tokens.size()]);
@@ -312,66 +314,52 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
               return a.getOffset().compareTo(b.getOffset());
             }
           });
-          if (multi[0].getBegin() > ann.getBegin() ||
-              multi[multi.length - 1].getEnd() < ann.getEnd()) {
-            current = null;
-            first = null;
-          } else {
-            current = multi[multi.length - 1];
-            first = multi[0];
-          }
+          if (multi[0].getBegin() > ann.getBegin()) prefix = null;
+          else prefix = multi[0];
+          if (multi[multi.length - 1].getEnd() < ann.getEnd()) suffix = null;
+          else suffix = multi[multi.length - 1];
         } else {
           TokenAnnotation tmp = tokens.iterator().next();
-          if (tmp.getBegin() > ann.getBegin() || tmp.getEnd() < ann.getEnd()) current = null;
-          else current = tmp;
-          first = null;
+          prefix = (tmp.getBegin() > ann.getBegin() || tmp.getEnd() < ann.getEnd()) ? null : tmp;
+          suffix = prefix;
         }
-        List<TokenAnnotation> r = JCasUtil.selectPreceding(jcas, TokenAnnotation.class, ann, 1);
-        if (r.size() == 1 && ann.getBegin() - r.get(0).getEnd() < 10) before = r.get(0);
-        else before = null;
-        r = JCasUtil.selectFollowing(jcas, TokenAnnotation.class, ann, 1);
-        if (r.size() == 1 && r.get(0).getBegin() - ann.getEnd() < 10) after = r.get(0);
-        else after = null;
-        if (first != null && ann.getBegin() < first.getBegin()) throw new RuntimeException(
-            "first.begin does not overlap with ann @ " + ann.getOffset().toString() + "\nann= '" +
-                ann.getCoveredText() + "'\n" + this.toString());
-        else if (first == null && current != null && ann.getBegin() < current.getBegin())
-          throw new RuntimeException("current.begin does not overlap with ann @ " +
-              ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
-              this.toString());
-        if (current != null && ann.getEnd() > current.getEnd())
-          throw new RuntimeException("current.end does not overlap with ann @ " +
-              ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
-              this.toString());
       }
+      // before
+      List<TokenAnnotation> r = JCasUtil.selectPreceding(jcas, TokenAnnotation.class, ann, 1);
+      if (r.size() == 1 && ann.getBegin() - r.get(0).getEnd() < 10) before = r.get(0);
+      else before = null;
+      // after
+      r = JCasUtil.selectFollowing(jcas, TokenAnnotation.class, ann, 1);
+      if (r.size() == 1 && r.get(0).getBegin() - ann.getEnd() < 10) after = r.get(0);
+      else after = null;
+      // ensure correctness of offsets
+      if (before != null && before.getEnd() > ann.getBegin())
+        throw new RuntimeException("before does not end before ann @ " +
+            ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
+            this.toString());
+      if (after != null && after.getBegin() < ann.getEnd())
+        throw new RuntimeException("after does not begin after ann @ " +
+            ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
+            this.toString());
+      if (suffix != null && ann.getEnd() > suffix.getEnd())
+        throw new RuntimeException("suffix does not overlap with ann end @ " +
+            ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
+            this.toString());
+      if (prefix != null && ann.getBegin() < prefix.getBegin())
+        throw new RuntimeException("prefix does not overlap with ann begin @ " +
+            ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
+            this.toString());
     }
 
     @Override
     public String toString() {
-      return "surr.before=" + makeString(before) + " surr.first=" + makeString(first) +
-          " surr.current=" + makeString(current) + " surr.after=" + makeString(after);
+      return "surr.before=" + makeString(before) + " surr.first=" + makeString(suffix) +
+          " surr.current=" + makeString(prefix) + " surr.after=" + makeString(after);
     }
 
     private static String makeString(TokenAnnotation tok) {
       if (tok == null) return "N/A";
       else return "'" + tok.getCoveredText() + "' @ " + tok.getOffset().toString();
     }
-  }
-
-  /** Add the annotation to the removal buffer if the prefix match condition is met. */
-  private void checkPrefix(SemanticAnnotation ann, TokenSurrounding surr,
-      List<SemanticAnnotation> removalBuffer) {
-    String prefix;
-    if (surr.first == null) prefix = surr.current.getCoveredText().substring(0,
-        ann.getBegin() - surr.current.getBegin());
-    else prefix = surr.first.getCoveredText().substring(0, ann.getBegin() - surr.first.getBegin());
-    if (prefix.length() > 0 && remove(prefix, prefixSet, doSelect)) removalBuffer.add(ann);
-  }
-
-  /** Return <code>true</code> if the value for the given set indicates removal of the annotation. */
-  private static boolean remove(String value, Set<String> testSet, boolean doSelect) {
-    if (doSelect && !testSet.contains(value)) return true;
-    else if (!doSelect && testSet.contains(value)) return true;
-    else return false;
   }
 }
