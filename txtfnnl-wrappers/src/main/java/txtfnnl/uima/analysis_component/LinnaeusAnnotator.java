@@ -71,10 +71,10 @@ public class LinnaeusAnnotator extends JCasAnnotator_ImplBase {
       ++countMentions;
       String[] ids = mention.getIds();
       Double[] probs = mention.getProbabilities();
-      // Linnaeus sets p to NULL if there is only a single ID assigned to the mention, so:
-      if (ids.length == 1 && probs[0] == null) probs[0] = 1.0;
       for (int i = ids.length - 1; i > -1; --i) {
         ++countIds;
+        // Linnaeus sets p to NULL in some cases, so:
+        if (probs[i] == null) probs[i] = 1.0 / ((double) probs.length);
         SemanticAnnotation species = new SemanticAnnotation(cas, mention.getStart(),
             mention.getEnd());
         species.setAnnotator(URI);
