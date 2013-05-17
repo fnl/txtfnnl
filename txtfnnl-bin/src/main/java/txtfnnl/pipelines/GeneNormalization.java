@@ -18,8 +18,10 @@ import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 
 import txtfnnl.uima.ConfigurationBuilder;
+import txtfnnl.uima.analysis_component.AnnotationBasedPropertyFilter;
 import txtfnnl.uima.analysis_component.GeneAnnotator;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
+import txtfnnl.uima.analysis_component.LinnaeusAnnotator;
 import txtfnnl.uima.analysis_component.NOOPAnnotator;
 import txtfnnl.uima.analysis_component.TokenBasedSemanticAnnotationFilter;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
@@ -85,6 +87,9 @@ public class GeneNormalization extends Pipeline {
     opts.addOption("r", "required-pos-tags", true, "a whitelist (file) of required PoS tags");
     opts.addOption("t", "filter-tokens", true, "a two-column (file) list of filter matches");
     opts.addOption("T", "whitelist-tokens", false, "invert token filter to behave as a whitelist");
+    // species mapping option
+    opts.addOption("L", "linnaeus", true,
+        "set a Linnaeus property file path to use Linnaeus for species normalization");
     try {
       cmd = parser.parse(opts, arguments);
     } catch (final ParseException e) {
@@ -136,7 +141,7 @@ public class GeneNormalization extends Pipeline {
     if (cmd.hasOption('r') || cmd.hasOption('t')) {
       TokenBasedSemanticAnnotationFilter.Builder semanticFilter = TokenBasedSemanticAnnotationFilter
           .configure();
-      if (cmd.hasOption('r')) semanticFilter.setPosTags(makeList(cmd.getOptionValue('w'), l));
+      if (cmd.hasOption('r')) semanticFilter.setPosTags(makeList(cmd.getOptionValue('r'), l));
       if (cmd.hasOption('t')) {
         if (cmd.hasOption('T')) semanticFilter.whitelist();
         try {
@@ -156,6 +161,19 @@ public class GeneNormalization extends Pipeline {
       // no filter parameters have been specified - nothing to do
       finalSemanticFilter = NOOPAnnotator.configure();
     }
+    // Linnaeus setup
+    ConfigurationBuilder<AnalysisEngineDescription> linnaeus;
+    ConfigurationBuilder<AnalysisEngineDescription> speciesFilter;
+    if (cmd.hasOption('L')) {
+      linnaeus = LinnaeusAnnotator.configure(new File(cmd.getOptionValue('L')));
+      speciesFilter = AnnotationBasedPropertyFilter.configure(GeneAnnotator.TAX_ID_PROPERTY)
+          .setSourceAnnotatorUri(LinnaeusAnnotator.URI)
+          .setSourceNamespace(LinnaeusAnnotator.NAMESPACE)
+          .setTargetAnnotatorUri(GeneAnnotator.URI).setTargetNamespace(geneAnnotationNamespace);
+    } else {
+      linnaeus = NOOPAnnotator.configure();
+      speciesFilter = NOOPAnnotator.configure();
+    }
     // output
     OutputWriter.Builder writer;
     if (Pipeline.rawXmi(cmd)) {
@@ -167,8 +185,9 @@ public class GeneNormalization extends Pipeline {
           .printSurroundings().printPosTag();
     }
     try {
-      // 0:tika, 1:splitter, 2:tokenizer, (3:NOOP), 4:gazetteer, 5:filter
-      final Pipeline gn = new Pipeline(6);
+      // 0:tika, 1:splitter, 2:tokenizer, 3:lemmatizer, 4:gazetteer,
+      // 5:token-filter, 6:linnaues, 7:species-filter
+      final Pipeline gn = new Pipeline(8);
       gn.setReader(cmd);
       gn.configureTika(cmd);
       gn.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
@@ -186,6 +205,8 @@ public class GeneNormalization extends Pipeline {
       }
       gn.set(4, Pipeline.textEngine(geneAnnotator.create()));
       gn.set(5, Pipeline.textEngine(finalSemanticFilter.create()));
+      gn.set(6, Pipeline.textEngine(linnaeus.create()));
+      gn.set(7, Pipeline.textEngine(speciesFilter.create()));
       gn.setConsumer(Pipeline.textEngine(writer.create()));
       gn.run();
     } catch (final UIMAException e) {

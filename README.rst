@@ -33,10 +33,6 @@ In addition, the following direct dependencies exist:
   DB.
 - for the syntactic grep facilities (via the ``grep`` pipeline), libfsmg_ has
   to be in your local Maven repository.
-- for the Gazetteer Annotator in **txtfnnl-uima**, the
-  `Brics Automaton <http://www.brics.dk/automaton/>`_ is used
-- `BioLemmatizer <http://biolemmatizer.sourceforge.net/>`_ 1.1 in
-  **txtfnnl-wrappers**
 - for the **txtfnnl-wrappers** module, the relevant external tools need to be
   downloaded, installed, and visible on the system ``$PATH``. All
   supported external NLP tools are listed in the section Installation below.
@@ -64,6 +60,22 @@ NLP tools are supported by **txtfnnl**:
   argument. A sensible place for the tagger directory might be
   ``/usr/local/share/geniatagger`` if you have write access to it.
  
+`BioLemmatizer <http://biolemmatizer.sourceforge.net/>`_
+  The BioLemmatizer is wrapped by this pipeline, but does not have to be
+  installed separately, it is  automatically compiled from its official
+  Maven repository.
+
+`Linnaeus <http://linnaeus.sourceforge.net/>`_
+  The Linnaeus species name recognition software is wrapped by this library.
+  The relevant JAR file is distributed within the txtfnnl-wrappers package,
+  but you will have to separately fetch and install the species dictionary
+  you want to use (commonly, that would either species, the species-proxy,
+  and/or the genera-species-proxy dictionary). The dictionaries are only
+  required at runtime, and only if you run a pipeline and wish to use its
+  species normalization capabilities. You do not need to do anything to
+  install the ``txtfnnl`` framework and/or run pipelines w/o species
+  normalization.
+
 libfsmg_
   A generic finite state machine library developed by the principal author
   of the ``txtfnnl`` framework. Clone from github (``git clone
@@ -105,6 +117,11 @@ Currently, the following pipelines are available:
   in UIMA. This is a functionality similar to that provided by GATE's
   `JAPE <http://gate.ac.uk/wiki/jape-repository/>`_, but a much simpler grammar
   with far less features. This pipeline implements a libfsmg_ FSM.
+- ``norm`` a gene normalization pipeline (under construction)
+- ``ginx`` a gene interaction extraction pipeline  (under construction)
+
+Two more pipelines that are not actively maintained right now:
+
 - ``entities`` annotates known entity mentions on documents by supplying a
   mapping of input file names (w/o sufffix) to entity identifiers (type,
   namespace, identifier), looking up the names for those entity IDs in a DB,

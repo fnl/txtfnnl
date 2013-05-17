@@ -16,6 +16,7 @@ MAVEN_REPO=${M2_REPO:-~/.m2/repository};
 #################
 
 export CLASSPATH=\
+$MAVEN_REPO/ac/man/linnaeus/2.0/linnaeus-2.0.jar:\
 $MAVEN_REPO/args4j/args4j/2.0.12/args4j-2.0.12.jar:\
 $MAVEN_REPO/asm/asm/3.1/asm-3.1.jar:\
 $MAVEN_REPO/cglib/cglib-nodep/2.2.2/cglib-nodep-2.2.2.jar:\
@@ -94,9 +95,8 @@ help () {
     echo "  pre      - pre-process files to XMI (split, tag, stem and chunk)";
     echo "  tag      - extract tagged plaintext (split, tag, stem and chunk)";
     echo "  grep     - extract semantic patterns (or matching sentences)";
-    echo "  rex      - extract normalized relationships (with evidence sentences)";
-    echo "  gn       - extract gene normalizations (with evidence text)";
-    echo "  grex     - extract gene regulation relationships (with evidence sentences)";
+    echo "  norm     - extract gene normalizations (with evidence text)";
+    echo "  ginx     - extract gene interactions (with evidence sentences)";
     echo "  entities - annotate known entity mentions to XMI";
     echo "  patterns - extract patterns with (potential) entity relationships";
     echo;
@@ -112,9 +112,8 @@ if [ $# -gt 0 ]; then
         pre) java -Xmx2G txtfnnl.pipelines.Preprocessor "$@";;
         tag) java -Xmx2G txtfnnl.pipelines.SentenceTagger "$@";;
         grep) java -Xmx2G txtfnnl.pipelines.PatternExtractor "$@";;
-        rex) java -Xmx2G txtfnnl.pipelines.RelationshipExtractor "$@";;
-        gn) java -Xmx32G txtfnnl.pipelines.GeneNormalization "$@";;
-        profgn) java -Xmx32G '-agentlib:JPIBootLoader=JPIAgent:server=enabled;CGProf' txtfnnl.pipelines.GeneNormalization "$@";;
+        norm) java -Xmx32G txtfnnl.pipelines.GeneNormalization "$@";;
+        ginx) java -Xmx32G txtfnnl.pipelines.RelationshipExtractor "$@";;
         grex) java -Xmx32G txtfnnl.pipelines.GeneRelationshipExtractor "$@";;
         entities) java txtfnnl.pipelines.EntityMentionAnnotator "$@";;
         patterns) java txtfnnl.pipelines.RelationshipPatternExtractor "$@";;

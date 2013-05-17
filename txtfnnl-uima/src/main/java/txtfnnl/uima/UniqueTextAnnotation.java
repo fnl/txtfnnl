@@ -23,13 +23,8 @@ public final class UniqueTextAnnotation {
   }
 
   public <T extends TextAnnotation> UniqueTextAnnotation(T annotation) {
-    this.begin = annotation.getBegin();
-    this.end = annotation.getEnd();
-    ns = annotation.getNamespace();
-    id = annotation.getIdentifier();
-    ann = annotation.getAnnotator();
-    code = 17 * (31 + begin) * (31 + end) * (17 + ns.hashCode()) *
-        (17 + id.hashCode() * (17 + ann.hashCode()));
+    this(annotation.getBegin(), annotation.getEnd(), annotation.getNamespace(), annotation
+        .getIdentifier(), annotation.getAnnotator());
   }
 
   @Override

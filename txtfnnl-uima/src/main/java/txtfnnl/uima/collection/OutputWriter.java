@@ -92,9 +92,8 @@ public abstract class OutputWriter extends CasConsumer_ImplBase {
     if (jcas.getSofaDataURI() != null) {
       resourceName = (new File(jcas.getSofaDataURI())).getName();
     } else {
-      for (final DocumentAnnotation ann : JCasUtil.select(jcas, DocumentAnnotation.class)) {
+      for (final DocumentAnnotation ann : JCasUtil.select(jcas, DocumentAnnotation.class))
         if ("resourceName".equals(ann.getNamespace())) resourceName = ann.getIdentifier();
-      }
     }
     if (resourceName == null || resourceName.length() == 0) {
       resourceName = String.format("doc-%06d", ++counter);
