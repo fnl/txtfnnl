@@ -21,7 +21,9 @@ Currently supported tools are:
 * LinkGrammar
 &lt;http://www.abisource.com/projects/link-grammar/&gt; expexted as [link-parser] command on the PATH
 
-* GENIA TAGGER &lt;http://www.nactem.ac.uk/tsujii/GENIA/tagger/&gt; expected as [geniatagger] command on the PATH</description>
+* GENIA TAGGER &lt;http://www.nactem.ac.uk/tsujii/GENIA/tagger/&gt; expected as [geniatagger] command on the PATH
+
+* Linnaeus Species Tagger &lt;http://linnaeus.sourceforge.net/&gt; distributed within the txtfnnl-wrapper artifact itself</description>
 	<dependencies>
     <dependency>
     	<groupId>txtfnnl</groupId>
@@ -91,8 +93,7 @@ Currently supported tools are:
     <repository>
         <id>in-project</id>
         <name>In Project Repo</name>
-        <!-- url>file://${project.basedir}/jars</url -->
-        <url>file:///Users/fleitner/work/eclipse/txtfnnl/txtfnnl-wrappers/jars</url>
+        <url>file://${project.basedir}/jars</url>
     </repository>
   </repositories>
   <name>txtfnnl-wrappers</name>
