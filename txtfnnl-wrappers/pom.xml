@@ -64,6 +64,11 @@ Currently supported tools are:
     	<artifactId>txtfnnl-utils</artifactId>
     	<version>0.4</version>
     </dependency>
+    <dependency>
+    <groupId>ac.man</groupId>
+    <artifactId>linnaeus</artifactId>
+    <version>2.0</version>
+    </dependency>
 	</dependencies>
   <build>
   <plugins>
@@ -81,6 +86,13 @@ Currently supported tools are:
     <repository>
         <id>bionlp-sourceforge</id>
         <url>http://bionlp.svn.sourceforge.net/viewvc/bionlp/repo/</url>
+    </repository>
+    <!-- In Project repository -->
+    <repository>
+        <id>in-project</id>
+        <name>In Project Repo</name>
+        <!-- url>file://${project.basedir}/jars</url -->
+        <url>file:///Users/fleitner/work/eclipse/txtfnnl/txtfnnl-wrappers/jars</url>
     </repository>
   </repositories>
   <name>txtfnnl-wrappers</name>
