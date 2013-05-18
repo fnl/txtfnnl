@@ -204,7 +204,7 @@ public class Pipeline {
     } else if (!cmd.hasOption('i')) {
       rootLogger.setLevel(Level.WARNING);
     }
-    l.log(Level.INFO, "logging setup using {0} complete", loggingProperties == null
+    l.log(Level.FINE, "logging setup using {0} complete", loggingProperties == null
         ? "an undefined logging.properties resource" : loggingProperties.toString());
     return l;
   }
