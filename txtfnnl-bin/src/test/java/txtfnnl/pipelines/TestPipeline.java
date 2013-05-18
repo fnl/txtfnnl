@@ -92,13 +92,26 @@ public class TestPipeline {
   }
 
   @Test
-  public final void testLoggingSetup() throws ParseException {
+  public final void testQuietLoggingSetup() throws ParseException {
     final Options opts = new Options();
     Pipeline.addLogHelpAndInputOptions(opts);
     final CommandLine cmd = (new PosixParser()).parse(opts, new String[] { "-q" });
     final Logger l = Pipeline.loggingSetup(cmd, opts, "USAGE");
     Assert.assertTrue(l.isLoggable(Level.SEVERE));
     Assert.assertFalse(l.isLoggable(Level.WARNING));
+    Assert.assertFalse(l.isLoggable(Level.FINE));
+    Assert.assertEquals(Pipeline.class.getName(), l.getName());
+  }
+
+  @Test
+  public final void testVerboseLoggingSetup() throws ParseException {
+    final Options opts = new Options();
+    Pipeline.addLogHelpAndInputOptions(opts);
+    final CommandLine cmd = (new PosixParser()).parse(opts, new String[] { "-v" });
+    final Logger l = Pipeline.loggingSetup(cmd, opts, "USAGE");
+    Assert.assertTrue(l.isLoggable(Level.SEVERE));
+    Assert.assertTrue(l.isLoggable(Level.WARNING));
+    Assert.assertTrue(l.isLoggable(Level.FINE));
     Assert.assertEquals(Pipeline.class.getName(), l.getName());
   }
 

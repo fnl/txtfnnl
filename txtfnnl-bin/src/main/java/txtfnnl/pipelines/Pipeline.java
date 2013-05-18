@@ -195,8 +195,7 @@ public class Pipeline {
       System.err.println(ex.getMessage());
     }
     // set up the root logger
-    final Logger l = Logger.getLogger(Pipeline.class.getName());
-    final Logger rootLogger = Logger.getLogger("global");
+    final Logger rootLogger = LogManager.getLogManager().getLogger("");
     if (cmd.hasOption('q')) {
       rootLogger.setLevel(Level.SEVERE);
     } else if (cmd.hasOption('v')) {
@@ -204,6 +203,7 @@ public class Pipeline {
     } else if (!cmd.hasOption('i')) {
       rootLogger.setLevel(Level.WARNING);
     }
+    final Logger l = Logger.getLogger(Pipeline.class.getName());
     l.log(Level.FINE, "logging setup using {0} complete", loggingProperties == null
         ? "an undefined logging.properties resource" : loggingProperties.toString());
     return l;
