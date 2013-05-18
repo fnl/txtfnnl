@@ -196,7 +196,7 @@ public class Pipeline {
     }
     // set up the root logger
     final Logger l = Logger.getLogger(Pipeline.class.getName());
-    final Logger rootLogger = Logger.getLogger("");
+    final Logger rootLogger = Logger.getLogger("global");
     if (cmd.hasOption('q')) {
       rootLogger.setLevel(Level.SEVERE);
     } else if (cmd.hasOption('v')) {
