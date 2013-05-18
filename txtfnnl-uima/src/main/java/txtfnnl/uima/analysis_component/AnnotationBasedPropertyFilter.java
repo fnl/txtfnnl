@@ -15,6 +15,7 @@ import org.apache.uima.cas.FSMatchConstraint;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
 import org.uimafit.component.JCasAnnotator_ImplBase;
@@ -58,6 +59,7 @@ public class AnnotationBasedPropertyFilter extends JCasAnnotator_ImplBase {
       defaultValue = "false")
   private boolean filterAnnotations;
   protected Logger logger;
+  private int count;
 
   public static class Builder extends AnalysisComponentBuilder {
     protected Builder(Class<? extends AnalysisComponent> klass, String propertyName) {
@@ -117,6 +119,7 @@ public class AnnotationBasedPropertyFilter extends JCasAnnotator_ImplBase {
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
     logger = ctx.getLogger();
+    count = 0;
   }
 
   @Override
@@ -144,8 +147,14 @@ public class AnnotationBasedPropertyFilter extends JCasAnnotator_ImplBase {
         }
         if (filter) removalBuffer.add(ann);
       }
+      count += removalBuffer.size();
       for (TextAnnotation ann : removalBuffer)
         ann.removeFromIndexes();
     }
+  }
+  
+  @Override
+  public void destroy() {
+      logger.log(Level.FINE, "removed " + count + " annotations");
   }
 }

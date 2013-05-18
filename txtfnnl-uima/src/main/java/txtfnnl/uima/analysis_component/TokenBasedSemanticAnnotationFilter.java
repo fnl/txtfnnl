@@ -85,6 +85,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
   private Set<String> suffixSet = null;
   // internal state
   private Logger logger;
+  private int count;
 
   public static class Builder extends AnalysisComponentBuilder {
     protected Builder(Class<? extends AnalysisComponent> klass) {
@@ -174,6 +175,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
     afterSet = tokenSets.get("after");
     prefixSet = tokenSets.get("prefix");
     suffixSet = tokenSets.get("suffix");
+    count = 0;
     logger.log(Level.INFO, "received {0} PoS tags and {1}/{2}/{3}/{4} tokens", new Object[] {
         (posTagSet == null) ? -1 : posTagSet.size(), (beforeSet == null) ? -1 : beforeSet.size(),
         (prefixSet == null) ? -1 : prefixSet.size(), (suffixSet == null) ? -1 : suffixSet.size(),
@@ -238,6 +240,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
       }
     }
     logger.log(Level.FINE, "removing " + removalBuffer.size() + " semantic annotations");
+    count += removalBuffer.size();
     for (SemanticAnnotation ann : removalBuffer)
       ann.removeFromIndexes();
   }
@@ -361,5 +364,10 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
       if (tok == null) return "N/A";
       else return "'" + tok.getCoveredText() + "' @ " + tok.getOffset().toString();
     }
+  }
+  
+  @Override
+  public void destroy() {
+    logger.log(Level.FINE, "filtered " + count + " annotations");
   }
 }
