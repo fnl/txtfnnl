@@ -131,7 +131,7 @@ public class AnnotationLineWriter extends TextWriter {
   @Override
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
-    logger.log(Level.INFO, "constraint: '" + annotatorUri + "@" + annotationNs + ":" +
+    logger.log(Level.CONFIG, "constraint: '" + annotatorUri + "@" + annotationNs + ":" +
         annotationId + "'");
   }
 

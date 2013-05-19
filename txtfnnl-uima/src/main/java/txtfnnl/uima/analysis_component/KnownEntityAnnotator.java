@@ -159,7 +159,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
     } catch (final SQLException e) {
       throw new ResourceInitializationException(e);
     }
-    logger.log(Level.INFO,
+    logger.log(Level.CONFIG,
         "initialized with entity namespace={0} and {1} queries for JDBC URL={2}", new Object[] {
             namespace, Integer.toString(queries.length), connector.getUrl() });
   }

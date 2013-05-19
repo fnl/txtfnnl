@@ -56,7 +56,7 @@ public class LinnaeusAnnotator extends JCasAnnotator_ImplBase {
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
     logger = ctx.getLogger();
-    logger.log(Level.INFO, "reading configuration file at " + configFilePath);
+    logger.log(Level.CONFIG, "reading configuration file at " + configFilePath);
     ArgParser ap = new ArgParser(new String[] { "--properties", configFilePath });
     java.util.logging.Logger l = java.util.logging.Logger.getLogger("Linnaeus");
     l.setLevel(java.util.logging.Level.WARNING);

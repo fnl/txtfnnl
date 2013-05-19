@@ -176,7 +176,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
     prefixSet = tokenSets.get("prefix");
     suffixSet = tokenSets.get("suffix");
     count = 0;
-    logger.log(Level.INFO, "received {0} PoS tags and {1}/{2}/{3}/{4} tokens", new Object[] {
+    logger.log(Level.CONFIG, "received {0} PoS tags and {1}/{2}/{3}/{4} tokens", new Object[] {
         (posTagSet == null) ? -1 : posTagSet.size(), (beforeSet == null) ? -1 : beforeSet.size(),
         (prefixSet == null) ? -1 : prefixSet.size(), (suffixSet == null) ? -1 : suffixSet.size(),
         (afterSet == null) ? -1 : afterSet.size(), });

@@ -213,7 +213,7 @@ public class RelationshipFilter extends JCasAnnotator_ImplBase {
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
     logger = ctx.getLogger();
-    logger.log(Level.INFO, "initialized for {0}:{1} relationships from {2} "
+    logger.log(Level.CONFIG, "initialized for {0}:{1} relationships from {2} "
         + "with {3}:{4} entities from {5} and {6}:{7} mappings from {8}", new String[] {
         relationshipNamespace, relationshipIdentifier, relationshipAnnotator, entityNamespace,
         entityIdentifier, entityAnnotator, mappedNamespace, mappedIdentifier, mappedAnnotator });

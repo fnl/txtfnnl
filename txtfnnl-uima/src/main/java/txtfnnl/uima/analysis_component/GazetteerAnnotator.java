@@ -263,7 +263,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
     logger = ctx.getLogger();
-    logger.log(Level.INFO, "{0} Gazetteer initialized with {1} entities", new Object[] {
+    logger.log(Level.CONFIG, "{0} Gazetteer initialized with {1} entities", new Object[] {
         entityNamespace, gazetteer.size() });
     if (whitelist != null && whitelist.length > 0) {
       if (blacklist != null && blacklist.length > 0) filter = new SelectAndFilter(whitelist,

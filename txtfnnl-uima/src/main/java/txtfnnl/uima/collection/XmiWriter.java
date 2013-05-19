@@ -15,6 +15,8 @@ import org.apache.uima.cas.CAS;
 import org.apache.uima.cas.CASException;
 import org.apache.uima.cas.impl.XmiCasSerializer;
 import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.util.Level;
+import org.apache.uima.util.Logger;
 import org.apache.uima.util.XMLSerializer;
 
 import org.uimafit.descriptor.ConfigurationParameter;
@@ -41,6 +43,7 @@ public class XmiWriter extends OutputWriter {
   public static final String PARAM_USE_XML_11 = "UseXml11";
   @ConfigurationParameter(name = PARAM_USE_XML_11, defaultValue = "true")
   private boolean useXml11;
+  private Logger logger;
 
   public static class Builder extends OutputWriter.Builder {
     protected Builder(Class<? extends AnalysisComponent> klass, File outputDirectory) {
@@ -80,12 +83,14 @@ public class XmiWriter extends OutputWriter {
   @Override
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
+    logger = ctx.getLogger();
     if (!outputDirectory.exists()) {
       outputDirectory.mkdirs();
     }
     if (!(outputDirectory.isDirectory() && outputDirectory.canWrite()))
       throw new ResourceInitializationException(new IOException(PARAM_OUTPUT_DIRECTORY + "='" +
           outputDirectory + "' not a writeable directory"));
+    logger.log(Level.CONFIG, "initialized {0}", this.getClass().getName());
   }
 
   /**

@@ -151,7 +151,7 @@ public class KnownRelationshipAnnotator extends KnownEvidenceAnnotator<List<Set<
   @Override
   public void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
-    logger.log(Level.INFO, "initialized with relationship namespace={0}"
+    logger.log(Level.CONFIG, "initialized with relationship namespace={0}"
         + ", entity namespace={1}, removing sentence annotations={2}", new Object[] {
         relationshipNamespace, entityNamespace, removeSentenceAnnotations });
   }

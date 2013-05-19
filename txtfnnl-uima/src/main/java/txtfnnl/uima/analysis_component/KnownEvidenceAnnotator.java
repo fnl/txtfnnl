@@ -84,7 +84,7 @@ public abstract class KnownEvidenceAnnotator<Evidence> extends JCasAnnotator_Imp
       logger.log(Level.WARNING, "no evidence strings loaded by the {0}", this.getClass()
           .getSimpleName());
     } else {
-      logger.log(Level.INFO, this.getClass().getSimpleName() +
+      logger.log(Level.CONFIG, this.getClass().getSimpleName() +
           " loaded evidence for {0} documents", documentEvidenceMap.size());
     }
   }

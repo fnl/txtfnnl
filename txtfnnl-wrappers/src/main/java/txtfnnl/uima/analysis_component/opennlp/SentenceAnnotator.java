@@ -134,13 +134,13 @@ public final class SentenceAnnotator extends JCasAnnotator_ImplBase {
     splitting = Split.parse(splitOnNewline);
     switch (splitting) {
     case SINGLE:
-      logger.log(Level.INFO, "splitting on single newlines");
+      logger.log(Level.CONFIG, "splitting on single newlines");
       break;
     case SUCCESSIVE:
-      logger.log(Level.INFO, "splitting on successive newlines");
+      logger.log(Level.CONFIG, "splitting on successive newlines");
       break;
     default:
-      logger.log(Level.INFO, "no newline-based splitting");
+      logger.log(Level.CONFIG, "no newline-based splitting");
     }
   }
 

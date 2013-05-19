@@ -101,7 +101,7 @@ public class SentenceFilter extends JCasAnnotator_ImplBase {
     }
     if (patterns.length == 0) logger.log(Level.WARNING, "no patterns from {0}",
         patternResource.getResourceUrl());
-    else logger.log(Level.INFO, "initialized with {0} patterns", patterns.length);
+    else logger.log(Level.CONFIG, "initialized with {0} patterns", patterns.length);
   }
 
   @Override

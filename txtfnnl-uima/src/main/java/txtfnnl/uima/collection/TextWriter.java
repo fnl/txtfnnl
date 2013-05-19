@@ -91,14 +91,14 @@ public class TextWriter extends OutputWriter {
         }
       }
       if (encoding != null) {
-        logger.log(Level.INFO, "writing to STDOUT with '" + encoding + "' encoding");
+        logger.log(Level.CONFIG, "writing to STDOUT with '" + encoding + "' encoding");
       } else {
-        logger.log(Level.INFO, "writing to STDOUT using the default encoding");
+        logger.log(Level.CONFIG, "writing to STDOUT using the default encoding");
       }
     } else {
-      logger.log(Level.INFO, "writing to '" + outputDirectory.getAbsolutePath() + "'");
+      logger.log(Level.CONFIG, "writing to '" + outputDirectory.getAbsolutePath() + "'");
     }
-    logger.log(Level.INFO, "initialized {0}", this.getClass().getName());
+    logger.log(Level.CONFIG, "initialized {0}", this.getClass().getName());
   }
 
   @Override

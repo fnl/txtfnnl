@@ -118,7 +118,7 @@ public class TokenAnnotator extends JCasAnnotator_ImplBase {
     tokenizer = new TokenizerME(tokenizerModel.getModel());
     posTagger = new POSTaggerME(posModel.getModel(), POSTaggerME.DEFAULT_BEAM_SIZE, 0);
     chunker = new ChunkerME(chunkerModel.getModel(), ChunkerME.DEFAULT_BEAM_SIZE);
-    logger.log(Level.INFO, "initialized OpenNLP tagger");
+    logger.log(Level.CONFIG, "initialized OpenNLP tagger");
   }
 
   /**

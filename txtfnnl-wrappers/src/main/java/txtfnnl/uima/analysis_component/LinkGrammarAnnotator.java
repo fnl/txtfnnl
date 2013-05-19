@@ -516,7 +516,7 @@ public class LinkGrammarAnnotator extends JCasAnnotator_ImplBase {
       logger.log(Level.SEVERE, "LinkGrammar parser setup failed");
       throw new ResourceInitializationException(e);
     }
-    logger.log(Level.INFO, "initialized LinkGrammar parser");
+    logger.log(Level.CONFIG, "initialized LinkGrammar parser");
   }
 
   @Override

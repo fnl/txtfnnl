@@ -176,7 +176,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
       logger.log(Level.SEVERE, "geniatagger setup failed (dir: ''{0}'')", dictionariesPath);
       throw new ResourceInitializationException(e);
     }
-    logger.log(Level.INFO, "initialized GENIA tagger");
+    logger.log(Level.CONFIG, "initialized GENIA tagger");
   }
 
   @Override

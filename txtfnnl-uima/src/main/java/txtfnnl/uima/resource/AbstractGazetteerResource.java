@@ -163,7 +163,7 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
       trie = new ConcurrentPatriciaTree<Set<String>>();
       // reverseTrie = reverseScanning ? new ConcurrentPatriciaTree<Set<String>>() : null;
       names = new HashMap<String, Set<String>>(INIT_MAP_SIZE);
-      logger.log(Level.INFO, "{0} resource loaded", resourceUri);
+      logger.log(Level.CONFIG, "{0} resource loaded", resourceUri);
     }
   }
 

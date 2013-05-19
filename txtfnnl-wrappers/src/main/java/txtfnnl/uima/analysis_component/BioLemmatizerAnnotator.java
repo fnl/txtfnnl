@@ -59,7 +59,7 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
     super.initialize(ctx);
     logger = ctx.getLogger();
     lemmatizer = new BioLemmatizer();
-    logger.log(Level.INFO, "BioLemmatizer initialized");
+    logger.log(Level.CONFIG, "BioLemmatizer initialized");
   }
 
   @Override

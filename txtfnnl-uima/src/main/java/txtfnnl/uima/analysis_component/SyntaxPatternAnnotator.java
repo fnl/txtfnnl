@@ -207,7 +207,7 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
     if (patternResource.size() == 0) {
       logger.log(Level.WARNING, "no patterns from {0}", patternResource.getResourceUrl());
     } else {
-      logger.log(Level.INFO, "initialized with {0} patterns", patternResource.size());
+      logger.log(Level.CONFIG, "initialized with {0} patterns", patternResource.size());
     }
     patterns = new HashMap<String, Pattern<TokenAnnotation>>();
     annotations = new HashMap<String, List<String[]>>();
@@ -254,7 +254,7 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
         logger.log(Level.WARNING, "illegal pattern ''{0}'' ignored", pattern[0]);
       }
     }
-    logger.log(Level.INFO, "created {0} full semantic, {1} group semantic, "
+    logger.log(Level.CONFIG, "created {0} full semantic, {1} group semantic, "
         + "and {2} relationship patterns", counts);
   }
 
