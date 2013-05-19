@@ -159,6 +159,6 @@ public class AnnotationBasedPropertyFilter extends JCasAnnotator_ImplBase {
   @Override
   public void destroy() {
     super.destroy();
-    logger.log(Level.FINE, "filtered " + count + "/" + total + " annotations");
+    logger.log(Level.INFO, "property-filtered " + count + "/" + total + " text annotations");
   }
 }
