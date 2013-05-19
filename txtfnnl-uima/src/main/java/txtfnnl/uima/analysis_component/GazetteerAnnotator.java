@@ -349,7 +349,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     entity.setConfidence(confidence);
     entity.setIdentifier(id);
     entity.setNamespace(entityNamespace);
-    logger.log(Level.FINE, "detected {0}:{1} ({2})",
+    logger.log(Level.FINER, "detected {0}:{1} ({2})",
         new String[] { entityNamespace, id, Double.toString(confidence) });
     count++;
     return entity;
