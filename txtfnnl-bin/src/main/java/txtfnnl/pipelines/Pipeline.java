@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
@@ -202,6 +204,11 @@ public class Pipeline {
       rootLogger.setLevel(Level.FINE);
     } else if (!cmd.hasOption('i')) {
       rootLogger.setLevel(Level.WARNING);
+    }
+    Handler[] handlers = rootLogger.getHandlers();
+    for (int index = 0; index < handlers.length; index++) {
+      if (handlers[index] instanceof ConsoleHandler)
+        handlers[index].setLevel(rootLogger.getLevel());
     }
     final Logger l = Logger.getLogger(Pipeline.class.getName());
     l.log(Level.FINE, "logging setup using {0} complete", loggingProperties == null
