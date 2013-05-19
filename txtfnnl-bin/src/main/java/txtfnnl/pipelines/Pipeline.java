@@ -204,6 +204,8 @@ public class Pipeline {
       rootLogger.setLevel(Level.FINE);
     } else if (!cmd.hasOption('i')) {
       rootLogger.setLevel(Level.WARNING);
+    } else {
+      rootLogger.setLevel(Level.INFO);
     }
     Handler[] handlers = rootLogger.getHandlers();
     for (int index = 0; index < handlers.length; index++) {
