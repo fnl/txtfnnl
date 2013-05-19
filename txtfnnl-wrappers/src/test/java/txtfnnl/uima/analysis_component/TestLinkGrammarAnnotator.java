@@ -194,7 +194,7 @@ public class TestLinkGrammarAnnotator {
         "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl", "initialize",
         "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_init_begin__CONFIG",
         "txtfnnl.uima.analysis_component.LinkGrammarAnnotator");
-    logger.log(Level.INFO, "initialized LinkGrammar parser");
+    logger.log(Level.CONFIG, "initialized LinkGrammar parser");
     logger.logrb(Level.CONFIG,
         "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl", "initialize",
         "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_init_successful__CONFIG",

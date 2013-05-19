@@ -150,7 +150,7 @@ public class TestGeniaTaggerAnnotator {
     PowerMock.stub(PowerMock.method(RootUimaContext_impl.class, "getLogger")).toReturn(logger);
     PowerMock.expectNew(GeniaTagger.class, dictionariesPath.getCanonicalPath(), logger).andReturn(
         tagger);
-    logger.log(Level.INFO, "initialized GENIA tagger");
+    logger.log(Level.CONFIG, "initialized GENIA tagger");
     logger.logrb(Level.CONFIG,
         "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl", "initialize",
         "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_init_begin__CONFIG",
@@ -165,7 +165,7 @@ public class TestGeniaTaggerAnnotator {
       throws IOException {
     EasyMock.expect(tagger.process(sentence)).andReturn(result);
     logger.log(Level.FINE, "annotated {0} tokens", result.size());
-    logger.log(Level.INFO, "no newline-based splitting");
+    logger.log(Level.CONFIG, "no newline-based splitting");
     logger.logrb(Level.CONFIG,
         "org.apache.uima.analysis_engine.impl.PrimitiveAnalysisEngine_impl", "initialize",
         "org.apache.uima.impl.log_messages", "UIMA_analysis_engine_init_begin__CONFIG",
