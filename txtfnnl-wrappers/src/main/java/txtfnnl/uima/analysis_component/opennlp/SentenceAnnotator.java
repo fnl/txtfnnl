@@ -184,6 +184,7 @@ public final class SentenceAnnotator extends JCasAnnotator_ImplBase {
 
   @Override
   public void destroy() {
+    super.destroy();
     sentenceDetector = null;
   }
 }

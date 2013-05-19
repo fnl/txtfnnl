@@ -68,6 +68,7 @@ public class SentenceSplitter {
       splitter.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
       splitter.setConsumer(Pipeline.textEngine(writer.create()));
       splitter.run();
+      splitter.destroy();
     } catch (final UIMAException e) {
       l.severe(e.toString());
       System.err.println(e.getLocalizedMessage());

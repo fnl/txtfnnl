@@ -227,6 +227,7 @@ public class GeneRelationshipExtractor extends Pipeline {
               .setEntityNamespace("Entrez").create()));
       rex.setConsumer(Pipeline.textEngine(writer.create()));
       rex.run();
+      rex.destroy();
     } catch (final UIMAException e) {
       l.severe(e.toString());
       l.log(Level.INFO, "StackTrace", e);

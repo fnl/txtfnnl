@@ -812,4 +812,13 @@ public class Pipeline {
   public void run() throws UIMAException, IOException {
     SimplePipeline.runPipeline(collectionReader, pipeline);
   }
+
+  /** Destroy the pipeline. */
+  public void destroy() {
+    collectionReader.destroy();
+    for (AnalysisEngine ae : pipeline)
+      ae.destroy();
+    collectionReader = null;
+    pipeline = new AnalysisEngine[pipeline.length];
+  }
 }

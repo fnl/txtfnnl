@@ -207,6 +207,7 @@ public class RelationshipExtractor extends Pipeline {
               .setEntityNamespace("Target").create()));
       rex.setConsumer(Pipeline.textEngine(writer.create()));
       rex.run();
+      rex.destroy();
     } catch (final UIMAException e) {
       l.severe(e.toString());
       System.err.println(e.getLocalizedMessage());

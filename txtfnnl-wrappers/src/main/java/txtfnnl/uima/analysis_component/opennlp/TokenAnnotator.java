@@ -185,6 +185,7 @@ public class TokenAnnotator extends JCasAnnotator_ImplBase {
 
   @Override
   public void destroy() {
+    super.destroy();
     tokenizer = null;
     posTagger = null;
     chunker = null;

@@ -164,6 +164,7 @@ public class RelationshipPatternExtractor extends Pipeline {
               1000)));
               */
       pipeline.run();
+      pipeline.destroy();
     } catch (final UIMAException e) {
       l.severe(e.toString());
       System.err.println(e.getLocalizedMessage());

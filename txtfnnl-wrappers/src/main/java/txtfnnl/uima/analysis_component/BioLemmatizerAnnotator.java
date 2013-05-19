@@ -130,6 +130,7 @@ public class BioLemmatizerAnnotator extends JCasAnnotator_ImplBase {
 
   @Override
   public void destroy() {
+    super.destroy();
     lemmatizer = null;
   }
 }

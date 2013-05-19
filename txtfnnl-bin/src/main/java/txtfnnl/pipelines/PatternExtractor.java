@@ -128,6 +128,7 @@ public class PatternExtractor extends Pipeline {
       grep.set(5, Pipeline.textEngine(spab.create()));
       grep.setConsumer(Pipeline.textEngine(writer.create()));
       grep.run();
+      grep.destroy();
     } catch (final UIMAException e) {
       l.severe(e.toString());
       System.err.println(e.getLocalizedMessage());

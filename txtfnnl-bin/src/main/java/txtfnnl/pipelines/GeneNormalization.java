@@ -209,6 +209,7 @@ public class GeneNormalization extends Pipeline {
       gn.set(7, Pipeline.textEngine(speciesFilter.create()));
       gn.setConsumer(Pipeline.textEngine(writer.create()));
       gn.run();
+      gn.destroy();
     } catch (final UIMAException e) {
       l.severe(e.toString());
       System.err.println(e.getLocalizedMessage());

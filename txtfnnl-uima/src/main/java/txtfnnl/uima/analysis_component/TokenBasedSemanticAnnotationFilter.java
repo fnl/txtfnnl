@@ -368,6 +368,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
   
   @Override
   public void destroy() {
+    super.destroy();
     logger.log(Level.FINE, "filtered " + count + " annotations");
   }
 }

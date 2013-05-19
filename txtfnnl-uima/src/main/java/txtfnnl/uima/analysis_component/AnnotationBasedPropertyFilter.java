@@ -60,6 +60,7 @@ public class AnnotationBasedPropertyFilter extends JCasAnnotator_ImplBase {
   private boolean filterAnnotations;
   protected Logger logger;
   private int count;
+  private int total;
 
   public static class Builder extends AnalysisComponentBuilder {
     protected Builder(Class<? extends AnalysisComponent> klass, String propertyName) {
@@ -110,7 +111,7 @@ public class AnnotationBasedPropertyFilter extends JCasAnnotator_ImplBase {
       return this;
     }
   }
-  
+
   public static Builder configure(String propertyName) {
     return new Builder(propertyName);
   }
@@ -120,6 +121,7 @@ public class AnnotationBasedPropertyFilter extends JCasAnnotator_ImplBase {
     super.initialize(ctx);
     logger = ctx.getLogger();
     count = 0;
+    total = 0;
   }
 
   @Override
@@ -136,6 +138,7 @@ public class AnnotationBasedPropertyFilter extends JCasAnnotator_ImplBase {
       cons = TextAnnotation.makeConstraint(jcas, targetAnnotatorUri, targetNamespace);
       iter = jcas.createFilteredIterator(TextAnnotation.getIterator(jcas), cons);
       while (iter.hasNext()) {
+        ++total;
         TextAnnotation ann = (TextAnnotation) iter.next();
         boolean filter = !filterAnnotations;
         for (int i = ann.getProperties().size() - 1; i > -1; --i) {
@@ -152,9 +155,10 @@ public class AnnotationBasedPropertyFilter extends JCasAnnotator_ImplBase {
         ann.removeFromIndexes();
     }
   }
-  
+
   @Override
   public void destroy() {
-      logger.log(Level.FINE, "removed " + count + " annotations");
+    super.destroy();
+    logger.log(Level.FINE, "filtered " + count + "/" + total + " annotations");
   }
 }

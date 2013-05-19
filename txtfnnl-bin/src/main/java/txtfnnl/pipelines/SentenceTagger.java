@@ -80,6 +80,7 @@ public class SentenceTagger extends Pipeline {
       }
       tagger.setConsumer(Pipeline.textEngine(writer.create()));
       tagger.run();
+      tagger.destroy();
     } catch (final UIMAException e) {
       l.severe(e.toString());
       System.err.println(e.getLocalizedMessage());

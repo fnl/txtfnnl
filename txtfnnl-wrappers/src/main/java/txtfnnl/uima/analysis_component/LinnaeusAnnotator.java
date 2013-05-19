@@ -87,4 +87,10 @@ public class LinnaeusAnnotator extends JCasAnnotator_ImplBase {
     logger.log(Level.FINE, "tagged {0} mentions with {1} IDs", new Object[] { countMentions,
         countIds });
   }
+  
+  @Override
+  public void destroy() {
+    super.destroy();
+    linnaeus = null;
+  }
 }

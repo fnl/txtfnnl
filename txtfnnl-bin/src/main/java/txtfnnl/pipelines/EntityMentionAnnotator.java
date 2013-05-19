@@ -144,6 +144,7 @@ public class EntityMentionAnnotator {
       pipeline.set(1, Pipeline.multiviewEngine(builder.create()));
       pipeline.setConsumer(Pipeline.textEngine(writer.create()));
       pipeline.run();
+      pipeline.destroy();
     } catch (final UIMAException e) {
       l.severe(e.toString());
       System.err.println(e.getLocalizedMessage());

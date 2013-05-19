@@ -445,6 +445,7 @@ public class SyntaxPatternAnnotator extends JCasAnnotator_ImplBase {
 
   @Override
   public void destroy() {
+    super.destroy();
     for (String pattern : patternHits.keySet())
       logger.log(Level.INFO, pattern + " =hits=> " + patternHits.get(pattern));
   }
