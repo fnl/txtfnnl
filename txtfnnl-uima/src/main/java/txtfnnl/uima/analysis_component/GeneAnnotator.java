@@ -4,12 +4,18 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.uima.UimaContext;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.resource.ExternalResourceDescription;
+import org.apache.uima.resource.ResourceInitializationException;
+import org.apache.uima.util.Level;
+
+import org.uimafit.descriptor.ExternalResource;
 
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.resource.GnamedGazetteerResource;
+import txtfnnl.uima.resource.LineBasedStringMapResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.utils.Offset;
 import txtfnnl.utils.StringUtils;
@@ -32,6 +38,10 @@ public class GeneAnnotator extends GazetteerAnnotator {
   /** The URI of this Annotator (namespace and ID are defined dynamically). */
   @SuppressWarnings("hiding")
   public static final String URI = GeneAnnotator.class.getName();
+  /** A mapping of taxonmic IDs to another. */
+  public static final String MODEL_KEY_TAX_ID_MAPPING_RESOURCE = "TaxIdMappingResource";
+  @ExternalResource(key = MODEL_KEY_TAX_ID_MAPPING_RESOURCE, mandatory = false)
+  private LineBasedStringMapResource<String> taxIdMapping;
   /** The name of the property used to set the taxon ID of the matched gene name. */
   public static final String TAX_ID_PROPERTY = "taxId";
   private static final int FIRST_GREEK = LeitnerLevenshtein.GREEK_LOWER[0];
@@ -40,6 +50,17 @@ public class GeneAnnotator extends GazetteerAnnotator {
   public static class Builder extends GazetteerAnnotator.Builder {
     Builder(String entityNamespace, ExternalResourceDescription geneGazetteerResourceDescription) {
       super(GeneAnnotator.class, entityNamespace, geneGazetteerResourceDescription);
+    }
+
+    /**
+     * Supply a {@link LineBasedStringMapResource} that maps taxonomic IDs to another.
+     * <p>
+     * If set, all Tax IDs with a matching key in this resource will instead be annotated with the
+     * mapped target Tax ID.
+     */
+    public Builder setTaxIdMappingResource(ExternalResourceDescription desc) {
+      setOptionalParameter(MODEL_KEY_TAX_ID_MAPPING_RESOURCE, desc);
+      return this;
     }
   }
 
@@ -54,6 +75,14 @@ public class GeneAnnotator extends GazetteerAnnotator {
   public static Builder configure(String entityNamespace,
       ExternalResourceDescription geneGazetteerResourceDescription) {
     return new Builder(entityNamespace, geneGazetteerResourceDescription);
+  }
+
+  @Override
+  public void initialize(UimaContext ctx) throws ResourceInitializationException {
+    super.initialize(ctx);
+    if (taxIdMapping != null && taxIdMapping.size() > 0)
+      logger.log(Level.CONFIG, "{0} TaxID mappings provided to {1} Gazetteer", new Object[] {
+          taxIdMapping.size(), entityNamespace });
   }
 
   @Override
@@ -118,9 +147,11 @@ public class GeneAnnotator extends GazetteerAnnotator {
   protected SemanticAnnotation annotate(String id, JCas jcas, Offset offset, double confidence) {
     SemanticAnnotation entity = super.annotate(id, jcas, offset, confidence);
     entity.setAnnotator(URI); // update with static URI
+    String tid = ((GnamedGazetteerResource) gazetteer).getTaxId(id);
+    if (taxIdMapping != null && taxIdMapping.containsKey(tid)) tid = taxIdMapping.get(tid);
     Property taxId = new Property(jcas);
     taxId.setName(TAX_ID_PROPERTY);
-    taxId.setValue(((GnamedGazetteerResource) gazetteer).getTaxId(id));
+    taxId.setValue(tid);
     FSArray a = new FSArray(jcas, 1);
     a.set(0, taxId);
     entity.setProperties(a);

@@ -94,9 +94,9 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   @ExternalResource(key = MODEL_KEY_GAZETTEER)
   protected GazetteerResource gazetteer;
   private Similarity measure = LeitnerLevenshtein.INSTANCE; // TODO: make configurable?
-  private Logger logger;
+  protected Logger logger;
   private int count;
-  private int filtered;
+  private int unfiltered;
 
   public static class Builder extends AnalysisComponentBuilder {
     protected Builder(Class<? extends AnalysisComponent> klass, String entityNamespace,
@@ -178,6 +178,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   }
 
   protected static interface FilterStrategy {
+    /** Return the number of processed IDs. */
     public int process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
         Set<String> ids);
   }
@@ -275,7 +276,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       filter = new NoStrategy(this);
     }
     count = 0;
-    filtered = 0;
+    unfiltered = 0;
   }
 
   @Override
@@ -286,7 +287,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       Map<Offset, Set<String>> matches = matchText(docText);
       for (Offset offset : matches.keySet()) {
         String match = docText.substring(offset.start(), offset.end());
-        filtered += filter.process(jcas, buffer, match, offset, matches.get(offset));
+        unfiltered += filter.process(jcas, buffer, match, offset, matches.get(offset));
       }
     } else {
       FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, sourceNamespace,
@@ -300,7 +301,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         for (Offset pos : matches.keySet()) {
           Offset offset = new Offset(pos.start() + ann.getBegin(), pos.end() + ann.getBegin());
           String match = docText.substring(offset.start(), offset.end());
-          filtered += filter.process(jcas, buffer, match, offset, matches.get(pos));
+          unfiltered += filter.process(jcas, buffer, match, offset, matches.get(pos));
         }
       }
     }
@@ -358,7 +359,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   @Override
   public void destroy() {
     super.destroy();
-    logger.log(Level.INFO, "tagged {0} {1} entities, stopword-filtered {2}",
-        new String[] { Integer.toString(count), entityNamespace, Integer.toString(filtered) });
+    logger.log(Level.INFO, "detected {0} {1} entities, {2} after filtering",
+        new String[] { Integer.toString(count), entityNamespace, Integer.toString(unfiltered) });
   }
 }

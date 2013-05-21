@@ -15,6 +15,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.uima.UIMAException;
 import org.apache.uima.analysis_engine.AnalysisEngineDescription;
+import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 
 import txtfnnl.uima.ConfigurationBuilder;
@@ -30,6 +31,7 @@ import txtfnnl.uima.collection.AnnotationLineWriter;
 import txtfnnl.uima.collection.OutputWriter;
 import txtfnnl.uima.collection.XmiWriter;
 import txtfnnl.uima.resource.GnamedGazetteerResource;
+import txtfnnl.uima.resource.QualifiedStringResource;
 import txtfnnl.uima.resource.QualifiedStringSetResource;
 
 /**
@@ -88,8 +90,10 @@ public class GeneNormalization extends Pipeline {
     opts.addOption("t", "filter-tokens", true, "a two-column (file) list of filter matches");
     opts.addOption("T", "whitelist-tokens", false, "invert token filter to behave as a whitelist");
     // species mapping option
-    opts.addOption("L", "linnaeus", true,
+    opts.addOption("l", "linnaeus", true,
         "set a Linnaeus property file path to use Linnaeus for species normalization");
+    opts.addOption("L", "species-map", true,
+        "a map of taxonomic IDs to another, applied to both gene and species anntoations");
     try {
       cmd = parser.parse(opts, arguments);
     } catch (final ParseException e) {
@@ -118,10 +122,23 @@ public class GeneNormalization extends Pipeline {
     gazetteer.idMatching();
     gazetteer.boundaryMatch();
     Pipeline.configureAuthentication(cmd, gazetteer);
+    // Taxon ID mapping resource
+    ExternalResourceDescription taxIdMap = null;
+    if (cmd.hasOption('L')) {
+      try {
+        taxIdMap = QualifiedStringResource.configure("file:" + cmd.getOptionValue('L')).create();
+      } catch (ResourceInitializationException e) {
+        l.severe(e.toString());
+        System.err.println(e.getLocalizedMessage());
+        e.printStackTrace();
+        System.exit(1); // == EXIT ==
+      }
+    }
     // Gene annotator setup
     GeneAnnotator.Builder geneAnnotator = null;
     try {
       geneAnnotator = GeneAnnotator.configure(geneAnnotationNamespace, gazetteer.create());
+      geneAnnotator.setTaxIdMappingResource(taxIdMap);
     } catch (ResourceInitializationException e) {
       l.severe(e.toString());
       System.err.println(e.getLocalizedMessage());
@@ -164,8 +181,9 @@ public class GeneNormalization extends Pipeline {
     // Linnaeus setup
     ConfigurationBuilder<AnalysisEngineDescription> linnaeus;
     ConfigurationBuilder<AnalysisEngineDescription> speciesFilter;
-    if (cmd.hasOption('L')) {
-      linnaeus = LinnaeusAnnotator.configure(new File(cmd.getOptionValue('L')));
+    if (cmd.hasOption('l')) {
+      linnaeus = LinnaeusAnnotator.configure(new File(cmd.getOptionValue('l')))
+          .setIdMappingResource(taxIdMap);
       speciesFilter = AnnotationBasedPropertyFilter.configure(GeneAnnotator.TAX_ID_PROPERTY)
           .setSourceAnnotatorUri(LinnaeusAnnotator.URI)
           .setSourceNamespace(LinnaeusAnnotator.NAMESPACE)

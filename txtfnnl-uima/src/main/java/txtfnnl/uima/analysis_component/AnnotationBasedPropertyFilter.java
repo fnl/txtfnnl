@@ -153,6 +153,10 @@ public class AnnotationBasedPropertyFilter extends JCasAnnotator_ImplBase {
       count += removalBuffer.size();
       for (TextAnnotation ann : removalBuffer)
         ann.removeFromIndexes();
+      if (removalBuffer.size() == 0)
+        logger.log(Level.INFO, "found no matching properties in SOFA for filtering");
+    } else {
+      logger.log(Level.INFO, "SOFA had no relevant annotations for filtering");
     }
   }
 

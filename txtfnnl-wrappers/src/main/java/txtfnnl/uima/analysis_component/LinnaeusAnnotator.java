@@ -8,14 +8,17 @@ import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.jcas.JCas;
+import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
 
 import org.uimafit.component.JCasAnnotator_ImplBase;
 import org.uimafit.descriptor.ConfigurationParameter;
+import org.uimafit.descriptor.ExternalResource;
 
 import txtfnnl.uima.AnalysisComponentBuilder;
+import txtfnnl.uima.resource.LineBasedStringMapResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 
 import uk.ac.man.entitytagger.EntityTagger;
@@ -29,6 +32,10 @@ public class LinnaeusAnnotator extends JCasAnnotator_ImplBase {
   @ConfigurationParameter(name = PARAM_CONFIG_FILE_PATH,
       description = "A property file path with Linnaeus configuration data.")
   private String configFilePath;
+  /** A mapping of some Linnaeus ID to another. */
+  public static final String MODEL_KEY_ID_MAPPING_RESOURCE = "IdMappingResource";
+  @ExternalResource(key = MODEL_KEY_ID_MAPPING_RESOURCE, mandatory = false)
+  private LineBasedStringMapResource<String> idMapping;
   private Logger logger;
   private Matcher linnaeus;
 
@@ -44,6 +51,17 @@ public class LinnaeusAnnotator extends JCasAnnotator_ImplBase {
 
     public Builder setConfigurationFilePath(File configFile) {
       setRequiredParameter(PARAM_CONFIG_FILE_PATH, configFile.getAbsolutePath());
+      return this;
+    }
+
+    /**
+     * Supply a {@link LineBasedStringMapResource} that maps Linnaeus IDs to another.
+     * <p>
+     * If set, all matching keys for an ID reported by Linnaeus will instead be annotated with the
+     * mapped target ID.
+     */
+    public Builder setIdMappingResource(ExternalResourceDescription idMappingResource) {
+      setOptionalParameter(MODEL_KEY_ID_MAPPING_RESOURCE, idMappingResource);
       return this;
     }
   }
@@ -75,19 +93,24 @@ public class LinnaeusAnnotator extends JCasAnnotator_ImplBase {
         ++countIds;
         // Linnaeus sets p to NULL in some cases, so:
         if (probs[i] == null) probs[i] = 1.0 / ((double) probs.length);
-        SemanticAnnotation species = new SemanticAnnotation(cas, mention.getStart(),
-            mention.getEnd());
-        species.setAnnotator(URI);
-        species.setConfidence(probs[i]);
-        species.setIdentifier(ids[i]);
-        species.setNamespace(NAMESPACE);
-        species.addToIndexes();
+        if (idMapping != null && idMapping.containsKey(ids[i])) annotateSpecies(cas, mention,
+            idMapping.get(ids[i]), probs[i]);
+        else annotateSpecies(cas, mention, ids[i], probs[i]);
       }
     }
     logger.log(Level.FINE, "tagged {0} mentions with {1} IDs", new Object[] { countMentions,
         countIds });
   }
-  
+
+  private void annotateSpecies(JCas cas, Mention mention, String id, Double prob) {
+    SemanticAnnotation species = new SemanticAnnotation(cas, mention.getStart(), mention.getEnd());
+    species.setAnnotator(URI);
+    species.setConfidence(prob);
+    species.setIdentifier(id);
+    species.setNamespace(NAMESPACE);
+    species.addToIndexes();
+  }
+
   @Override
   public void destroy() {
     super.destroy();
