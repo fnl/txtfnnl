@@ -2,70 +2,36 @@
  * Copyright 2013. All rights reserved. */
 package txtfnnl.uima.resource;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import org.apache.uima.UIMAFramework;
 import org.apache.uima.resource.DataResource;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.SharedResourceObject;
-import org.apache.uima.util.Level;
-import org.apache.uima.util.Logger;
 
-import org.uimafit.component.ExternalResourceAware;
-import org.uimafit.component.initialize.ConfigurationParameterInitializer;
 import org.uimafit.descriptor.ConfigurationParameter;
-import org.uimafit.factory.ExternalResourceFactory;
+
+import txtfnnl.utils.Offset;
+import txtfnnl.utils.StringUtils;
 
 import com.googlecode.concurrenttrees.common.KeyValuePair;
 
-import txtfnnl.uima.SharedResourceBuilder;
-import txtfnnl.utils.ConcurrentPatriciaTree;
-import txtfnnl.utils.Offset;
-import txtfnnl.utils.PatriciaTree;
-import txtfnnl.utils.StringUtils;
-
 /**
- * The AbstractGazetteerResource implements matching without a defined way retrieve the ID, name
- * value pairs used to populate the Gazetteer. The
+ * The AbstractGazetteerResource implements matching without a defined way to do the initial
+ * loading of the ID, name value pairs used to populate the Gazetteer. The
  * {@link AbstractGazetteerResource#PARAM_SEPARATORS token-separating characters} that should be
  * ignored and the {@link AbstractGazetteerResource#PARAM_SEPARATOR_LENGTH max. length} of these
- * separating spans can be parameterized. It is possible to specify if the
- * {@link AbstractGazetteerResource#PARAM_ID_MATCHING IDs should be matched} and if only
- * {@link AbstractGazetteerResource#PARAM_CASE_MATCHING exact case matches} should be considered
- * (otherwise, Unicode-based, case-insensitive matching is used).
- * <p>
- * <b>Tokens</b> are separated at the defined separators and at any change of Unicode character
- * {@link Character#getType(int) category} in the entity name, with the only exception of a
- * transition from a single upper-case character to lower-case (i.e., capitalized words). For
- * example, the name "Abc" is a single token, but "ABCdef" are two, just as "AbcDef", "ABC1", or
- * "abc def".
- * <p>
- * The {@link AbstractGazetteerResource#get(String) get} method returns a set of matching DB IDs
- * for any existing key, the {@link AbstractGazetteerResource#size() size} reports the <b>total</b>
- * number of keys (incl. normalized and/or lower-cased versions), while
- * {@link AbstractGazetteerResource#iterator() iterator} only provides the <b>regular</b> keys.
- * Normalized and/or lower-cased keys, although reported by size() and retrievable via get(String
- * key), are never directly exposed.
- * <p>
- * <b>Unicode characters</b>: Entity names may be any characters from all Unicode ranges <i>except
- * the private range</i>. Please make sure no private range characters are present in your names.
+ * separating spans can be parameterized in addition to all options provided by the
+ * {@link AbstractExactGazetteerResource exact gazetteer}.
  * 
  * @author Florian Leitner
  */
-public abstract class AbstractGazetteerResource implements GazetteerResource,
-    ExternalResourceAware {
-  @ConfigurationParameter(name = ExternalResourceFactory.PARAM_RESOURCE_NAME)
-  protected String resourceName;
+public abstract class AbstractGazetteerResource extends AbstractExactGazetteerResource {
   /**
    * A regex that matches consecutive stretches of characters that should be treated as separators.
    * <p>
@@ -77,32 +43,8 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
       defaultValue = "[^\\p{L}\\p{N}\\p{S}]+")
   private String charsetRegex;
   private Pattern charset;
-  private static final int INIT_MAP_SIZE = 256;
-  /** Whether to match the DB IDs themselves, too (default: <code>false</code>). */
-  public static final String PARAM_ID_MATCHING = "IDMatching";
-  @ConfigurationParameter(name = PARAM_ID_MATCHING, mandatory = false, defaultValue = "false")
-  private boolean idMatching;
-  /** Whether hits must coincide with token boundaries (default: <code>false</code>). */
-  public static final String PARAM_BOUNDARY_MATCH = "BoundaryMatch";
-  @ConfigurationParameter(name = PARAM_BOUNDARY_MATCH, mandatory = false, defaultValue = "false")
-  private boolean boundaryMatch;
-  /** Whether to require exact case-sensitive matching (default: <code>false</code>). */
-  public static final String PARAM_CASE_MATCHING = "CaseMatching";
-  @ConfigurationParameter(name = PARAM_CASE_MATCHING, mandatory = false, defaultValue = "false")
-  private boolean exactCaseMatching;
-  // resource-internal state
-  /** The logger for this Resource. */
-  protected Logger logger = null;
-  /** The data resource itself. */
-  protected DataResource resource;
-  /** The data resource' URI. */
-  protected String resourceUri = null;
-  /** The compacted prefix tree created from all individual names. */
-  private PatriciaTree<Set<String>> trie;
-  /** The mapping of IDs to their names. */
-  private Map<String, Set<String>> names;
 
-  public static class Builder extends SharedResourceBuilder {
+  public static class Builder extends AbstractExactGazetteerResource.Builder {
     /** Protected constructor that must be extended by concrete implementations. */
     protected Builder(Class<? extends SharedResourceObject> klass, String url) {
       super(klass, url);
@@ -122,111 +64,19 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
       setOptionalParameter(PARAM_CHARSET_REGEX, regex);
       return this;
     }
-
-    /** Match the Gazetteer's IDs themselves, too. */
-    public Builder idMatching() {
-      setOptionalParameter(PARAM_ID_MATCHING, Boolean.TRUE);
-      return this;
-    }
-
-    /** Require case-sensitive matches. */
-    public Builder caseMatching() {
-      setOptionalParameter(PARAM_CASE_MATCHING, Boolean.TRUE);
-      return this;
-    }
-
-    public Builder boundaryMatch() {
-      setOptionalParameter(PARAM_BOUNDARY_MATCH, Boolean.TRUE);
-      return this;
-    }
   }
 
-  /** {@inheritDoc} */
-  public String getResourceName() {
-    return resourceName;
-  }
-
-  /** {@inheritDoc} */
-  public String getUrl() {
-    return resourceUri;
-  }
-
+  @Override
   public synchronized void load(DataResource dataResource) throws ResourceInitializationException {
-    if (resource == null) {
-      ConfigurationParameterInitializer.initialize(this, dataResource);
-      resource = dataResource;
-      resourceUri = dataResource.getUri().toString();
-      logger = UIMAFramework.getLogger(this.getClass());
-      // mappings = new HashMap<String, Set<String>>(INIT_MAP_SIZE);
-      // regularExpressions = new ArrayList<String>(INIT_MAP_SIZE);
-      charset = Pattern.compile(charsetRegex);
-      trie = new ConcurrentPatriciaTree<Set<String>>();
-      // reverseTrie = reverseScanning ? new ConcurrentPatriciaTree<Set<String>>() : null;
-      names = new HashMap<String, Set<String>>(INIT_MAP_SIZE);
-      logger.log(Level.CONFIG, "{0} resource loaded", resourceUri);
-    }
-  }
-
-  /**
-   * This method implements the particular method of generating the pattern given the resource
-   * type.
-   * 
-   * @throws ResourceInitializationException
-   */
-  public abstract void afterResourcesInitialized();
-
-  /** Fetch the input stream for this resource. */
-  protected InputStream getInputStream() throws IOException {
-    return resource.getInputStream();
+    super.load(dataResource);
+    charset = Pattern.compile(charsetRegex);
   }
 
   // methods for building a pattern from the name-id pairs
-  /**
-   * Generate the "separated" (regularized) key for an entity name.
-   * <p>
-   * This method needs to be called by any implementing resource to convert a Gazetteer's name to
-   * its "normalized" version, aka. "key", that then can be used for
-   * {@link #processMapping(String, String, String) processMapping} <b>if the key is non-null</b>.
-   * After processing all names/keys, the DFA can be {@link #compile() compiled} (only needs to be
-   * called once).
-   * <p>
-   * A key is non-normalizable if the only characters it consists of are separator chars.
-   * 
-   * @return a key ("normalized" name) or <code>null</code> if it cannot be normalized
-   */
-  protected void put(final String id, final String name) {
-    if (id == null) throw new IllegalArgumentException("id == null for name '" + name + "'");
-    if (name == null) throw new IllegalArgumentException("name == null for ID '" + id + "'");
-    Set<String> mapped = names.get(id);
-    if (mapped == null) {
-      mapped = new HashSet<String>();
-      names.put(id, mapped);
-    }
-    mapped.add(name);
-    String key = makeKey(name);
-    if (key.length() == 0) {
-      logger.log(Level.WARNING, id + "=\"" + name + "\" has no content characters");
-      return;
-    }
-    put(trie, id, key);
-    if (idMatching) {
-      put(trie, id, makeKey(id));
-      mapped.add(id);
-    }
-  }
-
-  private String makeKey(final String name) {
+  @Override
+  protected String makeKey(final String name) {
     String key = StringUtils.join(charset.split(name));
     return exactCaseMatching ? key : key.toLowerCase();
-  }
-
-  private static void put(PatriciaTree<Set<String>> tree, final String id, final String key) {
-    Set<String> ids = tree.getValueForExactKey(key);
-    if (ids == null) {
-      ids = new HashSet<String>();
-      tree.put(key, ids);
-    }
-    ids.add(id);
   }
 
   /**
@@ -302,16 +152,7 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
 
   // GazetteerResource Methods
   /** {@inheritDoc} */
-  public Map<Offset, Set<String>> match(String input) {
-    return match(input, 0);
-  }
-
-  /** {@inheritDoc} */
-  public Map<Offset, Set<String>> match(String input, int start) {
-    return match(input, start, input.length());
-  }
-
-  /** {@inheritDoc} */
+  @Override
   public Map<Offset, Set<String>> match(String input, int start, int end) {
     Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
     NormalAlignment aln = new NormalAlignment(input);
@@ -326,26 +167,5 @@ public abstract class AbstractGazetteerResource implements GazetteerResource,
       }
     }
     return results;
-  }
-
-  // StringMapResource Methods
-  /** Return the Set of official names for an ID. */
-  public Set<String> get(String id) {
-    return names.get(id);
-  }
-
-  /** Check if the ID exists (and therefore has a mapping to a Set of official names). */
-  public boolean containsKey(String id) {
-    return names.containsKey(id);
-  }
-
-  /** Return the number of IDs covered by the Gazetteer. */
-  public int size() {
-    return names.size();
-  }
-
-  /** Iterate over all IDs covered by the Gazetteer. */
-  public Iterator<String> iterator() {
-    return names.keySet().iterator();
   }
 }
