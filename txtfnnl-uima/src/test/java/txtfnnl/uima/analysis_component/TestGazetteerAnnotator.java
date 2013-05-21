@@ -71,7 +71,7 @@ public class TestGazetteerAnnotator {
   public void testProcess() throws SQLException, UIMAException {
     createTable("NAME1", "Name2");
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(descriptor);
-    final JCas jcas = makeJCas(ae, "that has name 2 in it");
+    final JCas jcas = makeJCas(ae, "that has NAME2 in it");
     ae.process(jcas);
     FSIterator<Annotation> it = jcas.getAnnotationIndex(SemanticAnnotation.type).iterator();
     int count = 0;
@@ -80,7 +80,7 @@ public class TestGazetteerAnnotator {
       assertEquals("entityNS", ann.getNamespace());
       assertTrue(ann.getIdentifier(), "1".equals(ann.getIdentifier()));
       assertEquals(9, ann.getBegin());
-      assertEquals(15, ann.getEnd());
+      assertEquals(14, ann.getEnd());
       assertTrue(Double.toString(ann.getConfidence()),
           ann.getConfidence() >= 3.0 / 5 && ann.getConfidence() != 1.0);
       ++count;

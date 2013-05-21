@@ -81,11 +81,11 @@ public class TestJdbcGazetteerResource {
 
   @Test
   public void testFullConfigure() throws ResourceInitializationException {
-    builder.idMatching().caseMatching().boundaryMatch().setCharsetRegex("[hello]");
+    builder.idMatching().caseMatching().boundaryMatch();//.setCharsetRegex("[hello]");
     final String config = builder.create().toString();
     assertTrue(config.contains(url));
     assertTrue(config.contains("SELECT id, name FROM entities"));
-    assertTrue(config.contains("[hello]"));
+    //assertTrue(config.contains("[hello]"));
   }
 
   @Test
@@ -99,17 +99,31 @@ public class TestJdbcGazetteerResource {
   }
 
   @Test
-  public void testMatchResult() throws SQLException, UIMAException, IOException {
+  public void testDefaultResult() throws SQLException, UIMAException, IOException {
     GazetteerResource gr = newGazetteer("ABC 123", "ABC", "123", "123 ABC");
-    assertEquals(3, gr.match("abc-\n123").size());
+    assertEquals(3, gr.match("abc 123").size());
   }
   
   @Test
-  public void testCharsetRegex() throws SQLException, UIMAException, IOException {
-    builder.setCharsetRegex("[0-9]+");
-    GazetteerResource gr = newGazetteer("0A1B2C3");
-    assertEquals(1, gr.match("0ABC9").size());
-    assertEquals(1, gr.match(" A1B2C ").size());
-    assertEquals(0, gr.match("A B C").size());
+  public void testCaseMatchingResult() throws SQLException, UIMAException, IOException {
+    builder.caseMatching();
+    GazetteerResource gr = newGazetteer("ABC 123", "ABC", "123", "123 ABC");
+    assertEquals(1, gr.match("abc 123").size());
   }
+
+  @Test
+  public void testBoundaryMatchingResult() throws SQLException, UIMAException, IOException {
+    builder.boundaryMatch();
+    GazetteerResource gr = newGazetteer("ABC 123", "ABC", "123", "123 ABC");
+    assertEquals(1, gr.match("dabc 123").size());
+  }
+
+//  @Test
+//  public void testCharsetRegex() throws SQLException, UIMAException, IOException {
+//    builder.setCharsetRegex("[0-9]+");
+//    GazetteerResource gr = newGazetteer("0A1B2C3");
+//    assertEquals(1, gr.match("0ABC9").size());
+//    assertEquals(1, gr.match(" A1B2C ").size());
+//    assertEquals(0, gr.match("A B C").size());
+//  }
 }

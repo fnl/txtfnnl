@@ -23,7 +23,7 @@ import org.uimafit.descriptor.ConfigurationParameter;
  * 
  * @author Florian Leitner
  */
-public class JdbcGazetteerResource extends AbstractGazetteerResource implements
+public class JdbcGazetteerResource extends AbstractExactGazetteerResource implements
     JdbcConnectionResource, ExternalResourceAware {
   /** The <b>mandatory</b> SQL query used to fetch the entity names. */
   public static final String PARAM_QUERY_SQL = "QuerySQL";
@@ -54,7 +54,7 @@ public class JdbcGazetteerResource extends AbstractGazetteerResource implements
   @ConfigurationParameter(name = PARAM_ISOLATION_LEVEL, mandatory = false, defaultValue = "-1")
   protected int isolationLevel;
 
-  public static class Builder extends AbstractGazetteerResource.Builder implements
+  public static class Builder extends AbstractExactGazetteerResource.Builder implements
       AuthenticationResourceBuilder {
     /** Protected constructor for inherited implementations. */
     protected Builder(Class<? extends SharedResourceObject> klass, String url, String driverClass,
