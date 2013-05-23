@@ -19,7 +19,6 @@ import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 
 import txtfnnl.uima.ConfigurationBuilder;
-import txtfnnl.uima.analysis_component.AnnotationBasedPropertyFilter;
 import txtfnnl.uima.analysis_component.GeneAnnotator;
 import txtfnnl.uima.analysis_component.GeniaTaggerAnnotator;
 import txtfnnl.uima.analysis_component.LinnaeusAnnotator;
@@ -138,7 +137,6 @@ public class GeneNormalization extends Pipeline {
     GeneAnnotator.Builder geneAnnotator = null;
     try {
       geneAnnotator = GeneAnnotator.configure(geneAnnotationNamespace, gazetteer.create());
-      geneAnnotator.setTaxIdMappingResource(taxIdMap);
     } catch (ResourceInitializationException e) {
       l.severe(e.toString());
       System.err.println(e.getLocalizedMessage());
@@ -149,6 +147,7 @@ public class GeneNormalization extends Pipeline {
     String[] blacklist = cmd.hasOption('f') ? makeList(cmd.getOptionValue('f'), l) : null;
     geneAnnotator.setTextNamespace(SentenceAnnotator.NAMESPACE)
         .setTextIdentifier(SentenceAnnotator.IDENTIFIER).setMinimumSimilarity(cutoff);
+    geneAnnotator.setTaxIdMappingResource(taxIdMap);
     if (blacklist != null) {
       if (cmd.hasOption('F')) geneAnnotator.setWhitelist(blacklist);
       else geneAnnotator.setBlacklist(blacklist);
@@ -180,17 +179,13 @@ public class GeneNormalization extends Pipeline {
     }
     // Linnaeus setup
     ConfigurationBuilder<AnalysisEngineDescription> linnaeus;
-    ConfigurationBuilder<AnalysisEngineDescription> speciesFilter;
     if (cmd.hasOption('l')) {
       linnaeus = LinnaeusAnnotator.configure(new File(cmd.getOptionValue('l')))
           .setIdMappingResource(taxIdMap);
-      speciesFilter = AnnotationBasedPropertyFilter.configure(GeneAnnotator.TAX_ID_PROPERTY)
-          .setSourceAnnotatorUri(LinnaeusAnnotator.URI)
-          .setSourceNamespace(LinnaeusAnnotator.NAMESPACE)
-          .setTargetAnnotatorUri(GeneAnnotator.URI).setTargetNamespace(geneAnnotationNamespace);
+      geneAnnotator.setTaxaAnnotatorUri(LinnaeusAnnotator.URI);
+      geneAnnotator.setTaxaNamespace(LinnaeusAnnotator.NAMESPACE);
     } else {
       linnaeus = NOOPAnnotator.configure();
-      speciesFilter = NOOPAnnotator.configure();
     }
     // output
     OutputWriter.Builder writer;
@@ -203,8 +198,8 @@ public class GeneNormalization extends Pipeline {
           .printSurroundings().printPosTag();
     }
     try {
-      // 0:tika, 1:splitter, 2:tokenizer, 3:lemmatizer, 4:gazetteer,
-      // 5:token-filter, 6:linnaues, 7:species-filter
+      // 0:tika, 1:splitter, 2:tokenizer, 3:lemmatizer, 4:linnaeus, 5:gazetteer,
+      // 6:token-filter
       final Pipeline gn = new Pipeline(8);
       gn.setReader(cmd);
       gn.configureTika(cmd);
@@ -221,10 +216,9 @@ public class GeneNormalization extends Pipeline {
         // the GENIA Tagger already lemmatizes; nothing to do here
         gn.set(3, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
       }
-      gn.set(4, Pipeline.textEngine(geneAnnotator.create()));
-      gn.set(5, Pipeline.textEngine(finalSemanticFilter.create()));
-      gn.set(6, Pipeline.textEngine(linnaeus.create()));
-      gn.set(7, Pipeline.textEngine(speciesFilter.create()));
+      gn.set(4, Pipeline.textEngine(linnaeus.create()));
+      gn.set(5, Pipeline.textEngine(geneAnnotator.create()));
+      gn.set(6, Pipeline.textEngine(finalSemanticFilter.create()));
       gn.setConsumer(Pipeline.textEngine(writer.create()));
       gn.run();
       gn.destroy();

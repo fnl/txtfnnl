@@ -1,16 +1,21 @@
 package txtfnnl.uima.analysis_component;
 
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.uima.UimaContext;
+import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
+import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 
+import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
 
 import txtfnnl.uima.cas.Property;
@@ -38,6 +43,14 @@ public class GeneAnnotator extends GazetteerAnnotator {
   /** The URI of this Annotator (namespace and ID are defined dynamically). */
   @SuppressWarnings("hiding")
   public static final String URI = GeneAnnotator.class.getName();
+  public static final String PARAM_TAXA_ANNOTATOR_URI = "TaxaAnnotatorUri";
+  @ConfigurationParameter(name = PARAM_TAXA_ANNOTATOR_URI,
+      description = "The annotator URI that made the taxon ID annotations.")
+  private String taxaAnnotatorUri;
+  public static final String PARAM_TAXA_NAMESPACE = "TaxaNamespace";
+  @ConfigurationParameter(name = PARAM_TAXA_NAMESPACE,
+      description = "The NS in which the taxon ID annotations were made.")
+  private String taxaNamespace;
   /** A mapping of taxonmic IDs to another. */
   public static final String MODEL_KEY_TAX_ID_MAPPING_RESOURCE = "TaxIdMappingResource";
   @ExternalResource(key = MODEL_KEY_TAX_ID_MAPPING_RESOURCE, mandatory = false)
@@ -50,6 +63,18 @@ public class GeneAnnotator extends GazetteerAnnotator {
   public static class Builder extends GazetteerAnnotator.Builder {
     Builder(String entityNamespace, ExternalResourceDescription geneGazetteerResourceDescription) {
       super(GeneAnnotator.class, entityNamespace, geneGazetteerResourceDescription);
+    }
+
+    /** Set the annotator URI of taxa annotations to use for filtering annotations. */
+    public Builder setTaxaAnnotatorUri(String uri) {
+      setOptionalParameter(PARAM_TAXA_ANNOTATOR_URI, uri);
+      return this;
+    }
+
+    /** Set the namespace of taxa annotations to use for filtering annotations. */
+    public Builder setTaxaNamespace(String ns) {
+      setOptionalParameter(PARAM_TAXA_NAMESPACE, ns);
+      return this;
     }
 
     /**
@@ -86,14 +111,33 @@ public class GeneAnnotator extends GazetteerAnnotator {
   }
 
   @Override
-  protected Map<Offset, Set<String>> matchText(String text) {
-    Map<Offset, Set<String>> matches = super.matchText(text);
+  protected Map<Offset, Set<String>> matchText(JCas jcas, String text) {
+    Map<Offset, Set<String>> matches = super.matchText(jcas, text);
     text = replaceGreekLetters(text);
     if (text != null) {
-      Map<Offset, Set<String>> more = super.matchText(text);
+      Map<Offset, Set<String>> more = super.matchText(jcas, text);
       for (Offset off : more.keySet()) {
         if (matches.containsKey(off)) matches.get(off).addAll(more.get(off));
         else matches.put(off, more.get(off));
+      }
+    }
+    if (taxaAnnotatorUri != null || taxaNamespace != null) {
+      Set<String> annotatedTaxa = new HashSet<String>();
+      FSIterator<Annotation> iter = jcas.createFilteredIterator(
+          SemanticAnnotation.getIterator(jcas),
+          SemanticAnnotation.makeConstraint(jcas, taxaAnnotatorUri, taxaNamespace));
+      while (iter.hasNext())
+        annotatedTaxa.add(((SemanticAnnotation) iter.next()).getIdentifier());
+      if (annotatedTaxa.size() > 0) {
+        // filter taxa if any have been annotated
+        Iterator<Offset> offIter = matches.keySet().iterator();
+        while (offIter.hasNext()) {
+          Offset off = offIter.next();
+          Iterator<String> idIter = matches.get(off).iterator();
+          while (idIter.hasNext())
+            if (!annotatedTaxa.contains(getTaxId(idIter.next()))) idIter.remove();
+          if (matches.get(off).size() == 0) offIter.remove();
+        }
       }
     }
     return matches;
@@ -147,14 +191,18 @@ public class GeneAnnotator extends GazetteerAnnotator {
   protected SemanticAnnotation annotate(String id, JCas jcas, Offset offset, double confidence) {
     SemanticAnnotation entity = super.annotate(id, jcas, offset, confidence);
     entity.setAnnotator(URI); // update with static URI
-    String tid = ((GnamedGazetteerResource) gazetteer).getTaxId(id);
-    if (taxIdMapping != null && taxIdMapping.containsKey(tid)) tid = taxIdMapping.get(tid);
     Property taxId = new Property(jcas);
     taxId.setName(TAX_ID_PROPERTY);
-    taxId.setValue(tid);
+    taxId.setValue(getTaxId(id));
     FSArray a = new FSArray(jcas, 1);
     a.set(0, taxId);
     entity.setProperties(a);
     return entity;
+  }
+
+  private String getTaxId(String id) {
+    String tid = ((GnamedGazetteerResource) gazetteer).getTaxId(id);
+    if (taxIdMapping != null && taxIdMapping.containsKey(tid)) tid = taxIdMapping.get(tid);
+    return tid;
   }
 }

@@ -284,7 +284,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     String docText = jcas.getDocumentText();
     List<SemanticAnnotation> buffer = new LinkedList<SemanticAnnotation>();
     if (sourceNamespace == null) {
-      Map<Offset, Set<String>> matches = matchText(docText);
+      Map<Offset, Set<String>> matches = matchText(jcas, docText);
       for (Offset offset : matches.keySet()) {
         String match = docText.substring(offset.start(), offset.end());
         unfiltered += filter.process(jcas, buffer, match, offset, matches.get(offset));
@@ -297,7 +297,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       while (it.hasNext()) {
         // findEntities -> annotateEntities
         Annotation ann = it.next();
-        Map<Offset, Set<String>> matches = matchText(ann.getCoveredText());
+        Map<Offset, Set<String>> matches = matchText(jcas, ann.getCoveredText());
         for (Offset pos : matches.keySet()) {
           Offset offset = new Offset(pos.start() + ann.getBegin(), pos.end() + ann.getBegin());
           String match = docText.substring(offset.start(), offset.end());
@@ -309,7 +309,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       ann.addToIndexes();
   }
 
-  protected Map<Offset, Set<String>> matchText(String text) {
+  protected Map<Offset, Set<String>> matchText(JCas jcas, String text) {
     return gazetteer.match(text);
   }
 
