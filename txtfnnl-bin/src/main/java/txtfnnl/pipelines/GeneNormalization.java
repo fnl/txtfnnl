@@ -200,7 +200,7 @@ public class GeneNormalization extends Pipeline {
     try {
       // 0:tika, 1:splitter, 2:tokenizer, 3:lemmatizer, 4:linnaeus, 5:gazetteer,
       // 6:token-filter
-      final Pipeline gn = new Pipeline(8);
+      final Pipeline gn = new Pipeline(7);
       gn.setReader(cmd);
       gn.configureTika(cmd);
       gn.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
