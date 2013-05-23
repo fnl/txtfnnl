@@ -30,7 +30,7 @@ public class LineBasedGazetteerResource extends AbstractGazetteerResource {
   protected String separator;
 
   public static class Builder extends AbstractGazetteerResource.Builder {
-    Builder(String url) {
+    public Builder(String url) {
       super(LineBasedGazetteerResource.class, url);
     }
 
