@@ -52,10 +52,10 @@ public class GeneNormalization extends Pipeline {
   // default: all known gene and protein symbols
   static final String SQL_QUERY = "SELECT gr.accession, g.species_id, ps.value "
       + "FROM gene_refs AS gr, genes AS g, genes2proteins AS g2p, protein_strings AS ps "
-      + "WHERE gr.namespace = 'gi' AND gr.id = g.id AND g.id = g2p.gene_id AND g2p.protein_id = ps.id AND ps.cat = 'symbol' "
+      + "WHERE gr.namespace = 'gi' AND gr.id = g.id AND g.id = g2p.gene_id AND g2p.protein_id = ps.id AND (ps.cat = 'symbol' OR ps.cat = 'name') "
       + "UNION SELECT gr.accession, g.species_id, gs.value "
       + "FROM gene_refs AS gr, genes AS g, gene_strings AS gs "
-      + "WHERE gr.namespace = 'gi' AND gr.id = g.id AND gr.id = gs.id AND gs.cat = 'symbol'";
+      + "WHERE gr.namespace = 'gi' AND gr.id = g.id AND gr.id = gs.id AND (gs.cat = 'symbol' OR gs.cat = 'name') ";
 
   private GeneNormalization() {
     throw new AssertionError("n/a");
