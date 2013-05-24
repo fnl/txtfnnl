@@ -242,6 +242,8 @@ public class AnnotationLineWriter extends TextWriter {
       try {
         write(text);
         write('\t');
+        write(ann.getOffset().toString());
+        write('\t');
         if (annotatorUri == null) write(ann.getAnnotator());
         if (annotatorUri == null && annotationNs == null) write('@');
         else if (annotatorUri == null) write('\t');
@@ -253,20 +255,22 @@ public class AnnotationLineWriter extends TextWriter {
           write('\t');
         }
         FSArray props = ann.getProperties();
-        for (int i = 0; i < props.size(); i++) {
-          Property p = (Property) props.get(i);
-          if (p.getName().contains(" ")) {
+        if (props != null) {
+          for (int i = 0; i < props.size(); i++) {
+            Property p = (Property) props.get(i);
+            if (p.getName().contains(" ")) {
+              write('"');
+              write(p.getName());
+              write('"');
+            } else {
+              write(p.getName());
+            }
+            write('=');
             write('"');
-            write(p.getName());
+            write(replaceNewlines ? p.getValue().replace('\n', ' ') : p.getValue());
             write('"');
-          } else {
-            write(p.getName());
+            write('\t');
           }
-          write('=');
-          write('"');
-          write(replaceNewlines ? p.getValue().replace('\n', ' ') : p.getValue());
-          write('"');
-          write('\t');
         }
         write(decimals.format(ann.getConfidence()));
         write(LINEBREAK);
