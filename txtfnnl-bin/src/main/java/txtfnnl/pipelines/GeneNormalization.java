@@ -82,8 +82,8 @@ public class GeneNormalization extends Pipeline {
     opts.addOption("f", "filter-matches", true, "a blacklist (file) of exact matches");
     opts.addOption("F", "whitelist-matches", false,
         "invert filter matches to behave as a whitelist");
-    opts.addOption("c", "cutoff-similarity", true,
-        "min. string similarity required to annotate [0.5]");
+    // opts.addOption("c", "cutoff-similarity", true,
+    //   "min. string similarity required to annotate [0.6]");
     // filter options
     opts.addOption("r", "required-pos-tags", true, "a whitelist (file) of required PoS tags");
     opts.addOption("t", "filter-tokens", true, "a two-column (file) list of filter matches");
@@ -100,7 +100,7 @@ public class GeneNormalization extends Pipeline {
       System.exit(1); // == EXIT ==
     }
     final Logger l = Pipeline.loggingSetup(cmd, opts,
-        "txtfnnl gn [options] <directory|files...>\n");
+        "txtfnnl norm [options] <directory|files...>\n");
     // (GENIA) tokenizer
     final File geniaDir = cmd.getOptionValue('G') == null ? null : new File(
         cmd.getOptionValue('G'));
@@ -143,25 +143,35 @@ public class GeneNormalization extends Pipeline {
       e.printStackTrace();
       System.exit(1); // == EXIT ==
     }
-    double cutoff = cmd.hasOption('c') ? Double.parseDouble(cmd.getOptionValue('c')) : 0.5;
+    //double cutoff = cmd.hasOption('c') ? Double.parseDouble(cmd.getOptionValue('c')) : 0.0;
     String[] blacklist = cmd.hasOption('f') ? makeList(cmd.getOptionValue('f'), l) : null;
     geneAnnotator.setTextNamespace(SentenceAnnotator.NAMESPACE)
-        .setTextIdentifier(SentenceAnnotator.IDENTIFIER).setMinimumSimilarity(cutoff);
+        .setTextIdentifier(SentenceAnnotator.IDENTIFIER); //.setMinimumSimilarity(cutoff);
     geneAnnotator.setTaxIdMappingResource(taxIdMap);
     if (blacklist != null) {
       if (cmd.hasOption('F')) geneAnnotator.setWhitelist(blacklist);
       else geneAnnotator.setBlacklist(blacklist);
     }
-    // Filter setup
-    ConfigurationBuilder<AnalysisEngineDescription> finalSemanticFilter;
+    // Linnaeus setup
+    ConfigurationBuilder<AnalysisEngineDescription> linnaeus;
+    if (cmd.hasOption('l')) {
+      linnaeus = LinnaeusAnnotator.configure(new File(cmd.getOptionValue('l')))
+          .setIdMappingResource(taxIdMap);
+      geneAnnotator.setTaxaAnnotatorUri(LinnaeusAnnotator.URI);
+      geneAnnotator.setTaxaNamespace(LinnaeusAnnotator.DEFAULT_NAMESPACE);
+    } else {
+      linnaeus = NOOPAnnotator.configure();
+    }
+    // Token Surrounding Filter setup
+    ConfigurationBuilder<AnalysisEngineDescription> filterSurrounding;
     if (cmd.hasOption('r') || cmd.hasOption('t')) {
-      TokenBasedSemanticAnnotationFilter.Builder semanticFilter = TokenBasedSemanticAnnotationFilter
+      TokenBasedSemanticAnnotationFilter.Builder tokenFilter = TokenBasedSemanticAnnotationFilter
           .configure();
-      if (cmd.hasOption('r')) semanticFilter.setPosTags(makeList(cmd.getOptionValue('r'), l));
+      if (cmd.hasOption('r')) tokenFilter.setPosTags(makeList(cmd.getOptionValue('r'), l));
       if (cmd.hasOption('t')) {
-        if (cmd.hasOption('T')) semanticFilter.whitelist();
+        if (cmd.hasOption('T')) tokenFilter.whitelist();
         try {
-          semanticFilter.setSurroundingTokens(QualifiedStringSetResource.configure(
+          tokenFilter.setSurroundingTokens(QualifiedStringSetResource.configure(
               "file:" + cmd.getOptionValue('t')).create());
         } catch (ResourceInitializationException e) {
           l.severe(e.toString());
@@ -170,22 +180,12 @@ public class GeneNormalization extends Pipeline {
           System.exit(1); // == EXIT ==
         }
       }
-      semanticFilter.setAnnotatorUri(GeneAnnotator.URI);
-      semanticFilter.setNamespace(geneAnnotationNamespace);
-      finalSemanticFilter = semanticFilter;
+      tokenFilter.setAnnotatorUri(GeneAnnotator.URI);
+      tokenFilter.setNamespace(geneAnnotationNamespace);
+      filterSurrounding = tokenFilter;
     } else {
       // no filter parameters have been specified - nothing to do
-      finalSemanticFilter = NOOPAnnotator.configure();
-    }
-    // Linnaeus setup
-    ConfigurationBuilder<AnalysisEngineDescription> linnaeus;
-    if (cmd.hasOption('l')) {
-      linnaeus = LinnaeusAnnotator.configure(new File(cmd.getOptionValue('l')))
-          .setIdMappingResource(taxIdMap);
-      geneAnnotator.setTaxaAnnotatorUri(LinnaeusAnnotator.URI);
-      geneAnnotator.setTaxaNamespace(LinnaeusAnnotator.NAMESPACE);
-    } else {
-      linnaeus = NOOPAnnotator.configure();
+      filterSurrounding = NOOPAnnotator.configure();
     }
     // output
     OutputWriter.Builder writer;
@@ -199,7 +199,7 @@ public class GeneNormalization extends Pipeline {
     }
     try {
       // 0:tika, 1:splitter, 2:tokenizer, 3:lemmatizer, 4:linnaeus, 5:gazetteer,
-      // 6:token-filter
+      // 6:filter-surrounding
       final Pipeline gn = new Pipeline(7);
       gn.setReader(cmd);
       gn.configureTika(cmd);
@@ -218,7 +218,7 @@ public class GeneNormalization extends Pipeline {
       }
       gn.set(4, Pipeline.textEngine(linnaeus.create()));
       gn.set(5, Pipeline.textEngine(geneAnnotator.create()));
-      gn.set(6, Pipeline.textEngine(finalSemanticFilter.create()));
+      gn.set(6, Pipeline.textEngine(filterSurrounding.create()));
       gn.setConsumer(Pipeline.textEngine(writer.create()));
       gn.run();
       gn.destroy();
