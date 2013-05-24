@@ -3,8 +3,8 @@ package txtfnnl.uima.collection;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
+import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.uima.UimaContext;
@@ -21,10 +21,13 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
+import org.uimafit.util.JCasUtil;
 
+import txtfnnl.uima.TokenSurrounding;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.tcas.TextAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
+import txtfnnl.utils.Offset;
 
 /**
  * A CAS consumer that writes out a particular annotation type, where each line represents a hit
@@ -155,84 +158,47 @@ public class AnnotationLineWriter extends TextWriter {
         annotationId);
     FSIterator<Annotation> annotationIter = textJCas.createFilteredIterator(
         TextAnnotation.getIterator(textJCas), cons);
-    TokenAnnotation[] tokens = new TokenAnnotation[5];
-    List<TokenAnnotation> allTokens = new ArrayList<TokenAnnotation>();
-    if (printSurroundings || printPosTag) {
-      FSIterator<Annotation> it = TokenAnnotation.getIterator(textJCas);
-      while (it.hasNext())
-        allTokens.add((TokenAnnotation) it.next());
-    }
-    int allTokensIdx = 0;
-    int allTokensLen = allTokens.size();
-    tokens[2] = null;
+    Map<TextAnnotation, Collection<TokenAnnotation>> coveredTokens = null;
+    Map<TextAnnotation, Collection<TokenAnnotation>> innerTokens = null;
+    TokenSurrounding tokens = null;
+    String[] surrounding = null;
     int annCount = 0;
+    Offset last = null;
+    String posTag = null;
+    if (printSurroundings || printPosTag) {
+      coveredTokens = JCasUtil.indexCovered(textJCas, TextAnnotation.class, TokenAnnotation.class);
+      innerTokens = JCasUtil.indexCovering(textJCas, TextAnnotation.class, TokenAnnotation.class);
+    }
     while (annotationIter.hasNext()) {
       final TextAnnotation ann = (TextAnnotation) annotationIter.next();
       annCount++;
       String text = ann.getCoveredText();
       if (replaceTabs) text = text.replace('\t', ' ');
-      String posTag = null;
       if (printSurroundings) {
-        String[] surrounding = new String[] { "", "", text, "", "" };
-        TokenAnnotation beforeTok = null;
-        int idx = allTokensIdx;
-        while (idx < allTokensLen) {
-          TokenAnnotation tok = allTokens.get(idx++);
-          if (isBefore(tok, ann)) {
-            beforeTok = tok;
-            allTokensIdx = idx - 1;
-          } else {
-            String txt = tok.getCoveredText();
-            if (isSurrounding(tok, ann)) {
-              surrounding[PREFIX] = txt.substring(0, ann.getBegin() - tok.getBegin());
-              surrounding[SUFFIX] = txt.substring(ann.getEnd() - tok.getBegin());
-              posTag = tok.getPos();
-            } else if (isAtBegin(tok, ann)) {
-              surrounding[PREFIX] = txt.substring(0, ann.getBegin() - tok.getBegin());
-              posTag = tok.getPos();
-            } else if (isAtEnd(tok, ann)) {
-              surrounding[SUFFIX] = txt.substring(ann.getEnd() - tok.getBegin());
-              if (posTag == null) posTag = tok.getPos();
-            } else if (isAfter(tok, ann)) {
-              surrounding[AFTER] = txt;
-              break; // done!
-            } else if (isEnclosed(tok, ann)) {
-              if (posTag == null) posTag = tok.getPos();
-              // "inner" token - do nothing (otherwise)
-            } else {
-              this.logger.log(Level.WARNING,
-                  "token position %s undetermined relative to annotation %s", new String[] {
-                      tok.getOffset().toString(), ann.getOffset().toString() });
-              break;
-            }
-            if (beforeTok != null) {
-              surrounding[BEFORE] = beforeTok.getCoveredText();
-              beforeTok = null;
-            }
-          }
+        if (!ann.getOffset().equals(last)) {
+          last = ann.getOffset();
+          tokens = new TokenSurrounding(textJCas, ann, coveredTokens, innerTokens);
+          surrounding = new String[] { "", "", text, "", "" };
+          if (tokens.before != null) surrounding[BEFORE] = tokens.before.getCoveredText();
+          if (tokens.prefix != null)
+            surrounding[PREFIX] = tokens.prefix.getCoveredText().substring(0,
+                ann.getBegin() - tokens.prefix.getBegin());
+          if (tokens.suffix != null)
+            surrounding[SUFFIX] = tokens.suffix.getCoveredText().substring(
+                ann.getEnd() - tokens.suffix.getBegin());
+          if (tokens.after != null) surrounding[AFTER] = tokens.after.getCoveredText();
+          if (replaceTabs) for (int i = 0; i < surrounding.length; ++i)
+            surrounding[i] = surrounding[i].replace('\t', ' ');
+          posTag = (tokens.suffix == null) ? null : tokens.suffix.getPos();
         }
-        if (replaceTabs) for (int i = 0; i < surrounding.length; ++i)
-          surrounding[i] = surrounding[i].replace('\t', ' ');
         text = StringUtils.join(surrounding, '\t');
       } // end printSurroundings
       if (printPosTag) {
-        if (posTag == null) {
-          int idx = allTokensIdx;
-          while (idx < allTokensLen) {
-            TokenAnnotation tok = allTokens.get(idx++);
-            if (isSurrounding(tok, ann)) {
-              posTag = tok.getPos();
-              allTokensIdx = idx - 1;
-              break;
-            } else if (isAtBegin(tok, ann)) {
-              posTag = tok.getPos();
-              allTokensIdx = idx - 1;
-              break;
-            } else if (isBefore(tok, ann)) {
-              // continue searching
-            } else {
-              break;
-            }
+        if (!printSurroundings) {
+          if (!ann.getOffset().equals(last)) {
+            last = ann.getOffset();
+            tokens = new TokenSurrounding(textJCas, ann, coveredTokens, innerTokens);
+            posTag = (tokens.suffix == null) ? null : tokens.suffix.getPos();
           }
         }
         if (posTag == null) posTag = "NULL";
@@ -284,29 +250,5 @@ public class AnnotationLineWriter extends TextWriter {
       throw new AnalysisEngineProcessException(e);
     }
     logger.log(Level.FINE, "wrote {0} annotations", annCount);
-  }
-
-  private static boolean isBefore(TokenAnnotation tok, TextAnnotation ann) {
-    return tok.getEnd() <= ann.getBegin();
-  }
-
-  private static boolean isSurrounding(TokenAnnotation tok, TextAnnotation ann) {
-    return tok.getBegin() < ann.getBegin() && tok.getEnd() > ann.getEnd();
-  }
-
-  private static boolean isEnclosed(TokenAnnotation tok, TextAnnotation ann) {
-    return tok.getBegin() >= ann.getBegin() && tok.getEnd() <= ann.getEnd();
-  }
-
-  private static boolean isAtBegin(TokenAnnotation tok, TextAnnotation ann) {
-    return tok.getEnd() > ann.getBegin() && tok.getBegin() < ann.getBegin();
-  }
-
-  private static boolean isAtEnd(TokenAnnotation tok, TextAnnotation ann) {
-    return tok.getBegin() < ann.getEnd() && tok.getEnd() > ann.getEnd();
-  }
-
-  private static boolean isAfter(TokenAnnotation tok, TextAnnotation ann) {
-    return tok.getBegin() >= ann.getEnd();
   }
 }

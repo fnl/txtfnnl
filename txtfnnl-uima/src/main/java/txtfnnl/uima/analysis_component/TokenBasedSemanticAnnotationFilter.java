@@ -2,9 +2,7 @@
  * Copyright 2013. All rights reserved. */
 package txtfnnl.uima.analysis_component;
 
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -29,6 +27,7 @@ import org.uimafit.descriptor.ExternalResource;
 import org.uimafit.util.JCasUtil;
 
 import txtfnnl.uima.AnalysisComponentBuilder;
+import txtfnnl.uima.TokenSurrounding;
 import txtfnnl.uima.resource.LineBasedStringMapResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
@@ -271,102 +270,6 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
     if (doSelect && !testSet.contains(value)) return true;
     else if (!doSelect && testSet.contains(value)) return true;
     else return false;
-  }
-
-  /**
-   * A structure to hold the "surrounding" (before, at, and after) token state relative to a given
-   * semantic annotation.
-   */
-  private static class TokenSurrounding {
-    /** The token before the relevant semantic annotation. */
-    final TokenAnnotation before;
-    /** The (last) token covering the relevant semantic annotation. */
-    final TokenAnnotation prefix;
-    /**
-     * The first token covering the relevant semantic annotation or <code>null</code>.
-     * <p>
-     * This value only gets set if there are multiple tokens that span the relevant
-     * {@link SemanticAnnotation}.
-     */
-    final TokenAnnotation suffix;
-    /** The token after the relevant semantic annotation. */
-    final TokenAnnotation after;
-
-    /**
-     * Establish the surrounding in the CAS given the semantic annotation.
-     * <p>
-     * To make this lookup more efficient, a pre-established mapping of tokens covered by semantic
-     * annotations as well as semantic annotations contained within tokens need to be provided as
-     * additional arguments.
-     */
-    public TokenSurrounding(JCas jcas, SemanticAnnotation ann,
-        Map<SemanticAnnotation, Collection<TokenAnnotation>> tokensCoveredBySemAnn,
-        Map<SemanticAnnotation, Collection<TokenAnnotation>> tokensContainingSemAnns) {
-      // prefix and suffix
-      Collection<TokenAnnotation> tokens = tokensCoveredBySemAnn.get(ann);
-      if (tokens == null) tokens = tokensContainingSemAnns.get(ann);
-      else if (tokensContainingSemAnns.containsKey(ann)) {
-        tokens = new LinkedList<TokenAnnotation>(tokens);
-        tokens.addAll(tokensContainingSemAnns.get(ann));
-      }
-      if (tokens == null || tokens.size() == 0) {
-        prefix = null;
-        suffix = null;
-      } else {
-        if (tokens.size() > 1) {
-          TokenAnnotation[] multi = tokens.toArray(new TokenAnnotation[tokens.size()]);
-          Arrays.sort(multi, new Comparator<TokenAnnotation>() {
-            public int compare(TokenAnnotation a, TokenAnnotation b) {
-              return a.getOffset().compareTo(b.getOffset());
-            }
-          });
-          if (multi[0].getBegin() > ann.getBegin()) prefix = null;
-          else prefix = multi[0];
-          if (multi[multi.length - 1].getEnd() < ann.getEnd()) suffix = null;
-          else suffix = multi[multi.length - 1];
-        } else {
-          TokenAnnotation tmp = tokens.iterator().next();
-          prefix = (tmp.getBegin() > ann.getBegin() || tmp.getEnd() < ann.getEnd()) ? null : tmp;
-          suffix = prefix;
-        }
-      }
-      // before
-      List<TokenAnnotation> r = JCasUtil.selectPreceding(jcas, TokenAnnotation.class, ann, 1);
-      if (r.size() == 1 && ann.getBegin() - r.get(0).getEnd() < 10) before = r.get(0);
-      else before = null;
-      // after
-      r = JCasUtil.selectFollowing(jcas, TokenAnnotation.class, ann, 1);
-      if (r.size() == 1 && r.get(0).getBegin() - ann.getEnd() < 10) after = r.get(0);
-      else after = null;
-      // ensure correctness of offsets
-      if (before != null && before.getEnd() > ann.getBegin())
-        throw new RuntimeException("before does not end before ann @ " +
-            ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
-            this.toString());
-      if (after != null && after.getBegin() < ann.getEnd())
-        throw new RuntimeException("after does not begin after ann @ " +
-            ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
-            this.toString());
-      if (suffix != null && ann.getEnd() > suffix.getEnd())
-        throw new RuntimeException("suffix does not overlap with ann end @ " +
-            ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
-            this.toString());
-      if (prefix != null && ann.getBegin() < prefix.getBegin())
-        throw new RuntimeException("prefix does not overlap with ann begin @ " +
-            ann.getOffset().toString() + "\nann= '" + ann.getCoveredText() + "'\n" +
-            this.toString());
-    }
-
-    @Override
-    public String toString() {
-      return "surr.before=" + makeString(before) + " surr.first=" + makeString(suffix) +
-          " surr.current=" + makeString(prefix) + " surr.after=" + makeString(after);
-    }
-
-    private static String makeString(TokenAnnotation tok) {
-      if (tok == null) return "N/A";
-      else return "'" + tok.getCoveredText() + "' @ " + tok.getOffset().toString();
-    }
   }
   
   @Override
