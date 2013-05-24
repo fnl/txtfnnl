@@ -94,7 +94,8 @@ help () {
     echo "  split    - plaintext with line-separated sentences";
     echo "  pre      - pre-process files to XMI (split, tag, stem and chunk)";
     echo "  tag      - extract tagged plaintext (split, tag, stem and chunk)";
-    echo "  grep     - extract semantic patterns (or matching sentences)";
+    echo "  grep     - detect semantic patterns (or matching sentences)";
+    echo "  match    - detect entity normalizations (with evidence text)";
     echo "  norm     - extract gene normalizations (with evidence text)";
     echo "  ginx     - extract gene interactions (with evidence sentences)";
     echo "  entities - annotate known entity mentions to XMI";
@@ -112,6 +113,7 @@ if [ $# -gt 0 ]; then
         pre) java -Xmx2G txtfnnl.pipelines.Preprocessor "$@";;
         tag) java -Xmx2G txtfnnl.pipelines.SentenceTagger "$@";;
         grep) java -Xmx2G txtfnnl.pipelines.PatternExtractor "$@";;
+        match) java -Xmx2G txtfnnl.pipelines.LinnaeusNormalization "$@";;
         norm) java -Xmx32G txtfnnl.pipelines.GeneNormalization "$@";;
         ginx) java -Xmx32G txtfnnl.pipelines.RelationshipExtractor "$@";;
         grex) java -Xmx32G txtfnnl.pipelines.GeneRelationshipExtractor "$@";;
