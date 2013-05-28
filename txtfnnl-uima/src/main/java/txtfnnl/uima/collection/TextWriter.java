@@ -72,11 +72,16 @@ public class TextWriter extends OutputWriter {
           "no output defined (neither directory or STDOUT specified)"));
     if (encoding == null && IOUtils.isMacOSX()) {
       // fix for the Mac JDK that uses MacRoman instead of the LANG as default encoding:
-      // use the encoding defined in LANG, or, if LANG is not set, use UTF-8.
+      // use the encoding defined in LANG:
       encoding = IOUtils.getLocaleEncoding();
-      if (encoding == null) {
-        encoding = "UTF-8";
-      }
+      // or, if LANG is not set, use UTF-8:
+      if (encoding == null) encoding = "UTF-8";
+      logger.log(Level.CONFIG, "using (fixed) ''{0}'' encoding", encoding);
+    } else if (encoding != null) {
+      logger.log(Level.CONFIG, "using ''{0}'' encoding", encoding);
+    } else {
+      logger.log(Level.CONFIG, "using default encoding ({0})",
+          System.getProperty("file.encoding"));
     }
     if (printToStdout) {
       if (encoding != null) {
@@ -85,13 +90,13 @@ public class TextWriter extends OutputWriter {
         } catch (final UnsupportedEncodingException e) {
           throw new ResourceInitializationException(e);
         }
-        logger.log(Level.CONFIG, "writing to STDOUT using '" + encoding + "' encoding");
-      } else {
-        logger.log(Level.CONFIG, "writing to STDOUT using the default encoding");
       }
+      logger.log(Level.CONFIG, "writing to STDOUT");
     } else {
-      logger.log(Level.CONFIG, "writing to '" + outputDirectory.getAbsolutePath() + "'");
+      logger.log(Level.CONFIG, "writing to directory ''{0}''", outputDirectory.getAbsolutePath());
     }
+    if (encoding == null) encoding = System.getProperty("file.encoding");
+    if (encoding == null) encoding = "UTF-8"; // safety/last resort: use UTF-8
     logger.log(Level.CONFIG, "initialized {0}", this.getClass().getName());
   }
 
@@ -132,10 +137,8 @@ public class TextWriter extends OutputWriter {
   void setStream(JCas jcas) throws IOException {
     if (outputDirectory != null) {
       File outputFile = openOutputFile(jcas, "txt");
-      String enc = (encoding == null) ? System.getProperty("file.encoding") : encoding;
-      logger
-          .log(Level.INFO, String.format("writing to '%s' using '%s' encoding", outputFile, enc));
-      outputWriter = new OutputStreamWriter(new FileOutputStream(outputFile), enc);
+      logger.log(Level.INFO, "writing ''{0}''", outputFile);
+      outputWriter = new OutputStreamWriter(new FileOutputStream(outputFile), encoding);
     }
   }
 
