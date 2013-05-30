@@ -124,7 +124,8 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
           SCAN:
           for (String latin : GREEK_NAMES[idx]) {
             for (int ext = 1; ext < latin.length(); ++ext)
-              if (latin.charAt(ext) != str.charAt(offset + ext)) continue SCAN;
+              if (offset + ext >= len || latin.charAt(ext) != str.charAt(offset + ext))
+                continue SCAN;
             normal.append(str.subSequence(last, offset));
             normal.appendCodePoint(greekLetterFor(latin));
             last = offset + latin.length();
