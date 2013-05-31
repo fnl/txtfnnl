@@ -88,7 +88,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   @ConfigurationParameter(name = PARAM_BLACKLIST, mandatory = false)
   private String[] blacklist;
   /** The filter strategy chosen based on whitelist and blacklist settings. */
-  private FilterStrategy filter;
+  protected FilterStrategy filter;
   /** The GazetteerResource used for entity matching. */
   public static final String MODEL_KEY_GAZETTEER = "Gazetteer";
   @ExternalResource(key = MODEL_KEY_GAZETTEER)
@@ -96,7 +96,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   private Similarity measure = LeitnerLevenshtein.INSTANCE; // TODO: make configurable?
   protected Logger logger;
   private int count;
-  private int unfiltered;
+  protected int unfiltered;
 
   public static class Builder extends AnalysisComponentBuilder {
     protected Builder(Class<? extends AnalysisComponent> klass, String entityNamespace,
@@ -284,7 +284,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     String docText = jcas.getDocumentText();
     List<SemanticAnnotation> buffer = new LinkedList<SemanticAnnotation>();
     if (sourceNamespace == null) {
-      Map<Offset, Set<String>> matches = matchText(jcas, docText);
+      Map<Offset, Set<String>> matches = gazetteer.match(docText);
       for (Offset offset : matches.keySet()) {
         String match = docText.substring(offset.start(), offset.end());
         unfiltered += filter.process(jcas, buffer, match, offset, matches.get(offset));
@@ -297,7 +297,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       while (it.hasNext()) {
         // findEntities -> annotateEntities
         Annotation ann = it.next();
-        Map<Offset, Set<String>> matches = matchText(jcas, ann.getCoveredText());
+        Map<Offset, Set<String>> matches = gazetteer.match(ann.getCoveredText());
         for (Offset pos : matches.keySet()) {
           Offset offset = new Offset(pos.start() + ann.getBegin(), pos.end() + ann.getBegin());
           String match = docText.substring(offset.start(), offset.end());
@@ -307,10 +307,6 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     }
     for (SemanticAnnotation ann : buffer)
       ann.addToIndexes();
-  }
-
-  protected Map<Offset, Set<String>> matchText(JCas jcas, String text) {
-    return gazetteer.match(text);
   }
 
   /**
