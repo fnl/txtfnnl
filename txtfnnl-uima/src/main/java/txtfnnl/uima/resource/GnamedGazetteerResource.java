@@ -28,7 +28,8 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
   public static final String PARAM_NO_GREEK_MAPPING = "DisableGreekMapping";
   @ConfigurationParameter(name = PARAM_NO_GREEK_MAPPING,
       mandatory = false,
-      description = "Disable mapping of Latin names of Greek letters ('alpha', 'beta', ...) to their actual characters",
+      description = "Disable mapping of Latin names of Greek letters ('alpha', 'beta', ...) "
+          + "to their actual characters",
       defaultValue = "false")
   private boolean disableGreekMapping;
   /** Mappings of gene IDs to their taxon IDs. */
@@ -78,7 +79,7 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
   @Override
   public void afterResourcesInitialized() {
     initializeJdbc();
-    // fetch a process the mappings
+    // fetch and process the mappings
     // uses "key = makeKey(name) && if (key != null) processMapping(dbId, name, key)"
     try {
       Connection conn = getConnection();

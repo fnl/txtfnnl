@@ -139,7 +139,7 @@ public class JdbcGazetteerResource extends AbstractExactGazetteerResource implem
     // because it cannot throw a ResourceInitializationException
     // therefore, this code throws assertion errors to the same effect...
     initializeJdbc();
-    // fetch a process the mappings
+    // fetch and process the mappings
     // uses "key = makeKey(name) && if (key != null) processMapping(dbId, name, key)"
     try {
       Connection conn = getConnection();

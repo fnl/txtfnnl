@@ -138,7 +138,7 @@ public class GeneNormalization extends Pipeline {
         System.exit(1); // == EXIT ==
       }
     }
-    // Gene annotator setup
+    // Gene Annotator setup
     GeneAnnotator.Builder geneAnnotator = null;
     try {
       geneAnnotator = GeneAnnotator.configure(geneAnnotationNamespace, gazetteer.create());
