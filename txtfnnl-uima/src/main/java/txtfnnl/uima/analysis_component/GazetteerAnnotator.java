@@ -198,6 +198,9 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
         return ids.size();
       } else {
+        for (String id : ids)
+          annotator.logger.log(Level.FINE, "stopword {0}@{1} filtering {2}", new Object[] { match,
+              offset, id });
         return 0;
       }
     }
@@ -218,6 +221,9 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
         return ids.size();
       } else {
+        for (String id : ids)
+          annotator.logger.log(Level.FINE, "stopword {0}@{1} filtering {2}", new Object[] { match,
+              offset, id });
         return 0;
       }
     }
@@ -241,6 +247,9 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
         return ids.size();
       } else {
+        for (String id : ids)
+          annotator.logger.log(Level.FINE, "stopword {0}@{1} filtering {2}", new Object[] { match,
+              offset, id });
         return 0;
       }
     }
@@ -355,7 +364,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   @Override
   public void destroy() {
     super.destroy();
-    logger.log(Level.INFO, "detected {0} {1} entities, {2} after filtering",
-        new String[] { Integer.toString(count), entityNamespace, Integer.toString(unfiltered) });
+    logger.log(Level.INFO, "detected {0} {1} entities, {2} after filtering", new String[] {
+        Integer.toString(count), entityNamespace, Integer.toString(unfiltered) });
   }
 }
