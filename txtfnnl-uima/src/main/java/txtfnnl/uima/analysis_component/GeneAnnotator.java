@@ -185,8 +185,8 @@ public class GeneAnnotator extends GazetteerAnnotator {
           String taxId = getTaxId(geneId);
           if (!annotatedTaxa.contains(taxId)) {
             idIter.remove();
-            logger.log(Level.FINE, "removing gene {0}@{1} with absent species mention {2}",
-                new String[] { geneId, off.toString(), taxId });
+            logger.log(Level.FINE, "skipping gene {0}@{1} with absent species mention {2}",
+                new Object[] { geneId, off, taxId });
           }
         }
         if (matches.get(off).size() == 0) offIter.remove();

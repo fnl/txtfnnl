@@ -337,7 +337,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         double conf = 0.0;
         for (String n : officialNames)
           conf = Math.max(conf, measure.similarity(n, name));
-        if (conf < minSimilarity) logger.log(Level.FINER,
+        if (conf < minSimilarity) logger.log(Level.FINE,
             "dropping low-similarity match for {0} on ''{1}''", new String[] { dbId, name });
         else anns.add(annotate(dbId, jcas, offset, conf));
       }
@@ -355,7 +355,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     entity.setConfidence(confidence);
     entity.setIdentifier(id);
     entity.setNamespace(entityNamespace);
-    logger.log(Level.FINER, "detected {0}:{1} ({2})",
+    logger.log(Level.FINE, "detected {0}:{1} ({2})",
         new String[] { entityNamespace, id, Double.toString(confidence) });
     count++;
     return entity;

@@ -1,6 +1,8 @@
 package txtfnnl.uima.analysis_component;
 
 import java.io.File;
+import java.util.HashSet;
+import java.util.Set;
 
 import martin.common.ArgParser;
 
@@ -113,25 +115,25 @@ public class LinnaeusAnnotator extends JCasAnnotator_ImplBase {
   @Override
   public void process(JCas cas) throws AnalysisEngineProcessException {
     int countMentions = 0;
-    int countIds = 0;
+    Set<String> idSet = new HashSet<String>();
     for (Mention mention : linnaeus.match(cas.getDocumentText())) {
       ++countMentions;
       String[] ids = mention.getIds();
       Double[] probs = mention.getProbabilities();
       for (int i = ids.length - 1; i > -1; --i) {
-        ++countIds;
+        idSet.add(ids[i]);
         // Linnaeus sets p to NULL in some cases, so:
         if (probs[i] == null) probs[i] = 1.0 / ((double) probs.length);
-        if (idMapping != null && idMapping.containsKey(ids[i])) annotateMention(cas, mention,
+        if (idMapping != null && idMapping.containsKey(ids[i])) annotate(cas, mention,
             idMapping.get(ids[i]), probs[i]);
-        else annotateMention(cas, mention, ids[i], probs[i]);
+        else annotate(cas, mention, ids[i], probs[i]);
       }
     }
     logger.log(Level.FINE, "tagged {0} {1} mentions with {2} IDs", new Object[] { countMentions,
-        namespace, countIds });
+        namespace, idSet.size() });
   }
 
-  private void annotateMention(JCas cas, Mention mention, String id, Double prob) {
+  private void annotate(JCas cas, Mention mention, String id, Double prob) {
     SemanticAnnotation ann = new SemanticAnnotation(cas, mention.getStart(), mention.getEnd());
     ann.setAnnotator(URI);
     ann.setConfidence(prob);
