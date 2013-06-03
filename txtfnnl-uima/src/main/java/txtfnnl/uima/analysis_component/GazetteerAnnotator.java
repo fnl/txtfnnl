@@ -285,23 +285,37 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    * 
    * @return the list of newly created {@link SemanticAnnotation annotations}.
    */
-  protected List<SemanticAnnotation> makeAnnotations(JCas jcas, String match, String[] ids,
+  private List<SemanticAnnotation> makeAnnotations(JCas jcas, String match, String[] ids,
       Offset offset) {
     List<SemanticAnnotation> anns = new LinkedList<SemanticAnnotation>();
     for (String id : ids) {
-      Set<String> officialNames = gazetteer.get(id);
-      if (officialNames.contains(match)) {
-        anns.add(annotate(id, jcas, offset, 1.0));
-      } else {
-        double conf = 0.0;
-        for (String n : officialNames)
-          conf = Math.max(conf, measure.similarity(n, match));
-        if (conf < minSimilarity) logger.log(Level.FINER,
-            "dropping low-similarity match for {0} on ''{1}''", new String[] { id, match });
-        else anns.add(annotate(id, jcas, offset, conf));
-      }
+      SemanticAnnotation ann = makeAnnotation(jcas, match, id, offset);
+      if (ann != null) anns.add(ann);
     }
     return anns;
+  }
+
+  /**
+   * Iterate over the entity names mapped to the <code>ID</code> of a <code>match</code>
+   * and calculate the highest similarity. Create an annotation at the given <code>offset</code> if
+   * the similarity constraint is met.
+   * 
+   * @return the newly created {@link SemanticAnnotation annotation} or <code>null</code>.
+   */
+  protected SemanticAnnotation makeAnnotation(JCas jcas, String match, String id, Offset offset) {
+    Set<String> officialNames = gazetteer.get(id);
+    SemanticAnnotation ann = null;
+    if (officialNames.contains(match)) {
+      ann = annotate(id, jcas, offset, 1.0);
+    } else {
+      double conf = 0.0;
+      for (String n : officialNames)
+        conf = Math.max(conf, measure.similarity(n, match));
+      if (conf < minSimilarity) logger.log(Level.FINER,
+          "dropping low-similarity match for {0} on ''{1}''", new String[] { id, match });
+      else ann = annotate(id, jcas, offset, conf);
+    }
+    return ann;
   }
 
   /**

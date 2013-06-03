@@ -119,8 +119,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
       for (Offset offset : matches.keySet()) {
         String match = docText.substring(offset.start(), offset.end());
         if (filter.process(match))
-          buffer.addAll(makeAnnotations(jcas, match,
-              filterMatches(matches.get(offset), annotatedTaxa), offset));
+          taxonFilter(jcas, buffer, match, offset, matches.get(offset), annotatedTaxa);
       }
     } else {
       FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, textNamespace,
@@ -136,14 +135,24 @@ public class GeneAnnotator extends GazetteerAnnotator {
         for (Offset offset : matches.keySet()) {
           String match = text.substring(offset.start(), offset.end());
           if (filter.process(match))
-            buffer.addAll(makeAnnotations(jcas, match,
-                filterMatches(matches.get(offset), annotatedTaxa),
-                new Offset(annBegin + offset.start(), annBegin + offset.end())));
+            taxonFilter(jcas, buffer, match, new Offset(annBegin + offset.start(), annBegin +
+                offset.end()), matches.get(offset), annotatedTaxa);
         }
       }
     }
     for (SemanticAnnotation ann : buffer)
       ann.addToIndexes();
+  }
+
+  /** Annotate the match if the taxon matches or if there is no taxon filter in use. */
+  private void taxonFilter(JCas jcas, List<SemanticAnnotation> buffer, String match,
+      Offset offset, String[] ids, Set<String> annotatedTaxa) {
+    for (String id : ids) {
+      if (annotatedTaxa == null || annotatedTaxa.contains(getTaxId(id))) {
+        SemanticAnnotation ann = makeAnnotation(jcas, match, id, offset);
+        if (ann != null) buffer.add(ann);
+      }
+    }
   }
 
   /** Expands the parent method, adding a taxon ID property to the annotation. */
@@ -160,6 +169,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
     return entity;
   }
 
+  /** Get all annotated taxa on this SOFA. */
   private Set<String> getAnnotatedTaxa(JCas jcas) {
     Set<String> annotatedTaxa = null;
     if (taxaAnnotatorUri != null || taxaNamespace != null) {
@@ -176,21 +186,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
     return annotatedTaxa;
   }
 
-  private String[] filterMatches(String[] ids, Set<String> annotatedTaxa) {
-    if (annotatedTaxa != null) {
-      String[] tmp = new String[ids.length];
-      int j = 0;
-      for (int i = 0; i < ids.length; ++i)
-        if (annotatedTaxa.contains(getTaxId(ids[i]))) tmp[j++] = ids[i];
-      if (j < ids.length) {
-        ids = new String[j];
-        for (int i = 0; i < j; ++i)
-          ids[i] = tmp[j];
-      }
-    }
-    return ids;
-  }
-
+  /** Fetches the taxon from the {@link GnamedGazetteerResource gnamed gazetteer}. */
   private String getTaxId(String id) {
     String tid = ((GnamedGazetteerResource) gazetteer).getTaxId(id);
     if (taxIdMapping != null && taxIdMapping.containsKey(tid)) tid = taxIdMapping.get(tid);
