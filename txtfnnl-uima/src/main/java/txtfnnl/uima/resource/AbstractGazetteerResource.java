@@ -13,6 +13,7 @@ import java.util.regex.Pattern;
 import org.apache.uima.resource.DataResource;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.SharedResourceObject;
+import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
 
@@ -163,7 +164,13 @@ public abstract class AbstractGazetteerResource extends AbstractExactGazetteerRe
       for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(suffix)) {
         int j = i + hit.getKey().length();
         if (boundaryMatch && Arrays.binarySearch(aln.tokens, j) < 0) continue;
-        results.put(new Offset(aln.offset[i], aln.offset[j - 1] + 1), hit.getValue());
+        Offset off = new Offset(aln.offset[i], aln.offset[j - 1] + 1);
+        logger.log(
+            Level.FINE,
+            "matched ''{0}'' to {1}",
+            new String[] { input.substring(off.start(), off.end()),
+                Arrays.toString(hit.getValue().toArray()) });
+        results.put(off, hit.getValue());
       }
     }
     return results;

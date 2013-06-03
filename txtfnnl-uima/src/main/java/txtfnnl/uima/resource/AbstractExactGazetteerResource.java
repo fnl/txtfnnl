@@ -4,6 +4,7 @@ package txtfnnl.uima.resource;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -241,7 +242,12 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
           for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(normal
               .subSequence(i, length))) {
             int j = i + hit.getKey().length();
-            if (isBoundary(input, j)) results.put(new Offset(i, j), hit.getValue());
+            if (isBoundary(input, j)) {
+              logger
+                  .log(Level.FINE, "matched ''{0}'' to {1}", new String[] { input.substring(i, j),
+                      Arrays.toString(hit.getValue().toArray()) });
+              results.put(new Offset(i, j), hit.getValue());
+            }
           }
         }
       }
@@ -251,6 +257,9 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
         for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(normal
             .subSequence(i, length))) {
           int j = i + hit.getKey().length();
+          logger
+          .log(Level.FINE, "matched ''{0}'' to {1}", new String[] { input.substring(i, j),
+              Arrays.toString(hit.getValue().toArray()) });
           results.put(new Offset(i, j), hit.getValue());
         }
       }

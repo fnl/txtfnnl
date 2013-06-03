@@ -115,12 +115,12 @@ public class GeneAnnotator extends GazetteerAnnotator {
     String docText = jcas.getDocumentText();
     List<SemanticAnnotation> buffer = new LinkedList<SemanticAnnotation>();
     Set<String> annotatedTaxa = getAnnotatedTaxa(jcas);
-    if (textNamespace == null) {
+    if (textNamespace == null && textIdentifier == null) {
       Map<Offset, Set<String>> matches = gazetteer.match(docText);
       filterMatches(matches, annotatedTaxa);
       for (Offset offset : matches.keySet()) {
         String match = docText.substring(offset.start(), offset.end());
-        unfiltered += filter.process(jcas, buffer, match, offset, matches.get(offset));
+        filtered += filter.process(jcas, buffer, match, offset, matches.get(offset));
       }
     } else {
       FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, textNamespace,
@@ -135,7 +135,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
         for (Offset pos : matches.keySet()) {
           Offset offset = new Offset(pos.start() + ann.getBegin(), pos.end() + ann.getBegin());
           String match = docText.substring(offset.start(), offset.end());
-          unfiltered += filter.process(jcas, buffer, match, offset, matches.get(pos));
+          filtered += filter.process(jcas, buffer, match, offset, matches.get(pos));
         }
       }
     }
@@ -185,8 +185,8 @@ public class GeneAnnotator extends GazetteerAnnotator {
           String taxId = getTaxId(geneId);
           if (!annotatedTaxa.contains(taxId)) {
             idIter.remove();
-            logger.log(Level.FINE, "skipping gene {0}@{1} with absent species mention {2}",
-                new Object[] { geneId, off, taxId });
+            logger.log(Level.FINE, "skipping gene {0} with absent species mention {2}",
+                new String[] { geneId, taxId });
           }
         }
         if (matches.get(off).size() == 0) offIter.remove();

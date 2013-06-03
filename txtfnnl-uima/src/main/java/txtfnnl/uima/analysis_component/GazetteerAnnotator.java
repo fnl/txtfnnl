@@ -96,7 +96,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   private Similarity measure = LeitnerLevenshtein.INSTANCE; // TODO: make configurable?
   protected Logger logger;
   private int count;
-  protected int unfiltered;
+  protected int filtered;
 
   public static class Builder extends AnalysisComponentBuilder {
     protected Builder(Class<? extends AnalysisComponent> klass, String entityNamespace,
@@ -196,12 +196,12 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         Set<String> ids) {
       if (allowedMatches.contains(match)) {
         buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
-        return ids.size();
+        return 0;
       } else {
         for (String id : ids)
-          annotator.logger.log(Level.FINE, "stopword {0}@{1} filtering {2}", new Object[] { match,
-              offset, id });
-        return 0;
+          annotator.logger.log(Level.FINE, "stopword ''{0}''@{1} filtering {2}", new Object[] {
+              match, offset, id });
+        return ids.size();
       }
     }
   }
@@ -220,12 +220,12 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         Set<String> ids) {
       if (!filteredMatches.contains(match)) {
         buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
-        return ids.size();
+        return 0;
       } else {
         for (String id : ids)
-          annotator.logger.log(Level.FINE, "stopword {0}@{1} filtering {2}", new Object[] { match,
-              offset, id });
-        return 0;
+          annotator.logger.log(Level.FINE, "stopword ''{0}''@{1} filtering {2}", new Object[] {
+              match, offset, id });
+        return ids.size();
       }
     }
   }
@@ -246,12 +246,12 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         Set<String> ids) {
       if (allowedMatches.contains(match) && !filteredMatches.contains(match)) {
         buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
-        return ids.size();
+        return 0;
       } else {
         for (String id : ids)
-          annotator.logger.log(Level.FINE, "stopword {0}@{1} filtering {2}", new Object[] { match,
-              offset, id });
-        return 0;
+          annotator.logger.log(Level.FINE, "stopword ''{0}''@{1} filtering {2}", new Object[] {
+              match, offset, id });
+        return ids.size();
       }
     }
   }
@@ -267,7 +267,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     public int process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
         Set<String> ids) {
       buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
-      return ids.size();
+      return 0;
     }
   }
 
@@ -287,7 +287,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       filter = new NoStrategy(this);
     }
     count = 0;
-    unfiltered = 0;
+    filtered = 0;
   }
 
   @Override
@@ -298,7 +298,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       Map<Offset, Set<String>> matches = gazetteer.match(docText);
       for (Offset offset : matches.keySet()) {
         String match = docText.substring(offset.start(), offset.end());
-        unfiltered += filter.process(jcas, buffer, match, offset, matches.get(offset));
+        filtered += filter.process(jcas, buffer, match, offset, matches.get(offset));
       }
     } else {
       FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, textNamespace,
@@ -312,7 +312,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         for (Offset pos : matches.keySet()) {
           Offset offset = new Offset(pos.start() + ann.getBegin(), pos.end() + ann.getBegin());
           String match = docText.substring(offset.start(), offset.end());
-          unfiltered += filter.process(jcas, buffer, match, offset, matches.get(pos));
+          filtered += filter.process(jcas, buffer, match, offset, matches.get(pos));
         }
       }
     }
@@ -366,7 +366,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   @Override
   public void destroy() {
     super.destroy();
-    logger.log(Level.INFO, "detected {0} {1} entities, {2} after filtering", new String[] {
-        Integer.toString(count), entityNamespace, Integer.toString(unfiltered) });
+    logger.log(Level.INFO, "detected {0} {1} entities and filtered {2}",
+        new String[] { Integer.toString(count), entityNamespace, Integer.toString(filtered) });
   }
 }
