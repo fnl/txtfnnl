@@ -32,18 +32,17 @@ import txtfnnl.utils.stringsim.LeitnerLevenshtein;
 import txtfnnl.utils.stringsim.Similarity;
 
 /**
- * A system to create normalized (ID'd) annotations of names of entities in particular text spans.
- * This AE requires a <i>Gazetteer</i> with entity <i>names</i> mapped to <i>IDs</i>.
+ * An AE to create normalized (ID'd) annotations of names of entities in a Gazetteer with its own
+ * matching method. This AE requires a <i>Gazetteer</i> with entity <i>names</i> mapped to
+ * <i>IDs</i> and implementing a matching strategy for the Strings it will receive.
  * <p>
  * Text {@link TextAnnotation segments} are {@link GazetteerResource#match(String) matched} via a
- * {@link GazetteerResource}. The text segments used for matching can be filtered for their
+ * {@link GazetteerResource}. The text segments used for matching can be selected on their
  * {@link #PARAM_TEXT_NAMESPACE namespace} and, optionally, {@link #PARAM_TEXT_IDENTIFIER
- * identifier}. The {@link SemanticAnnotation semantic annotations} created on matched names are
- * annotated with a configurable {@link #PARAM_ENTITY_NAMESPACE namespace} and the name's
- * identifier. A confidence value is set on the semantic annotations based on the string similarity
- * of the match and the ambiguity of the entity in the Gazetteer: If a "normalized" name matches
- * multiple DB IDs, the confidence (i.e., string similarity value) of each annotation is reduced
- * proportionally to the number of known IDs for that name.
+ * identifier}. The {@link SemanticAnnotation semantic annotations} created on matched spans are
+ * annotated with a configurable {@link #PARAM_ENTITY_NAMESPACE namespace} and the identifier
+ * provided by the Gazetteer. A confidence value is set on the semantic annotations based on the
+ * string similarity of the match.
  * 
  * @author Florian Leitner
  */
@@ -56,14 +55,14 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   protected String entityNamespace;
   /**
    * The (optional) namespace of {@link TextAnnotation annotations} containing the text to match
-   * against the Gazetteer (default: match all text).
+   * against the Gazetteer (default: match the whole document text).
    */
   public static final String PARAM_TEXT_NAMESPACE = "TextNamespace";
   @ConfigurationParameter(name = PARAM_TEXT_NAMESPACE, mandatory = false)
   protected String textNamespace = null;
   /**
    * The (optional) identifier of the {@link TextAnnotation annotations} containing the relevant
-   * text.
+   * text to match against the Gazetteer (default: match the whole document text)..
    * <p>
    * This parameter is only effective if {@link #PARAM_TEXT_NAMESPACE} is set, too.
    */
@@ -71,7 +70,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   @ConfigurationParameter(name = PARAM_TEXT_IDENTIFIER, mandatory = false)
   protected String textIdentifier = null;
   /**
-   * The minimum string similarity value required to annotate the match.
+   * The minimum string similarity value required to annotate a match.
    * <p>
    * Defaults to 0.0, i.e., no limitation. The value must be in the <code>[0.0, 1.0)</code> range,
    * where 0.0 means any match is OK, and 1.0 would indicate to not annotate anything at all.
@@ -177,97 +176,53 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   }
 
   protected static interface FilterStrategy {
-    /** Return the number of processed IDs. */
-    public int process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
-        Set<String> ids);
+    /** Return <code>true</code> if the match may be processed. */
+    public boolean process(String match);
   }
 
   protected static class SelectWhitelist implements FilterStrategy {
     private Set<String> allowedMatches;
-    private GazetteerAnnotator annotator;
 
-    public SelectWhitelist(String[] whitelist, GazetteerAnnotator ga) {
+    public SelectWhitelist(String[] whitelist) {
       allowedMatches = new HashSet<String>(Arrays.asList(whitelist));
-      annotator = ga;
-      annotator.logger.log(Level.CONFIG, "whitelisting ({0} terms)", allowedMatches.size());
     }
 
-    public int process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
-        Set<String> ids) {
-      if (allowedMatches.contains(match)) {
-        buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
-        return 0;
-      } else {
-        for (String id : ids)
-          annotator.logger.log(Level.FINE, "stopword ''{0}''@{1} filtering {2}", new Object[] {
-              match, offset, id });
-        return ids.size();
-      }
+    public boolean process(String match) {
+      return (allowedMatches.contains(match));
     }
   }
 
   protected static class FilterBlacklist implements FilterStrategy {
     private Set<String> filteredMatches;
-    private GazetteerAnnotator annotator;
 
-    public FilterBlacklist(String[] blacklist, GazetteerAnnotator ga) {
+    public FilterBlacklist(String[] blacklist) {
       filteredMatches = new HashSet<String>(Arrays.asList(blacklist));
-      annotator = ga;
-      annotator.logger.log(Level.CONFIG, "blacklisting ({0} terms)", filteredMatches.size());
     }
 
-    public int process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
-        Set<String> ids) {
-      if (!filteredMatches.contains(match)) {
-        buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
-        return 0;
-      } else {
-        for (String id : ids)
-          annotator.logger.log(Level.FINE, "stopword ''{0}''@{1} filtering {2}", new Object[] {
-              match, offset, id });
-        return ids.size();
-      }
+    public boolean process(String match) {
+      return (!filteredMatches.contains(match));
     }
   }
 
   protected static class SelectAndFilter implements FilterStrategy {
     private Set<String> allowedMatches;
     private Set<String> filteredMatches;
-    private GazetteerAnnotator annotator;
 
-    public SelectAndFilter(String[] whitelist, String[] blacklist, GazetteerAnnotator ga) {
+    public SelectAndFilter(String[] whitelist, String[] blacklist) {
       allowedMatches = new HashSet<String>(Arrays.asList(whitelist));
       filteredMatches = new HashSet<String>(Arrays.asList(blacklist));
-      annotator = ga;
-      annotator.logger.log(Level.WARNING, "defined both a while- and a blacklist");
     }
 
-    public int process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
-        Set<String> ids) {
-      if (allowedMatches.contains(match) && !filteredMatches.contains(match)) {
-        buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
-        return 0;
-      } else {
-        for (String id : ids)
-          annotator.logger.log(Level.FINE, "stopword ''{0}''@{1} filtering {2}", new Object[] {
-              match, offset, id });
-        return ids.size();
-      }
+    public boolean process(String match) {
+      return (allowedMatches.contains(match) && !filteredMatches.contains(match));
     }
   }
 
   protected static class NoStrategy implements FilterStrategy {
-    private GazetteerAnnotator annotator;
+    public NoStrategy() {}
 
-    public NoStrategy(GazetteerAnnotator ga) {
-      annotator = ga;
-      annotator.logger.log(Level.CONFIG, "no term filtering");
-    }
-
-    public int process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
-        Set<String> ids) {
-      buffer.addAll(annotator.makeAnnotations(jcas, match, ids, offset));
-      return 0;
+    public boolean process(String match) {
+      return true;
     }
   }
 
@@ -279,12 +234,12 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         entityNamespace, gazetteer.size() });
     if (whitelist != null && whitelist.length > 0) {
       if (blacklist != null && blacklist.length > 0) filter = new SelectAndFilter(whitelist,
-          blacklist, this);
-      else filter = new SelectWhitelist(whitelist, this);
+          blacklist);
+      else filter = new SelectWhitelist(whitelist);
     } else if (blacklist != null && blacklist.length > 0) {
-      filter = new FilterBlacklist(blacklist, this);
+      filter = new FilterBlacklist(blacklist);
     } else {
-      filter = new NoStrategy(this);
+      filter = new NoStrategy();
     }
     count = 0;
     filtered = 0;
@@ -295,10 +250,11 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     String docText = jcas.getDocumentText();
     List<SemanticAnnotation> buffer = new LinkedList<SemanticAnnotation>();
     if (textNamespace == null) {
-      Map<Offset, Set<String>> matches = gazetteer.match(docText);
+      Map<Offset, String[]> matches = gazetteer.match(docText);
       for (Offset offset : matches.keySet()) {
         String match = docText.substring(offset.start(), offset.end());
-        filtered += filter.process(jcas, buffer, match, offset, matches.get(offset));
+        if (filter.process(match))
+          buffer.addAll(makeAnnotations(jcas, match, matches.get(offset), offset));
       }
     } else {
       FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, textNamespace,
@@ -308,11 +264,13 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       while (it.hasNext()) {
         // findEntities -> annotateEntities
         Annotation ann = it.next();
-        Map<Offset, Set<String>> matches = gazetteer.match(ann.getCoveredText());
+        String txt = ann.getCoveredText();
+        Map<Offset, String[]> matches = gazetteer.match(txt);
         for (Offset pos : matches.keySet()) {
-          Offset offset = new Offset(pos.start() + ann.getBegin(), pos.end() + ann.getBegin());
-          String match = docText.substring(offset.start(), offset.end());
-          filtered += filter.process(jcas, buffer, match, offset, matches.get(pos));
+          String match = txt.substring(pos.start(), pos.end());
+          if (filter.process(match))
+            buffer.addAll(makeAnnotations(jcas, match, matches.get(pos), new Offset(pos.start() +
+                ann.getBegin(), pos.end() + ann.getBegin())));
         }
       }
     }
@@ -321,27 +279,26 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   }
 
   /**
-   * Iterate over the entity keys and offsets of all Gazetteer matches in the <code>text</code> of
-   * the <code>annotation</code>.
-   * <p>
-   * Determine if the match <code>key</code> is exact, or requires resolving the entity
-   * <code>key</code>, and calculate the (normalized) {@link Similarity#similarity(String, String)
-   * string similarity} for the annotation confidence.
+   * Iterate over the entity names mapped to each of the <code>IDs</code> of a <code>match</code>
+   * and calculate the highest similarity. Create an annotation at the given <code>offset</code> if
+   * the similarity constraint is met.
+   * 
+   * @return the list of newly created {@link SemanticAnnotation annotations}.
    */
-  protected List<SemanticAnnotation> makeAnnotations(JCas jcas, String name, Set<String> ids,
+  protected List<SemanticAnnotation> makeAnnotations(JCas jcas, String match, String[] ids,
       Offset offset) {
     List<SemanticAnnotation> anns = new LinkedList<SemanticAnnotation>();
-    for (String dbId : ids) {
-      Set<String> officialNames = gazetteer.get(dbId);
-      if (officialNames.contains(name)) {
-        anns.add(annotate(dbId, jcas, offset, 1.0));
+    for (String id : ids) {
+      Set<String> officialNames = gazetteer.get(id);
+      if (officialNames.contains(match)) {
+        anns.add(annotate(id, jcas, offset, 1.0));
       } else {
         double conf = 0.0;
         for (String n : officialNames)
-          conf = Math.max(conf, measure.similarity(n, name));
-        if (conf < minSimilarity) logger.log(Level.FINE,
-            "dropping low-similarity match for {0} on ''{1}''", new String[] { dbId, name });
-        else anns.add(annotate(dbId, jcas, offset, conf));
+          conf = Math.max(conf, measure.similarity(n, match));
+        if (conf < minSimilarity) logger.log(Level.FINER,
+            "dropping low-similarity match for {0} on ''{1}''", new String[] { id, match });
+        else anns.add(annotate(id, jcas, offset, conf));
       }
     }
     return anns;
@@ -357,8 +314,6 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     entity.setConfidence(confidence);
     entity.setIdentifier(id);
     entity.setNamespace(entityNamespace);
-    logger.log(Level.FINE, "annotating {0} {1}@{2} ({3})", new Object[] { entityNamespace, id,
-        offset, confidence });
     count++;
     return entity;
   }

@@ -13,7 +13,6 @@ import java.util.regex.Pattern;
 import org.apache.uima.resource.DataResource;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.SharedResourceObject;
-import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
 
@@ -154,8 +153,8 @@ public abstract class AbstractGazetteerResource extends AbstractExactGazetteerRe
   // GazetteerResource Methods
   /** {@inheritDoc} */
   @Override
-  public Map<Offset, Set<String>> match(String input, int start, int end) {
-    Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
+  public Map<Offset, String[]> match(String input, int start, int end) {
+    Map<Offset, String[]> results = new HashMap<Offset, String[]>();
     NormalAlignment aln = new NormalAlignment(input);
     int len = Math.min(aln.normal.length(), end);
     for (int i = Math.max(0, start); i < len; ++i) {
@@ -164,13 +163,9 @@ public abstract class AbstractGazetteerResource extends AbstractExactGazetteerRe
       for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(suffix)) {
         int j = i + hit.getKey().length();
         if (boundaryMatch && Arrays.binarySearch(aln.tokens, j) < 0) continue;
-        Offset off = new Offset(aln.offset[i], aln.offset[j - 1] + 1);
-        logger.log(
-            Level.FINE,
-            "matched ''{0}'' to {1}",
-            new String[] { input.substring(off.start(), off.end()),
-                Arrays.toString(hit.getValue().toArray()) });
-        results.put(off, hit.getValue());
+        Set<String> ids = hit.getValue();
+        results.put(new Offset(aln.offset[i], aln.offset[j - 1] + 1),
+            ids.toArray(new String[ids.size()]));
       }
     }
     return results;

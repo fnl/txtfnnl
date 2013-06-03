@@ -4,7 +4,6 @@ package txtfnnl.uima.resource;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -221,18 +220,18 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
 
   // GazetteerResource Methods
   /** {@inheritDoc} */
-  public Map<Offset, Set<String>> match(String input) {
+  public Map<Offset, String[]> match(String input) {
     return match(input, 0);
   }
 
   /** {@inheritDoc} */
-  public Map<Offset, Set<String>> match(String input, int start) {
+  public Map<Offset, String[]> match(String input, int start) {
     return match(input, start, input.length());
   }
 
   /** {@inheritDoc} */
-  public Map<Offset, Set<String>> match(String input, int start, int end) {
-    Map<Offset, Set<String>> results = new HashMap<Offset, Set<String>>();
+  public Map<Offset, String[]> match(String input, int start, int end) {
+    Map<Offset, String[]> results = new HashMap<Offset, String[]>();
     String normal = input;
     if (!exactCaseMatching) normal = input.toLowerCase();
     if (boundaryMatch) {
@@ -243,10 +242,8 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
               .subSequence(i, length))) {
             int j = i + hit.getKey().length();
             if (isBoundary(input, j)) {
-              logger
-                  .log(Level.FINE, "matched ''{0}'' to {1}", new String[] { input.substring(i, j),
-                      Arrays.toString(hit.getValue().toArray()) });
-              results.put(new Offset(i, j), hit.getValue());
+              Set<String> ids = hit.getValue();
+              results.put(new Offset(i, j), ids.toArray(new String[ids.size()]));
             }
           }
         }
@@ -256,11 +253,9 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
       for (int i = 0; i < length; ++i) {
         for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(normal
             .subSequence(i, length))) {
-          int j = i + hit.getKey().length();
-          logger
-          .log(Level.FINE, "matched ''{0}'' to {1}", new String[] { input.substring(i, j),
-              Arrays.toString(hit.getValue().toArray()) });
-          results.put(new Offset(i, j), hit.getValue());
+          Set<String> ids = hit.getValue();
+          results.put(new Offset(i, i + hit.getKey().length()),
+              ids.toArray(new String[ids.size()]));
         }
       }
     }

@@ -1,7 +1,6 @@
 package txtfnnl.uima.analysis_component;
 
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -112,15 +111,16 @@ public class GeneAnnotator extends GazetteerAnnotator {
 
   @Override
   public void process(JCas jcas) throws AnalysisEngineProcessException {
-    String docText = jcas.getDocumentText();
     List<SemanticAnnotation> buffer = new LinkedList<SemanticAnnotation>();
     Set<String> annotatedTaxa = getAnnotatedTaxa(jcas);
     if (textNamespace == null && textIdentifier == null) {
-      Map<Offset, Set<String>> matches = gazetteer.match(docText);
-      filterMatches(matches, annotatedTaxa);
+      String docText = jcas.getDocumentText();
+      Map<Offset, String[]> matches = gazetteer.match(docText);
       for (Offset offset : matches.keySet()) {
         String match = docText.substring(offset.start(), offset.end());
-        filtered += filter.process(jcas, buffer, match, offset, matches.get(offset));
+        if (filter.process(match))
+          buffer.addAll(makeAnnotations(jcas, match,
+              filterMatches(matches.get(offset), annotatedTaxa), offset));
       }
     } else {
       FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, textNamespace,
@@ -130,12 +130,15 @@ public class GeneAnnotator extends GazetteerAnnotator {
       while (it.hasNext()) {
         // findEntities -> annotateEntities
         Annotation ann = it.next();
-        Map<Offset, Set<String>> matches = gazetteer.match(ann.getCoveredText());
-        filterMatches(matches, annotatedTaxa);
-        for (Offset pos : matches.keySet()) {
-          Offset offset = new Offset(pos.start() + ann.getBegin(), pos.end() + ann.getBegin());
-          String match = docText.substring(offset.start(), offset.end());
-          filtered += filter.process(jcas, buffer, match, offset, matches.get(pos));
+        String text = ann.getCoveredText();
+        Map<Offset, String[]> matches = gazetteer.match(text);
+        int annBegin = ann.getBegin();
+        for (Offset offset : matches.keySet()) {
+          String match = text.substring(offset.start(), offset.end());
+          if (filter.process(match))
+            buffer.addAll(makeAnnotations(jcas, match,
+                filterMatches(matches.get(offset), annotatedTaxa),
+                new Offset(annBegin + offset.start(), annBegin + offset.end())));
         }
       }
     }
@@ -167,31 +170,25 @@ public class GeneAnnotator extends GazetteerAnnotator {
       while (iter.hasNext())
         annotatedTaxa.add(((SemanticAnnotation) iter.next()).getIdentifier());
       for (String taxId : annotatedTaxa)
-        logger.log(Level.FINE, "(taxon-filtering) detected taxId={0}", taxId);
+        logger.log(Level.FINER, "(taxon-filtering) detected taxId={0}", taxId);
       if (annotatedTaxa.size() == 0) annotatedTaxa = null;
     }
     return annotatedTaxa;
   }
 
-  private void filterMatches(Map<Offset, Set<String>> matches, Set<String> annotatedTaxa) {
+  private String[] filterMatches(String[] ids, Set<String> annotatedTaxa) {
     if (annotatedTaxa != null) {
-      // filter taxa if any have been annotated
-      Iterator<Offset> offIter = matches.keySet().iterator();
-      while (offIter.hasNext()) {
-        Offset off = offIter.next();
-        Iterator<String> idIter = matches.get(off).iterator();
-        while (idIter.hasNext()) {
-          String geneId = idIter.next();
-          String taxId = getTaxId(geneId);
-          if (!annotatedTaxa.contains(taxId)) {
-            idIter.remove();
-            logger.log(Level.FINE, "skipping gene {0} with absent species mention {2}",
-                new String[] { geneId, taxId });
-          }
-        }
-        if (matches.get(off).size() == 0) offIter.remove();
+      String[] tmp = new String[ids.length];
+      int j = 0;
+      for (int i = 0; i < ids.length; ++i)
+        if (annotatedTaxa.contains(getTaxId(ids[i]))) tmp[j++] = ids[i];
+      if (j < ids.length) {
+        ids = new String[j];
+        for (int i = 0; i < j; ++i)
+          ids[i] = tmp[j];
       }
     }
+    return ids;
   }
 
   private String getTaxId(String id) {

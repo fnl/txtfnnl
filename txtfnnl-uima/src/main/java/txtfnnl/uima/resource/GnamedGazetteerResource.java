@@ -90,7 +90,6 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
         final String geneId = result.getString(1);
         final String taxId = result.getString(2);
         final String name = result.getString(3);
-        logger.log(Level.FINE, "mapping ''{0}'' to {1}:{2}", new String[] { name, geneId, taxId });
         put(geneId, name);
         if (!disableGreekMapping) {
           final String nameWithGreekLetters = mapLatinNamesOfGreekLetters(name);

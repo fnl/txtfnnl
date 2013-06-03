@@ -20,31 +20,31 @@ import txtfnnl.utils.Offset;
 public interface GazetteerResource extends StringMapResource<Set<String>> {
   /**
    * Check the entire input with the Gazetteer, returning a map of {@link Offset Offsets} of all
-   * matches together with the entity IDs associated to each hit.
+   * hits together with the entity IDs associated to each hit.
    * 
    * @param input to match the Gazetteer against
    * @return A mapping of {@link Offset Offsets} to entity IDs for all hits.
    */
-  public Map<Offset, Set<String>> match(String input);
+  public Map<Offset, String[]> match(String input);
 
   /**
    * Check the entire input with the Gazetteer, returning a map of {@link Offset Offsets} of all
-   * matches together with the entity IDs associated to each hit.
+   * hits together with the entity IDs associated to each hit.
    * 
    * @param input to match the Gazetteer against
    * @param start scanning input at this offset (inclusive)
    * @return A mapping of {@link Offset Offsets} to entity IDs for all hits.
    */
-  public Map<Offset, Set<String>> match(String input, int start);
+  public Map<Offset, String[]> match(String input, int start);
 
   /**
    * Check the entire input with the Gazetteer, returning a map of {@link Offset Offsets} of all
-   * matches together with the entity IDs associated to each hit.
+   * hits together with the entity IDs associated to each hit.
    * 
    * @param input to match the Gazetteer against
    * @param start scanning input at this offset (inclusive)
    * @param end end scanning input at this offset (exclusive)
    * @return A mapping of {@link Offset Offsets} to entity IDs for all hits.
    */
-  public Map<Offset, Set<String>> match(String input, int start, int end);
+  public Map<Offset, String[]> match(String input, int start, int end);
 }
