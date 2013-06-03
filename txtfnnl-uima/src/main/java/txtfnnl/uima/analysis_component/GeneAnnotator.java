@@ -115,7 +115,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
     String docText = jcas.getDocumentText();
     List<SemanticAnnotation> buffer = new LinkedList<SemanticAnnotation>();
     Set<String> annotatedTaxa = getAnnotatedTaxa(jcas);
-    if (sourceNamespace == null) {
+    if (textNamespace == null) {
       Map<Offset, Set<String>> matches = gazetteer.match(docText);
       filterMatches(matches, annotatedTaxa);
       for (Offset offset : matches.keySet()) {
@@ -123,8 +123,8 @@ public class GeneAnnotator extends GazetteerAnnotator {
         unfiltered += filter.process(jcas, buffer, match, offset, matches.get(offset));
       }
     } else {
-      FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, sourceNamespace,
-          sourceIdentifier);
+      FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, textNamespace,
+          textIdentifier);
       FSIterator<Annotation> it = TextAnnotation.getIterator(jcas);
       it = jcas.createFilteredIterator(it, cons);
       while (it.hasNext()) {

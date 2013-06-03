@@ -60,7 +60,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    */
   public static final String PARAM_TEXT_NAMESPACE = "TextNamespace";
   @ConfigurationParameter(name = PARAM_TEXT_NAMESPACE, mandatory = false)
-  protected String sourceNamespace;
+  protected String textNamespace = null;
   /**
    * The (optional) identifier of the {@link TextAnnotation annotations} containing the relevant
    * text.
@@ -69,7 +69,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    */
   public static final String PARAM_TEXT_IDENTIFIER = "TextIdentifier";
   @ConfigurationParameter(name = PARAM_TEXT_IDENTIFIER, mandatory = false)
-  protected String sourceIdentifier = null;
+  protected String textIdentifier = null;
   /**
    * The minimum string similarity value required to annotate the match.
    * <p>
@@ -113,12 +113,20 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     }
 
     /**
-     * Define a {@link TextAnnotation TextAnnotation} identifier pattern when limiting the
-     * Gazetteer's text to scan (in addition to and only used if a
-     * {@link Builder#setTextNamespace(String) namespace} is set).
+     * Define the {@link TextAnnotation annotation} namespace to get the covered text from for the
+     * Gazetteer's matcher.
      */
-    public Builder setTextIdentifier(String sourceIdentifier) {
-      setOptionalParameter(PARAM_TEXT_IDENTIFIER, sourceIdentifier);
+    public Builder setTextNamespace(String namespace) {
+      setOptionalParameter(PARAM_TEXT_NAMESPACE, namespace);
+      return this;
+    }
+
+    /**
+     * Define a {@link TextAnnotation TextAnnotation} identifier to limiting the Gazetteer's text
+     * to scan.
+     */
+    public Builder setTextIdentifier(String identifier) {
+      setOptionalParameter(PARAM_TEXT_IDENTIFIER, identifier);
       return this;
     }
 
@@ -154,15 +162,6 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       setOptionalParameter(PARAM_BLACKLIST, blacklist);
       return this;
     }
-
-    /**
-     * Define the {@link TextAnnotation annotation} namespace to get the covered text from for the
-     * Gazetteer's matcher.
-     */
-    public Builder setTextNamespace(String sourceNamespace) {
-      setOptionalParameter(PARAM_TEXT_NAMESPACE, sourceNamespace);
-      return this;
-    }
   }
 
   /**
@@ -190,6 +189,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     public SelectWhitelist(String[] whitelist, GazetteerAnnotator ga) {
       allowedMatches = new HashSet<String>(Arrays.asList(whitelist));
       annotator = ga;
+      annotator.logger.log(Level.CONFIG, "whitelisting ({0} terms)", allowedMatches.size());
     }
 
     public int process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
@@ -213,6 +213,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     public FilterBlacklist(String[] blacklist, GazetteerAnnotator ga) {
       filteredMatches = new HashSet<String>(Arrays.asList(blacklist));
       annotator = ga;
+      annotator.logger.log(Level.CONFIG, "blacklisting ({0} terms)", filteredMatches.size());
     }
 
     public int process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
@@ -238,7 +239,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
       allowedMatches = new HashSet<String>(Arrays.asList(whitelist));
       filteredMatches = new HashSet<String>(Arrays.asList(blacklist));
       annotator = ga;
-      annotator.logger.log(Level.WARNING, "defining both a while- and a blacklist");
+      annotator.logger.log(Level.WARNING, "defined both a while- and a blacklist");
     }
 
     public int process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
@@ -260,6 +261,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
 
     public NoStrategy(GazetteerAnnotator ga) {
       annotator = ga;
+      annotator.logger.log(Level.CONFIG, "no term filtering");
     }
 
     public int process(JCas jcas, List<SemanticAnnotation> buffer, String match, Offset offset,
@@ -292,15 +294,15 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   public void process(JCas jcas) throws AnalysisEngineProcessException {
     String docText = jcas.getDocumentText();
     List<SemanticAnnotation> buffer = new LinkedList<SemanticAnnotation>();
-    if (sourceNamespace == null) {
+    if (textNamespace == null) {
       Map<Offset, Set<String>> matches = gazetteer.match(docText);
       for (Offset offset : matches.keySet()) {
         String match = docText.substring(offset.start(), offset.end());
         unfiltered += filter.process(jcas, buffer, match, offset, matches.get(offset));
       }
     } else {
-      FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, sourceNamespace,
-          sourceIdentifier);
+      FSMatchConstraint cons = TextAnnotation.makeConstraint(jcas, null, textNamespace,
+          textIdentifier);
       FSIterator<Annotation> it = TextAnnotation.getIterator(jcas);
       it = jcas.createFilteredIterator(it, cons);
       while (it.hasNext()) {
@@ -355,8 +357,8 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     entity.setConfidence(confidence);
     entity.setIdentifier(id);
     entity.setNamespace(entityNamespace);
-    logger.log(Level.FINE, "detected {0}:{1} ({2})",
-        new String[] { entityNamespace, id, Double.toString(confidence) });
+    logger.log(Level.FINE, "annotating {0} {1}@{2} ({3})", new Object[] { entityNamespace, id,
+        offset, confidence });
     count++;
     return entity;
   }
