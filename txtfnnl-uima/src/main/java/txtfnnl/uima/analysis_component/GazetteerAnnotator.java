@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.uima.UimaContext;
 import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
@@ -250,7 +251,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     String docText = jcas.getDocumentText();
     List<SemanticAnnotation> buffer = new LinkedList<SemanticAnnotation>();
     if (textNamespace == null) {
-      Map<Offset, String[]> matches = gazetteer.match(docText);
+      Map<Offset, List<String>> matches = gazetteer.match(docText);
       for (Offset offset : matches.keySet()) {
         String match = docText.substring(offset.start(), offset.end());
         if (filter.process(match))
@@ -265,7 +266,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         // findEntities -> annotateEntities
         Annotation ann = it.next();
         String txt = ann.getCoveredText();
-        Map<Offset, String[]> matches = gazetteer.match(txt);
+        Map<Offset, List<String>> matches = gazetteer.match(txt);
         for (Offset pos : matches.keySet()) {
           String match = txt.substring(pos.start(), pos.end());
           if (filter.process(match))
@@ -285,7 +286,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    * 
    * @return the list of newly created {@link SemanticAnnotation annotations}.
    */
-  private List<SemanticAnnotation> makeAnnotations(JCas jcas, String match, String[] ids,
+  private List<SemanticAnnotation> makeAnnotations(JCas jcas, String match, List<String> ids,
       Offset offset) {
     List<SemanticAnnotation> anns = new LinkedList<SemanticAnnotation>();
     for (String id : ids) {
@@ -296,16 +297,16 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   }
 
   /**
-   * Iterate over the entity names mapped to the <code>ID</code> of a <code>match</code>
-   * and calculate the highest similarity. Create an annotation at the given <code>offset</code> if
-   * the similarity constraint is met.
+   * Iterate over the entity names mapped to the <code>ID</code> of a <code>match</code> and
+   * calculate the highest similarity. Create an annotation at the given <code>offset</code> if the
+   * similarity constraint is met.
    * 
    * @return the newly created {@link SemanticAnnotation annotation} or <code>null</code>.
    */
   protected SemanticAnnotation makeAnnotation(JCas jcas, String match, String id, Offset offset) {
-    Set<String> officialNames = gazetteer.get(id);
+    String[] officialNames = gazetteer.get(id);
     SemanticAnnotation ann = null;
-    if (officialNames.contains(match)) {
+    if (ArrayUtils.contains(officialNames, match)) {
       ann = annotate(id, jcas, offset, 1.0);
     } else {
       double conf = 0.0;

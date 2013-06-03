@@ -115,7 +115,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
     Set<String> annotatedTaxa = getAnnotatedTaxa(jcas);
     if (textNamespace == null && textIdentifier == null) {
       String docText = jcas.getDocumentText();
-      Map<Offset, String[]> matches = gazetteer.match(docText);
+      Map<Offset, List<String>> matches = gazetteer.match(docText);
       for (Offset offset : matches.keySet()) {
         String match = docText.substring(offset.start(), offset.end());
         if (filter.process(match))
@@ -130,7 +130,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
         // findEntities -> annotateEntities
         Annotation ann = it.next();
         String text = ann.getCoveredText();
-        Map<Offset, String[]> matches = gazetteer.match(text);
+        Map<Offset, List<String>> matches = gazetteer.match(text);
         int annBegin = ann.getBegin();
         for (Offset offset : matches.keySet()) {
           String match = text.substring(offset.start(), offset.end());
@@ -146,7 +146,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
 
   /** Annotate the match if the taxon matches or if there is no taxon filter in use. */
   private void taxonFilter(JCas jcas, List<SemanticAnnotation> buffer, String match,
-      Offset offset, String[] ids, Set<String> annotatedTaxa) {
+      Offset offset, List<String> ids, Set<String> annotatedTaxa) {
     for (String id : ids) {
       if (annotatedTaxa == null || annotatedTaxa.contains(getTaxId(id))) {
         SemanticAnnotation ann = makeAnnotation(jcas, match, id, offset);

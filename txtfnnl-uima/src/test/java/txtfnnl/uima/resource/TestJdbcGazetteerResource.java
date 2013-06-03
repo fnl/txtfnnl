@@ -95,7 +95,7 @@ public class TestJdbcGazetteerResource {
       assertEquals("1", id);
     assertTrue(gr.containsKey("1"));
     assertEquals(1, gr.size());
-    assertArrayEquals(new String[] { "some dummy name" }, gr.get("1").toArray(new String[1]));
+    assertArrayEquals(new String[] { "some dummy name" }, gr.get("1"));
   }
 
   @Test

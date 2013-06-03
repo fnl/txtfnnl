@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.apache.uima.resource.DataResource;
@@ -153,19 +152,17 @@ public abstract class AbstractGazetteerResource extends AbstractExactGazetteerRe
   // GazetteerResource Methods
   /** {@inheritDoc} */
   @Override
-  public Map<Offset, String[]> match(String input, int start, int end) {
-    Map<Offset, String[]> results = new HashMap<Offset, String[]>();
+  public Map<Offset, List<String>> match(String input, int start, int end) {
+    Map<Offset, List<String>> results = new HashMap<Offset, List<String>>();
     NormalAlignment aln = new NormalAlignment(input);
     int len = Math.min(aln.normal.length(), end);
     for (int i = Math.max(0, start); i < len; ++i) {
       if (boundaryMatch && Arrays.binarySearch(aln.tokens, i) < 0) continue;
       CharSequence suffix = aln.normal.subSequence(i, len);
-      for (KeyValuePair<Set<String>> hit : trie.scanForKeyValuePairsAtStartOf(suffix)) {
+      for (KeyValuePair<List<String>> hit : trie.scanForKeyValuePairsAtStartOf(suffix)) {
         int j = i + hit.getKey().length();
         if (boundaryMatch && Arrays.binarySearch(aln.tokens, j) < 0) continue;
-        Set<String> ids = hit.getValue();
-        results.put(new Offset(aln.offset[i], aln.offset[j - 1] + 1),
-            ids.toArray(new String[ids.size()]));
+        results.put(new Offset(aln.offset[i], aln.offset[j - 1] + 1), hit.getValue());
       }
     }
     return results;
