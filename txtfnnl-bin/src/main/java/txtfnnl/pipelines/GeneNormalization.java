@@ -120,7 +120,8 @@ public class GeneNormalization extends Pipeline {
       System.err.println(e.toString());
       System.exit(1); // == EXIT ==
     }
-    gazetteer.idMatching();
+    //gazetteer.idMatching();
+    gazetteer.generateVariants();
     gazetteer.boundaryMatch();
     Pipeline.configureAuthentication(cmd, gazetteer);
     // Taxon ID mapping resource

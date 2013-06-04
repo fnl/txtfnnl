@@ -2,15 +2,7 @@
  * Copyright 2013. All rights reserved. */
 package txtfnnl.uima.resource;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
+import com.googlecode.concurrenttrees.common.KeyValuePair;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.uima.UIMAFramework;
 import org.apache.uima.resource.DataResource;
@@ -18,18 +10,16 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.SharedResourceObject;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
-
 import org.uimafit.component.ExternalResourceAware;
 import org.uimafit.component.initialize.ConfigurationParameterInitializer;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.factory.ExternalResourceFactory;
-
 import txtfnnl.uima.SharedResourceBuilder;
-import txtfnnl.utils.ConcurrentPatriciaTree;
-import txtfnnl.utils.Offset;
-import txtfnnl.utils.PatriciaTree;
+import txtfnnl.utils.*;
 
-import com.googlecode.concurrenttrees.common.KeyValuePair;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.*;
 
 /**
  * The AbstractExactGazetteerResource implements matching without a defined way to do the initial
@@ -38,25 +28,28 @@ import com.googlecode.concurrenttrees.common.KeyValuePair;
  * {@link AbstractExactGazetteerResource#PARAM_CASE_MATCHING exact case matching}. Also, it is
  * possible to define if the {@link AbstractExactGazetteerResource#PARAM_ID_MATCHING IDs should be
  * matched}. Third, matches may be limited to matches if the region begins and ends with a token
- * boundary.
- * <p>
+ * boundary. Finally, it is possible to generate all permutations of a name's tokens separated by
+ * space, hyphen, or not separated. Tokens are separated at letter-digit boundaries, at spaces and
+ * hyphens, and at lower-to-upper-case transitions: "MeToo3-Go agAin" is split into "Me", "Too", "3",
+ * "Go", "ag", "Ain", and all possible permutations of combining these six tokens with the three strings
+ * "-", " ", and "" (i.e., 3**(6-1)=243 possibilities) are probed by the matcher.
+ * <p/>
  * <b>Tokens</b> are separated at any change of Unicode character {@link Character#getType(int)
  * category} change in a String, with the only exception of a transition from a single upper-case
  * character to lower-case (i.e., [potentially] capitalized words). For example, the name "Abc" is
  * a single token, while "AbcDef" are two , just as "ABC1", or "abc def". In the case of
  * consecutive upper-case letters followed by lower-case letters, the split is made at the category
  * switch (i.e., "ABCdef" tokenizes to "ABC" and "def", not "AB" and "Cdef").
- * <p>
+ * <p/>
  * The {@link AbstractExactGazetteerResource#get(String) get} method returns a set of matching DB
  * IDs for any existing key, the {@link AbstractExactGazetteerResource#size() size} reports the
  * <b>total</b> number of keys, while {@link AbstractExactGazetteerResource#iterator() iterator}
  * provides an iterator over those keys. If case-insensitve matching is used, all keys are
  * lower-cased.
- * 
+ *
  * @author Florian Leitner
  */
-public abstract class AbstractExactGazetteerResource implements GazetteerResource,
-    ExternalResourceAware {
+public abstract class AbstractExactGazetteerResource implements GazetteerResource, ExternalResourceAware {
   @ConfigurationParameter(name = ExternalResourceFactory.PARAM_RESOURCE_NAME)
   protected String resourceName;
   /** Whether to match the DB IDs themselves, too (default: <code>false</code>). */
@@ -71,6 +64,10 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
   public static final String PARAM_CASE_MATCHING = "CaseMatching";
   @ConfigurationParameter(name = PARAM_CASE_MATCHING, mandatory = false, defaultValue = "false")
   protected boolean exactCaseMatching;
+  /** Whether to generate all space, dash, and no-space variants of a name (default: <code>false</code>). */
+  public static final String PARAM_GENERATE_VARIANTS = "GeneratVariants";
+  @ConfigurationParameter(name = PARAM_GENERATE_VARIANTS, mandatory = false, defaultValue = "false")
+  private boolean generateVariants;
   // resource-internal state
   /** The logger for this Resource. */
   protected Logger logger = null;
@@ -107,6 +104,12 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
       setOptionalParameter(PARAM_BOUNDARY_MATCH, Boolean.TRUE);
       return this;
     }
+
+    /** Match all space/no-space/hyphen variants of the tokenized names. */
+    public Builder generateVariants() {
+      setOptionalParameter(PARAM_GENERATE_VARIANTS, Boolean.TRUE);
+      return this;
+    }
   }
 
   /** {@inheritDoc} */
@@ -134,8 +137,9 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
   /**
    * This method should implement the particular method of compiling the patterns (i.e., the
    * PATRICIA tree), given the final resource type.
-   * 
+   *
    * @throws ResourceInitializationException
+   *
    */
   public abstract void afterResourcesInitialized();
 
@@ -144,14 +148,15 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
     return resource.getInputStream();
   }
 
-  // methods for building a pattern from the name-id pairs
+  // == Methods for building a pattern from the name-id pairs ==
+
   /** Add an ID, name mapping to the Gazetteer. */
   protected void put(final String id, final String name) {
     if (id == null) throw new IllegalArgumentException("id == null for name '" + name + "'");
     if (name == null) throw new IllegalArgumentException("name == null for ID '" + id + "'");
     String[] mapped = names.get(id);
     if (mapped == null) {
-      mapped = new String[] { name };
+      mapped = new String[] {name};
       names.put(id, mapped);
     } else if (!ArrayUtils.contains(mapped, name)) {
       mapped = Arrays.copyOf(mapped, mapped.length + 1);
@@ -163,6 +168,7 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
       logger.log(Level.WARNING, id + "=\"" + name + "\" has no content characters");
       return;
     }
+    if (generateVariants) putVariants(id, name);
     put(trie, id, key);
     if (idMatching) {
       put(trie, id, makeKey(id));
@@ -172,6 +178,48 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
         names.put(id, mapped);
       }
     }
+  }
+
+  /**
+   * Calculate and {@link AbstractExactGazetteerResource#put(txtfnnl.utils.PatriciaTree, String, String) put}
+   * all possible variants into the trie.
+   */
+  private void putVariants(String id, String name) {
+    List<String> tokens = new LinkedList<String>();
+    int last = 0;
+    char lastChar = name.charAt(last);
+    int len = name.length() - 1;
+    for (int i = 1; i < len; ++i) {
+      char currChar = name.charAt(i);
+      if (currChar == ' ' || currChar == '-') {
+        tokens.add(name.substring(last, i++));
+        last = i;
+      } else if (Character.isLetterOrDigit(currChar)) {
+        char before = name.charAt(i - 1);
+        if (Character.isLetter(currChar) && Character.isDigit(before) ||
+            Character.isDigit(currChar) && Character.isLetter(before) ||
+            Character.isUpperCase(currChar) && Character.isLowerCase(before)) {
+          tokens.add(name.substring(last, i));
+          last = i;
+        }
+      }
+    }
+    int num = tokens.size();
+    if (num != 0) {
+      tokens.add(name.substring(last, len + 1));
+      String[] variants = new String[] {"-", "", " "};
+      PermutationIterator permIt = new PermutationIterator(variants.length, num);
+      String[] variant = new String[(num + 1) * 2 - 1];
+      for (int i = 0; i < num + 1; ++i)
+        variant[i * 2] = tokens.get(i);
+      while (permIt.hasNext()) {
+        int[] choices = permIt.next();
+        for (int i = 0; i < num; ++i)
+          variant[i * 2 + 1] = variants[choices[i]];
+        put(trie, id, makeKey(StringUtils.join(variant)));
+      }
+    }
+
   }
 
   /** Return the (normalized) key for a name. */
@@ -202,8 +250,7 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
         if (currentType == Character.LOWERCASE_LETTER && lastType == Character.UPPERCASE_LETTER) {
           if (offset > 1) {
             int subtract = 1;
-            if (Character.getType(str.codePointAt(offset - 1)) == Character.SURROGATE)
-              subtract = (offset > 2) ? 2 : 0;
+            if (Character.getType(str.codePointAt(offset - 1)) == Character.SURROGATE) subtract = (offset > 2) ? 2 : 0;
             // consecutive uppercase letters before offset, lowercase after offset
             if (lastType == getCharacterTypeBefore(str, offset - subtract)) return true;
           }
@@ -229,7 +276,8 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
     return lastType;
   }
 
-  // GazetteerResource Methods
+  // == GazetteerResource Methods ==
+
   /** {@inheritDoc} */
   public Map<Offset, List<String>> match(String input) {
     return match(input, 0);
@@ -249,8 +297,7 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
       int length = input.length();
       for (int i = 0; i < length; ++i) {
         if (isBoundary(input, i)) {
-          for (KeyValuePair<List<String>> hit : trie.scanForKeyValuePairsAtStartOf(normal.subSequence(
-              i, length))) {
+          for (KeyValuePair<List<String>> hit : trie.scanForKeyValuePairsAtStartOf(normal.subSequence(i, length))) {
             int j = i + hit.getKey().length();
             if (isBoundary(input, j)) {
               results.put(new Offset(i, j), hit.getValue());
@@ -261,8 +308,7 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
     } else {
       int length = input.length();
       for (int i = 0; i < length; ++i) {
-        for (KeyValuePair<List<String>> hit : trie.scanForKeyValuePairsAtStartOf(normal.subSequence(i,
-            length))) {
+        for (KeyValuePair<List<String>> hit : trie.scanForKeyValuePairsAtStartOf(normal.subSequence(i, length))) {
           results.put(new Offset(i, i + hit.getKey().length()), hit.getValue());
         }
       }
@@ -270,7 +316,8 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
     return results;
   }
 
-  // StringMapResource Methods
+  // == StringMapResource Methods ==
+
   /** Return the official names for an ID. */
   public String[] get(String id) {
     return names.get(id);
