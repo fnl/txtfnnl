@@ -19,7 +19,7 @@ import txtfnnl.utils.Offset;
 import txtfnnl.utils.stringsim.LeitnerLevenshtein;
 
 /**
- * The JdbcGazetteerResource uses a {@link JdbcConnectionResource#PARAM_DRIVER_CLASS JDBC database}
+ * The JdbcGazetteerResource uses a {@link JdbcGazetteerResource#PARAM_DRIVER_CLASS JDBC database}
  * to retrieve the ID, name values used to populate the Gazetteer. It can use any user-defined
  * {@link GnamedGazetteerResource#PARAM_QUERY_SQL query} that selects these ID, name values and
  * uses regular expressions matching for those names.
@@ -33,7 +33,7 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
       description = "Disable mapping of Latin names of Greek letters ('alpha', 'beta', ...) "
           + "to their actual characters",
       defaultValue = "false")
-  private boolean disableGreekMapping;
+  private boolean disableGreekMapping = false;
   /** Mappings of gene IDs to their taxon IDs. */
   private Map<String, String> taxonMap = new HashMap<String, String>();
 
@@ -106,13 +106,6 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
     } catch (Exception e) {
       logger.log(Level.SEVERE, "unknown error", e);
       throw new RuntimeException(e);
-    }
-  }
-
-  public Map<Offset, List<String>> match(String str, int start, int end) {
-    Map<Offset, List<String>> hits = super.match(str, start, end);
-    for (Offset pos : hits.keySet()) {
-      if hits.
     }
   }
 
