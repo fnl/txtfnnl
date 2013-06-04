@@ -51,15 +51,12 @@ public class GeneNormalization extends Pipeline {
   static final String DEFAULT_DB_PROVIDER = "postgresql";
   // default: all known gene and protein symbols
   static final String SQL_QUERY = "SELECT gr.accession, g.species_id, ps.value "
-      + "FROM gene_refs AS gr "
-      + "NATURAL INNER JOIN genes AS g "
+      + "FROM gene_refs AS gr " + "NATURAL INNER JOIN genes AS g "
       + "INNER JOIN genes2proteins AS g2p ON (gr.id = g2p.gene_id) "
       + "INNER JOIN protein_strings AS ps ON (g2p.protein_id = ps.id) "
       + "WHERE gr.namespace = 'gi' AND ps.cat = 'symbol' "
-      + "UNION SELECT gr.accession, g.species_id, gs.value "
-      + "FROM gene_refs AS gr "
-      + "NATURAL INNER JOIN genes AS g "
-      + "NATURAL INNER JOIN gene_strings AS gs "
+      + "UNION SELECT gr.accession, g.species_id, gs.value " + "FROM gene_refs AS gr "
+      + "NATURAL INNER JOIN genes AS g " + "NATURAL INNER JOIN gene_strings AS gs "
       + "WHERE gr.namespace = 'gi' AND gs.cat = 'symbol' ";
 
   private GeneNormalization() {
@@ -87,8 +84,8 @@ public class GeneNormalization extends Pipeline {
     opts.addOption("f", "filter-matches", true, "a blacklist (file) of exact matches");
     opts.addOption("F", "whitelist-matches", false,
         "invert filter matches to behave as a whitelist");
-    // opts.addOption("c", "cutoff-similarity", true,
-    // "min. string similarity required to annotate [0.6]");
+    opts.addOption("c", "cutoff-similarity", true,
+        "min. string similarity required to annotate [0.0]");
     // filter options
     opts.addOption("r", "required-pos-tags", true, "a whitelist (file) of required PoS tags");
     opts.addOption("t", "filter-tokens", true, "a two-column (file) list of filter matches");
@@ -148,10 +145,10 @@ public class GeneNormalization extends Pipeline {
       e.printStackTrace();
       System.exit(1); // == EXIT ==
     }
-    // double cutoff = cmd.hasOption('c') ? Double.parseDouble(cmd.getOptionValue('c')) : 0.0;
+    double cutoff = cmd.hasOption('c') ? Double.parseDouble(cmd.getOptionValue('c')) : 0.0;
     String[] blacklist = cmd.hasOption('f') ? makeList(cmd.getOptionValue('f'), l) : null;
     geneAnnotator.setTextNamespace(SentenceAnnotator.NAMESPACE).setTextIdentifier(
-        SentenceAnnotator.IDENTIFIER); // .setMinimumSimilarity(cutoff);
+        SentenceAnnotator.IDENTIFIER).setMinimumSimilarity(cutoff);
     geneAnnotator.setTaxIdMappingResource(taxIdMap);
     if (blacklist != null) {
       if (cmd.hasOption('F')) geneAnnotator.setWhitelist(blacklist);
