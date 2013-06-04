@@ -231,8 +231,8 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
         autoRemove = true;
         continue;
       }
-      if (checkVicinity(beforeSet, surr.before) ||
-          checkVicinity(afterSet, surr.after) ||
+      if (checkNeighbor(beforeSet, surr.before) ||
+          checkNeighbor(afterSet, surr.after) ||
           checkAffix(prefixSet, (surr.prefix == null) ? null : surr.prefix.getCoveredText()
               .substring(0, ann.getBegin() - surr.prefix.getBegin())) ||
           checkAffix(suffixSet, (surr.suffix == null) ? null : surr.suffix.getCoveredText()
@@ -256,7 +256,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
     return false;
   }
 
-  private boolean checkVicinity(Set<String> aSet, TokenAnnotation aToken) {
+  private boolean checkNeighbor(Set<String> aSet, TokenAnnotation aToken) {
     if (aSet != null) {
       if (aToken == null) {
         if (doSelect) return true;
