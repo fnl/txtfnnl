@@ -10,6 +10,9 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.SharedResourceObject;
 import org.apache.uima.util.Level;
 import org.apache.uima.util.Logger;
+import org.paukov.combinatorics.Factory;
+import org.paukov.combinatorics.Generator;
+import org.paukov.combinatorics.ICombinatoricsVector;
 import org.uimafit.component.ExternalResourceAware;
 import org.uimafit.component.initialize.ConfigurationParameterInitializer;
 import org.uimafit.descriptor.ConfigurationParameter;
@@ -207,15 +210,13 @@ public abstract class AbstractExactGazetteerResource implements GazetteerResourc
     int num = tokens.size();
     if (num != 0) {
       tokens.add(name.substring(last, len + 1));
-      String[] variants = new String[] {"-", "", " "};
-      PermutationIterator permIt = new PermutationIterator(variants.length, num);
+      ICombinatoricsVector<String> spacers = Factory.createVector(new String[] {"-", "", " "});
       String[] variant = new String[(num + 1) * 2 - 1];
       for (int i = 0; i < num + 1; ++i)
         variant[i * 2] = tokens.get(i);
-      while (permIt.hasNext()) {
-        int[] choices = permIt.next();
+      for (ICombinatoricsVector<String> choices : Factory.createPermutationWithRepetitionGenerator(spacers, num)) {
         for (int i = 0; i < num; ++i)
-          variant[i * 2 + 1] = variants[choices[i]];
+          variant[i * 2 + 1] = choices.getValue(i);
         put(trie, id, makeKey(StringUtils.join(variant)));
       }
     }

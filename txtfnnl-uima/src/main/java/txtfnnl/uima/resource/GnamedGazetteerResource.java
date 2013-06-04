@@ -8,12 +8,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.uima.util.Level;
 
 import org.uimafit.descriptor.ConfigurationParameter;
 
+import txtfnnl.utils.Offset;
 import txtfnnl.utils.stringsim.LeitnerLevenshtein;
 
 /**
@@ -104,6 +106,13 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
     } catch (Exception e) {
       logger.log(Level.SEVERE, "unknown error", e);
       throw new RuntimeException(e);
+    }
+  }
+
+  public Map<Offset, List<String>> match(String str, int start, int end) {
+    Map<Offset, List<String>> hits = super.match(str, start, end);
+    for (Offset pos : hits.keySet()) {
+      if hits.
     }
   }
 
