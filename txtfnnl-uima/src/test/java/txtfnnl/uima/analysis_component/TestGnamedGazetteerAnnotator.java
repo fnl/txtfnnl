@@ -1,39 +1,28 @@
 package txtfnnl.uima.analysis_component;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
-import java.io.File;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.logging.Level;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import org.apache.uima.UIMAException;
 import org.apache.uima.analysis_engine.AnalysisEngine;
 import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.tcas.Annotation;
-
+import org.junit.Before;
+import org.junit.Test;
 import org.uimafit.factory.AnalysisEngineFactory;
 import org.uimafit.testing.util.DisableLogging;
-
 import txtfnnl.uima.resource.GnamedGazetteerResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 
+import java.io.File;
+import java.sql.*;
+import java.util.logging.Level;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 public class TestGnamedGazetteerAnnotator {
-  AnalysisEngineDescription annotator;
-  AnalysisEngine engine;
-  File gazetteerResource;
   String url;
   String query = "SELECT id, taxon, name FROM entities";
-  AnalysisEngineDescription descriptor;
 
   @Before
   public void setUp() throws Exception {
@@ -41,10 +30,6 @@ public class TestGnamedGazetteerAnnotator {
     tmpDb.deleteOnExit();
     DisableLogging.enableLogging(Level.WARNING);
     url = "jdbc:h2:" + tmpDb.getCanonicalPath();
-    descriptor = GazetteerAnnotator.configure(
-        "namespaceX",
-        GnamedGazetteerResource.configure(url, "org.h2.Driver", query).boundaryMatch()
-            .idMatching().create()).create();
   }
 
   private void createTable(String... names) throws SQLException {
@@ -71,6 +56,7 @@ public class TestGnamedGazetteerAnnotator {
 
   @Test
   public void testProcess() throws SQLException, UIMAException {
+    AnalysisEngineDescription descriptor = GazetteerAnnotator.configure("namespaceX", GnamedGazetteerResource.configure(url, "org.h2.Driver", query).boundaryMatch().idMatching().create()).create();
     createTable("missed:tax1", "IL-1beta:tax1", "Hprt:tax1", "hprt:tax2");
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(descriptor);
     final JCas jcas = makeJCas(ae, "that has IL-1\u03B2 and HPRT in it");
@@ -127,5 +113,41 @@ public class TestGnamedGazetteerAnnotator {
     } else if (!foundTax2) {
       fail("did not annotated tax2");
     }
+  }
+
+  @Test
+  public void testExpansion() throws SQLException, UIMAException {
+    AnalysisEngineDescription descriptor = GazetteerAnnotator.configure("namespaceX", GnamedGazetteerResource.configure(url, "org.h2.Driver", query).boundaryMatch().generateVariants().create()).create();
+    createTable("gene7:tax1", "gene8:tax1", "gene9:tax1", "proteinA:tax2", "proteinB:tax2");
+    final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(descriptor);
+    final JCas jcas = makeJCas(ae, " gene7-9 : gene7/9 and proteinA-B");
+    ae.process(jcas);
+    FSIterator<Annotation> it = jcas.getAnnotationIndex(SemanticAnnotation.type).iterator();
+    int count = 0;
+    while (it.hasNext()) {
+      SemanticAnnotation ann = (SemanticAnnotation) it.next();
+      if (ann.getOffset().start() == 1) {
+        if (ann.getOffset().end() == 6) {
+          assertEquals(ann.toString(), "0", ann.getIdentifier());
+        } else if (ann.getOffset().end() == 8) {
+          if (!("1".equals(ann.getIdentifier()) || "2".equals(ann.getIdentifier()))) fail(ann.toString());
+        } else {
+          fail(ann.toString());
+        }
+      } else if (ann.getOffset().start() == 11) {
+        if (ann.getOffset().end() == 16) assertEquals(ann.toString(), "0", ann.getIdentifier());
+        else if (ann.getOffset().end() == 18) assertEquals(ann.toString(), "2", ann.getIdentifier());
+        else fail(ann.toString());
+      } else if (ann.getOffset().start() == 23) {
+        if (ann.getOffset().end() == 31) assertEquals(ann.toString(), "3", ann.getIdentifier());
+        else if (ann.getOffset().end() == 33) assertEquals(ann.toString(), "4", ann.getIdentifier());
+        else fail(ann.toString());
+      } else {
+        fail(ann.toString());
+      }
+      ++count;
+      //System.out.println(ann.toString());
+    }
+    assertEquals(7, count);
   }
 }
