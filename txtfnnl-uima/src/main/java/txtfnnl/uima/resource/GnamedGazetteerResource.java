@@ -17,24 +17,36 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The JdbcGazetteerResource uses a {@link JdbcGazetteerResource#PARAM_DRIVER_CLASS JDBC database}
- * to retrieve the ID, name values used to populate the Gazetteer. It can use any user-defined
- * {@link GnamedGazetteerResource#PARAM_QUERY_SQL query} that selects these ID, name values and
- * uses regular expressions matching for those names.
+ * The <code>gnamed</code> gene name gazetteer uses a {@link JdbcGazetteerResource#PARAM_DRIVER_CLASS
+ * JDBC database} to retrieve gene ID, tax ID, gene names/symbols triplets for populating the
+ * matcher. It can use any user-defined {@link GnamedGazetteerResource#PARAM_QUERY_SQL SQL query}
+ * that selects these values and uses (mostly) {@link ExactGazetteerResource exact matching}
+ * to detect the gene names/symbols.
+ * <p/>
+ * In addition the the inherited matching options, the <code>gnamed</code> gazetteer can map the
+ * Latin representations of Greek letter in the gene names/symbols (such as "alpha", "Gamma". or
+ * "OMEGA") to their actual Greek characters. Finally, it can detect and expand simple suffixes that
+ * are used to indicate two or more genes, such as "gene 1-4". It detects expansions separated by
+ * dashes if they are numeric (as in the example before), or of a single character (as in "gene
+ * A-C") and simple binary cases separated by slashes (as in "gene A/B").
  *
  * @author Florian Leitner
  */
-public class GnamedGazetteerResource extends JdbcGazetteerResource {
-  public static final String PARAM_NO_GREEK_MAPPING = "DisableGreekMapping";
-  @ConfigurationParameter(name = PARAM_NO_GREEK_MAPPING,
-      mandatory = false,
-      description = "Disable mapping of Latin names of Greek letters ('alpha', 'beta', ...) " + "to their actual characters",
-      defaultValue = "false")
+public
+class GnamedGazetteerResource extends JdbcGazetteerResource {
+  @ConfigurationParameter(name = PARAM_NO_GREEK_MAPPING, mandatory = false, defaultValue = "false",
+                          description = "Disable mapping of Latin names of Greek letters to chars.")
   private boolean disableGreekMapping = false;
+  public static final String PARAM_NO_GREEK_MAPPING = "DisableGreekMapping";
+  public static final String PARAM_NO_EXPANSIONS = "DisableExpansions";
+  @ConfigurationParameter(name = PARAM_NO_EXPANSIONS, mandatory = false, defaultValue = "false",
+                          description = "Disable expansions of lists of entities.")
+  private boolean disableExpansions = true;
   /** Mappings of gene IDs to their taxon IDs. */
   private Map<String, String> taxonMap = new HashMap<String, String>();
 
-  public static class Builder extends JdbcGazetteerResource.Builder {
+  public static
+  class Builder extends JdbcGazetteerResource.Builder {
     Builder(String url, String driverClass, String querySql) {
       super(GnamedGazetteerResource.class, url, driverClass, querySql);
     }
@@ -46,8 +58,16 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
      * Greek char for alpha, while "Alpha" will be replaced with the upper-case char. Any other,
      * mixed case spelling will not trigger a mapping. Idem for all other Greek letters.
      */
-    public Builder disableGreekMapping() {
+    public
+    Builder disableGreekMapping() {
       setOptionalParameter(PARAM_NO_GREEK_MAPPING, true);
+      return this;
+    }
+
+    /** Disable the detection of expanded lists of entities (such as "root A - Z"). */
+    public
+    Builder disableExpansions() {
+      setOptionalParameter(PARAM_NO_EXPANSIONS, true);
       return this;
     }
   }
@@ -59,16 +79,28 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
    * @param driverClassName a fully qualified JDBC driver class name
    * @param query           that will retrieve ID, taxon ID, gene name triplets from the database
    */
-  public static Builder configure(String databaseUrl, String driverClassName, String query) {
+  public static
+  Builder configure(String databaseUrl, String driverClassName, String query) {
     return new Builder(databaseUrl, driverClassName, query);
   }
 
-  public static final char[] GREEK_NAMES_FIRST = {'A', 'B', 'C', 'D', 'E', 'G', 'I', 'K', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', 'U', 'X', 'Z', 'a', 'b', 'c', 'd', 'e', 'g', 'i', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'x', 'z'};
-  public static final String[][] GREEK_NAMES = {{"Alpha"}, {"Beta"}, {"Chi"}, {"Delta"}, {"Epsilon", "Eta"}, {"Gamma"}, {"Iota"}, {"Kappa"}, {"Lambda"}, {"Mu"}, {"Nu"}, {"Omega", "Omicron"}, {"Pi", "Psi", "Phi"}, {"Rho"}, {"Sigma"}, {"Tau", "Theta"}, {"Upsilon"}, {"Xi"}, {"Zeta"}, {"alpha"}, {"beta"}, {"chi"}, {"delta"}, {"epsilon"}, {"eta"}, {"gamma"}, {"iota"}, {"kappa"}, {"lambda"}, {"mu"}, {"nu"}, {"omicron", "omega"}, {"pi", "phi", "psi"}, {"rho"}, {"sigma"}, {"tau", "theta"}, {"upsilon"}, {"xi"}, {"zeta"}};
+  public static final char[] GREEK_NAMES_FIRST = {
+      'A', 'B', 'C', 'D', 'E', 'G', 'I', 'K', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', 'U', 'X', 'Z',
+      'a', 'b', 'c', 'd', 'e', 'g', 'i', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'x', 'z'
+  };
+  public static final String[][] GREEK_NAMES = {
+      {"Alpha"}, {"Beta"}, {"Chi"}, {"Delta"}, {"Epsilon", "Eta"}, {"Gamma"}, {"Iota"}, {"Kappa"},
+      {"Lambda"}, {"Mu"}, {"Nu"}, {"Omega", "Omicron"}, {"Pi", "Psi", "Phi"}, {"Rho"}, {"Sigma"},
+      {"Tau", "Theta"}, {"Upsilon"}, {"Xi"}, {"Zeta"}, {"alpha"}, {"beta"}, {"chi"}, {"delta"},
+      {"epsilon"}, {"eta"}, {"gamma"}, {"iota"}, {"kappa"}, {"lambda"}, {"mu"}, {"nu"},
+      {"omicron", "omega"}, {"pi", "phi", "psi"}, {"rho"}, {"sigma"}, {"tau", "theta"}, {"upsilon"},
+      {"xi"}, {"zeta"}
+  };
 
   /** Generate the keys, the trie and the key-to-ID mappings. */
   @Override
-  public void afterResourcesInitialized() {
+  public
+  void afterResourcesInitialized() {
     initializeJdbc();
     // fetch and process the mappings
     // uses "key = makeKey(name) && if (key != null) processMapping(dbId, name, key)"
@@ -98,6 +130,12 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
     }
   }
 
+  /** Return the associated taxon ID for the given gene ID. */
+  public
+  String getTaxId(String geneId) {
+    return taxonMap.get(geneId);
+  }
+
   /**
    * Return a String with the Latin names of Greek letters replaced with actual Greek characters.
    *
@@ -105,7 +143,8 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
    *
    * @return the mapped String or <code>null</code> if no letter was mapped.
    */
-  private String mapLatinNamesOfGreekLetters(String str) {
+  private
+  String mapLatinNamesOfGreekLetters(String str) {
     int len = str.length();
     int last = 0;
     StringBuilder normal = new StringBuilder();
@@ -114,15 +153,16 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
       if (c <= 'z' && c >= 'A') {
         int idx = Arrays.binarySearch(GREEK_NAMES_FIRST, c);
         if (idx > -1) {
-          SCAN:
+          scanning:
           for (String latin : GREEK_NAMES[idx]) {
             for (int ext = 1; ext < latin.length(); ++ext)
-              if (offset + ext >= len || latin.charAt(ext) != str.charAt(offset + ext)) continue SCAN;
+              if (offset + ext >= len || latin.charAt(ext) != str.charAt(offset + ext))
+                continue scanning;
             normal.append(str.subSequence(last, offset));
             normal.appendCodePoint(greekLetterFor(latin));
             last = offset + latin.length();
             offset = last - 1;
-            break SCAN;
+            break;
           }
         }
       }
@@ -135,89 +175,6 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
     }
   }
 
-  private static final Pattern NUMERIC_EXPANSION = Pattern.compile("^\\-([0-9]+)");
-  private static final Pattern NUMERIC_PREFIX = Pattern.compile("([0-9]+)$");
-  private static final Pattern ALPHABETIC_EXPANSION = Pattern.compile("^\\-([B-Z]([^A-Z]|$))");
-  private static final Pattern ALPHABETIC_PREFIX = Pattern.compile("([A-Z])$");
-  private static final Pattern ALTERNATE_EXPANSION = Pattern.compile("^\\/(\\w+)");
-
-  /** Extended matching using alphanumeric and alternate expansions.
-   * <p>
-   * This matches, for example, "name5" in "name1-10", or "nameB" in "nameA/B". It does not match
-   * more complex linguistic conjunctions, such as "name-1, -2, and -3".
-   * </p>
-   * @param str the string to match
-   * @param start the start where a match may be made
-   * @param end the end where a match may be made
-   * @return the mappings of the offsets of all matches to their Gazetteer IDs
-   */
-  public Map<Offset, List<String>> match(final String str, final int start, final int end) {
-    // TODO: make this spaghetti-code actually legible...
-    Map<Offset, List<String>> hits = super.match(str, start, end);
-    for (Offset pos : new LinkedList<Offset>(hits.keySet())) {
-      if (pos.end() < end) {
-        CharSequence test = str.subSequence(pos.end(), end);
-        Matcher m = NUMERIC_EXPANSION.matcher(test);
-        if (m.find()) {
-          int max = Integer.parseInt(m.group(1)) + 1;
-          int expansionEnd = pos.end() + m.end(1);
-          m = NUMERIC_PREFIX.matcher(str.subSequence(pos.start(), pos.end()));
-          if (m.find()) {
-            int min = Integer.parseInt(m.group(1)) + 1;
-            String base = str.substring(pos.start(), pos.start() + m.start(1));
-            int len = pos.end() - pos.start();
-            Offset off = new Offset(pos.start(), expansionEnd);
-            for (int i = min; i < max; ++i) {
-              String alt = String.format("%s%d", base, i);
-              if (!exactCaseMatching) alt = alt.toLowerCase();
-              for (KeyValuePair<List<String>> hit : trie.scanForKeyValuePairsAtStartOf(alt))
-                if (hit.getKey().length() == len) {
-                  if (hits.containsKey(off)) hits.get(off).addAll(hit.getValue());
-                  else hits.put(off, hit.getValue());
-                }
-            }
-          }
-        } else {
-          m = ALPHABETIC_EXPANSION.matcher(test);
-          if (m.find()) {
-            char max = m.group(1).charAt(0);
-            int expansionEnd = pos.end() + m.end(1);
-            m = ALPHABETIC_PREFIX.matcher(str.subSequence(pos.start(), pos.end()));
-            if (m.find()) {
-              char min = (char) (((int)m.group(1).charAt(0)) + 1);
-              String base = str.substring(pos.start(), pos.start() + m.start(1));
-              Offset off = new Offset(pos.start(), expansionEnd);
-              int len = pos.end() - pos.start();
-              for (char i = min; i <= max; ++i) {
-                String alt = String.format("%s%s", base, String.valueOf(i));
-                if (!exactCaseMatching) alt = alt.toLowerCase();
-                for (KeyValuePair<List<String>> hit : trie.scanForKeyValuePairsAtStartOf(alt))
-                  if (hit.getKey().length() == len) {
-                    if (hits.containsKey(off)) hits.get(off).addAll(hit.getValue());
-                    else hits.put(off, hit.getValue());
-                  }
-              }
-            }
-          } else {
-            m = ALTERNATE_EXPANSION.matcher(test);
-            if (m.find()) {
-              String alt = m.group(1);
-              Offset off = new Offset(pos.start(), pos.end() + m.end(1));
-              alt = String.format("%s%s", str.substring(pos.start(), pos.end() - alt.length()), alt);
-              if (!exactCaseMatching) alt = alt.toLowerCase();
-              for (KeyValuePair<List<String>> hit : trie.scanForKeyValuePairsAtStartOf(alt))
-                if (hit.getKey().length() == pos.end() - pos.start()) {
-                  if (hits.containsKey(off)) hits.get(off).addAll(hit.getValue());
-                  else hits.put(off, hit.getValue());
-                }
-            }
-          }
-        }
-      }
-    }
-    return hits;
-  }
-
   /**
    * Get the Unicode code-point value for the Latin name of a Greek letter.
    *
@@ -225,21 +182,200 @@ public class GnamedGazetteerResource extends JdbcGazetteerResource {
    *
    * @throws IllegalArgumentException if the Latin name is unknown
    */
-  private int greekLetterFor(String latin) {
+  private
+  int greekLetterFor(String latin) {
     if (Character.isLowerCase(latin.charAt(0))) {
       for (int i = 0; i < LeitnerLevenshtein.GREEK_LOWER.length; ++i) {
-        if (latin.equals(LeitnerLevenshtein.GREEK_LOWER_NAMES[i])) return LeitnerLevenshtein.GREEK_LOWER[i];
+        if (latin.equals(LeitnerLevenshtein.GREEK_LOWER_NAMES[i]))
+          return LeitnerLevenshtein.GREEK_LOWER[i];
       }
     } else {
       for (int i = 0; i < LeitnerLevenshtein.GREEK_UPPER.length; ++i) {
-        if (latin.equals(LeitnerLevenshtein.GREEK_UPPER_NAMES[i])) return LeitnerLevenshtein.GREEK_UPPER[i];
+        if (latin.equals(LeitnerLevenshtein.GREEK_UPPER_NAMES[i]))
+          return LeitnerLevenshtein.GREEK_UPPER[i];
       }
     }
     throw new IllegalArgumentException("unknown Greek letter name " + latin);
   }
 
-  /** Return the associated taxon ID for the given gene ID. */
-  public String getTaxId(String geneId) {
-    return taxonMap.get(geneId);
+  /**
+   * Extended matching using alphanumeric and alternate expansions. <p> This matches, for example,
+   * "name5" in "name1-10", or "nameB" in "nameA/B". It does not match more complex linguistic
+   * conjunctions, such as "name-1, -2, and -3". <p> Only applied if expansions are not disabled.
+   *
+   * @param str   the string to match
+   * @param start the start where a match may be made
+   * @param end   the end where a match may be made
+   *
+   * @return the mappings of the offsets of all matches to their Gazetteer IDs
+   */
+  public
+  Map<Offset, List<String>> match(final String str, final int start, final int end) {
+    Map<Offset, List<String>> hits = super.match(str, start, end);
+    if (!disableExpansions) {
+      CharSequence region = str.subSequence(0, Math.min(end, str.length()));
+      // test every hit in this region for expansions
+      for (Offset pos : new LinkedList<Offset>(hits.keySet())) {
+        if (expandNumberedLists(hits, region, pos) ||
+            expandAlphabeticLists(hits, region, pos) ||
+            expandAlternateVersion(hits, region, pos)) {
+          CharSequence[] params = new CharSequence[] {
+              str.subSequence(pos.start(), pos.end()),
+              str.subSequence(pos.end(), Math.min(pos.end() + 10, str.length()))
+          };
+          logger.log(Level.FINER, "expanded hit ''{0}'' using ''{1}...''", params);
+        }
+      }
+    }
+    return hits;
+  }
+
+  private static final Pattern NUMERIC_EXPANSION = Pattern.compile("^\\s?\\-\\s?([0-9]+)");
+  private static final Pattern NUMERIC_PREFIX = Pattern.compile("([0-9]+)$");
+
+  /**
+   * Expand numeric lists of the general form "base 1-10" to detect "base 2" etc..
+   *
+   * @param hits already found (as Offset - ID [String] mappings)
+   * @param span containing the relevant content
+   * @param pos  of the initial hit ("base 1" in the above example)
+   *
+   * @return <code>True</code> if an expansion was made
+   */
+  private
+  boolean expandNumberedLists(Map<Offset, List<String>> hits, CharSequence span, Offset pos) {
+    CharSequence entity = span.subSequence(pos.start(), pos.end());
+    CharSequence suffix = span.subSequence(pos.end(), span.length());
+    String[] expansions = findExpansion(
+        span, pos, entity, NUMERIC_PREFIX, suffix, NUMERIC_EXPANSION
+    );
+    if (expansions != null) {
+      List<String> alts = new LinkedList<String>();
+      int min = Integer.parseInt(expansions[1]) + 1;
+      int max = Integer.parseInt(expansions[2]) + 1;
+      for (int i = min; i < max; ++i)
+        alts.add(Integer.toString(i));
+      Offset off = new Offset(pos.start(), pos.end() + expansions[3].length());
+      expandHits(hits, expansions[0], alts, off);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  private static final Pattern ALPHABETIC_EXPANSION = Pattern
+      .compile("^\\s?\\-\\s?([B-Z]([^A-Z]|$))");
+  private static final Pattern ALPHABETIC_PREFIX = Pattern.compile("([A-Z])$");
+
+  /**
+   * Expand alphabetic lists of the general form "base A-Z" to detect "base B" etc..
+   *
+   * @param hits already found (as Offset - ID [String] mappings)
+   * @param span containing the relevant content
+   * @param pos  of the initial hit ("base A" in the above example)
+   *
+   * @return <code>True</code> if an expansion was made
+   */
+  private
+  boolean expandAlphabeticLists(Map<Offset, List<String>> hits, CharSequence span, Offset pos) {
+    CharSequence entity = span.subSequence(pos.start(), pos.end());
+    CharSequence suffix = span.subSequence(pos.end(), span.length());
+    String[] expansions = findExpansion(
+        span, pos, entity, ALPHABETIC_PREFIX, suffix, ALPHABETIC_EXPANSION
+    );
+    if (expansions != null) {
+      List<String> alts = new LinkedList<String>();
+      char min = (char) (((int) expansions[1].charAt(0)) + 1);
+      char max = expansions[2].charAt(0);
+      for (char i = min; i <= max; ++i)
+        alts.add(Character.toString(i));
+      Offset off = new Offset(pos.start(), pos.end() + expansions[3].length());
+      expandHits(hits, expansions[0], alts, off);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  private static final Pattern ALTERNATE_EXPANSION = Pattern.compile("^\\/(\\w+)");
+
+  /**
+   * Expand alternates of the general form "base A/B" to detect "base B".
+   *
+   * @param hits already found (as Offset - ID [String] mappings)
+   * @param span containing the relevant content
+   * @param pos  of the initial hit ("base A" in the above example)
+   *
+   * @return <code>True</code> if an expansion was made
+   */
+  private
+  boolean expandAlternateVersion(Map<Offset, List<String>> hits, CharSequence span, Offset pos) {
+    CharSequence suffix = span.subSequence(pos.end(), span.length());
+    Matcher m = ALTERNATE_EXPANSION.matcher(suffix);
+    if (m.find()) {
+      List<String> alts = Arrays.asList(m.group(1));
+      Offset off = new Offset(pos.start(), pos.end() + m.end(1));
+      expandHits(
+          hits, span.subSequence(pos.start(), pos.end() - m.group(1).length()).toString(), alts, off
+      );
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * Expand hits with any matching combination of base with a String in expansions, adding the
+   * detected Gazetteer IDs to the hits at the given offset.
+   *
+   * @param hits       already found (as Offset - ID [String] mappings)
+   * @param base       to prepend the expansions with
+   * @param expansions to append to the base
+   * @param offset     key to use for adding any matches to the hits
+   */
+  private
+  void expandHits(Map<Offset, List<String>> hits, String base, List<String> expansions,
+                  Offset offset) {
+    for (String exp : expansions) {
+      String alt = String.format("%s%s", base, exp);
+      if (!exactCaseMatching) alt = alt.toLowerCase();
+      for (KeyValuePair<List<String>> hit : trie.scanForKeyValuePairsAtStartOf(alt)) {
+        if (hit.getKey().length() == alt.length()) {
+          if (hits.containsKey(offset)) {
+            List<String> ids = hits.get(offset);
+            for (String id : hit.getValue())
+              if (!ids.contains(id)) ids.add(id);
+          } else hits.put(offset, hit.getValue());
+        }
+      }
+    }
+  }
+
+  /**
+   * Detect an expansion of entity at pos in str by checking if the suffix matches the suffix
+   * pattern and the entity contains the entity pattern.
+   *
+   * @return a 4-element array consisting of the "base" string of the entity, the original value in
+   *         the entity, the expansion value in the suffix and the matched suffix string; if no
+   *         expansion was found, <code>null</code> is returned.
+   */
+  private
+  String[] findExpansion(CharSequence str, Offset pos, CharSequence entity, Pattern entityPattern,
+                         CharSequence suffix, Pattern suffixPattern) {
+    Matcher m = suffixPattern.matcher(suffix);
+    String[] expansions = null;
+    if (m.find()) {
+      expansions = new String[4];
+      expansions[2] = m.group(1);
+      expansions[3] = m.group();
+      m = entityPattern.matcher(entity);
+      if (m.find()) {
+        expansions[0] = str.subSequence(pos.start(), pos.start() + m.start(1)).toString();
+        expansions[1] = m.group(1);
+      } else {
+        expansions = null;
+      }
+    }
+    return expansions;
   }
 }

@@ -2,28 +2,29 @@
  * Copyright 2013. All rights reserved. */
 package txtfnnl.uima.resource;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.SharedResourceObject;
 import org.apache.uima.util.Level;
-
 import org.uimafit.component.ExternalResourceAware;
 import org.uimafit.descriptor.ConfigurationParameter;
 
+import java.sql.*;
+
 /**
- * The JdbcGazetteerResource uses a {@link JdbcConnectionResource#PARAM_DRIVER_CLASS JDBC database}
- * to retrieve the ID, name values used to populate the Gazetteer. It can use any user-defined
- * {@link JdbcGazetteerResource#PARAM_QUERY_SQL query} that selects these ID, name values and uses
- * regular expressions matching for those names.
- * 
+ * The JdbcGazetteerResource uses a {@link JdbcConnectionResourceImpl#PARAM_DRIVER_CLASS JDBC
+ * database} to retrieve the ID, name values used to populate the Gazetteer. It uses a user-defined
+ * {@link JdbcGazetteerResource#PARAM_QUERY_SQL query} to retrieve the ID, name pairs for populating
+ * the Gazetteer and in general has the configuration options of a {@link JdbcConnectionResourceImpl
+ * JDBC connection implementation}.
+ * <p/>
+ * Given that DB-supplied Gazetteers are expected to be huge (millions of entities), the {@link
+ * ExactGazetteerResource exact matching implementation} of the GazetteerResource API is
+ * used (instead of the {@link ApproximateGazetteerResource approximate matching implementation}).
+ *
  * @author Florian Leitner
  */
-public class JdbcGazetteerResource extends AbstractExactGazetteerResource implements
+public
+class JdbcGazetteerResource extends ExactGazetteerResource implements
     JdbcConnectionResource, ExternalResourceAware {
   /** The <b>mandatory</b> SQL query used to fetch the entity names. */
   public static final String PARAM_QUERY_SQL = "QuerySQL";
@@ -54,11 +55,13 @@ public class JdbcGazetteerResource extends AbstractExactGazetteerResource implem
   @ConfigurationParameter(name = PARAM_ISOLATION_LEVEL, mandatory = false, defaultValue = "-1")
   protected int isolationLevel;
 
-  public static class Builder extends AbstractExactGazetteerResource.Builder implements
+  public static
+  class Builder extends ExactGazetteerResource.Builder implements
       AuthenticationResourceBuilder {
     /** Protected constructor for inherited implementations. */
-    protected Builder(Class<? extends SharedResourceObject> klass, String url, String driverClass,
-        String querySql) {
+    protected
+    Builder(Class<? extends SharedResourceObject> klass, String url, String driverClass,
+            String querySql) {
       super(klass, url);
       setRequiredParameter(PARAM_DRIVER_CLASS, driverClass);
       setRequiredParameter(PARAM_QUERY_SQL, querySql);
@@ -71,51 +74,58 @@ public class JdbcGazetteerResource extends AbstractExactGazetteerResource implem
     }
 
     /** Define a <code>username</code> to authenticate DB connections. */
-    public Builder setUsername(String username) {
+    public
+    Builder setUsername(String username) {
       setOptionalParameter(PARAM_USERNAME, username);
       return this;
     }
 
     /** Define a <code>password</code> to authenticate DB connections. */
-    public Builder setPassword(String password) {
+    public
+    Builder setPassword(String password) {
       setOptionalParameter(PARAM_PASSWORD, password);
       return this;
     }
 
     /** Define a login <code>timeout</code> in seconds for the DB authentication process. */
-    public Builder setLoginTimeout(int timeout) {
-      if (timeout < 1 && timeout != -1)
-        throw new IllegalArgumentException("illegal timeout value");
+    public
+    Builder setLoginTimeout(int timeout) {
+      if (timeout < 1 && timeout != -1) throw new IllegalArgumentException("illegal timeout value");
       setOptionalParameter(PARAM_LOGIN_TIMEOUT, timeout);
       return this;
     }
 
     /** Make the DB connections all read-only. */
-    public Builder readOnly() {
+    public
+    Builder readOnly() {
       setOptionalParameter(PARAM_READ_ONLY, Boolean.TRUE);
       return this;
     }
 
     /** Dirty reads, non-repeatable reads, and phantom reads can occur. */
-    public Builder readUncommittedTransactions() {
+    public
+    Builder readUncommittedTransactions() {
       setOptionalParameter(PARAM_ISOLATION_LEVEL, Connection.TRANSACTION_READ_UNCOMMITTED);
       return this;
     }
 
     /** Prevent dirty reads; non-repeatable reads and phantom reads can occur. */
-    public Builder readCommittedTransactions() {
+    public
+    Builder readCommittedTransactions() {
       setOptionalParameter(PARAM_ISOLATION_LEVEL, Connection.TRANSACTION_READ_COMMITTED);
       return this;
     }
 
     /** Prevent dirty reads and non-repeatable; phantom reads can occur. */
-    public Builder repeatableReadTransactions() {
+    public
+    Builder repeatableReadTransactions() {
       setOptionalParameter(PARAM_ISOLATION_LEVEL, Connection.TRANSACTION_REPEATABLE_READ);
       return this;
     }
 
     /** Prevent dirty reads, non-repeatable and phantom reads. */
-    public Builder serializableTransactions() {
+    public
+    Builder serializableTransactions() {
       setOptionalParameter(PARAM_ISOLATION_LEVEL, Connection.TRANSACTION_SERIALIZABLE);
       return this;
     }
@@ -123,18 +133,20 @@ public class JdbcGazetteerResource extends AbstractExactGazetteerResource implem
 
   /**
    * Configure a resource for transaction-less, read-write JDBC connections.
-   * 
-   * @param databaseUrl a JDBC database URL
+   *
+   * @param databaseUrl     a JDBC database URL
    * @param driverClassName a fully qualified JDBC driver class name
-   * @param query that will retrieve ID, name pairs from the database
+   * @param query           that will retrieve ID, name pairs from the database
    */
-  public static Builder configure(String databaseUrl, String driverClassName, String query) {
+  public static
+  Builder configure(String databaseUrl, String driverClassName, String query) {
     return new Builder(databaseUrl, driverClassName, query);
   }
 
   /** Generate the keys, the trie and the key-to-ID mappings. */
   @Override
-  public void afterResourcesInitialized() {
+  public
+  void afterResourcesInitialized() {
     // note: "afterResourcesInitialized()" is a sort-of broken uimaFIT API,
     // because it cannot throw a ResourceInitializationException
     // therefore, this code throws assertion errors to the same effect...
@@ -161,26 +173,35 @@ public class JdbcGazetteerResource extends AbstractExactGazetteerResource implem
     }
   }
 
-  protected void initializeJdbc() {
+  protected
+  void initializeJdbc() {
     // load the DB driver
     try {
       Class.forName(driverClass);
     } catch (final ClassNotFoundException e) {
-      throw new RuntimeException(new ResourceInitializationException(
-          ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] { driverClass,
-              PARAM_DRIVER_CLASS }, e));
+      throw new RuntimeException(
+          new ResourceInitializationException(
+              ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] {
+              driverClass, PARAM_DRIVER_CLASS
+          }, e
+          )
+      );
     }
     // set the DB login timeout
     if (loginTimeout > 0) {
       DriverManager.setLoginTimeout(loginTimeout);
-    } else if (loginTimeout != -1)
-      throw new RuntimeException(new ResourceInitializationException(
-          ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] { loginTimeout,
-              PARAM_LOGIN_TIMEOUT }));
+    } else if (loginTimeout != -1) throw new RuntimeException(
+        new ResourceInitializationException(
+            ResourceInitializationException.RESOURCE_DATA_NOT_VALID, new Object[] {
+            loginTimeout, PARAM_LOGIN_TIMEOUT
+        }
+        )
+    );
   }
 
   /** {@inheritDoc} */
-  public synchronized Connection getConnection() throws SQLException {
+  public synchronized
+  Connection getConnection() throws SQLException {
     logger.log(Level.INFO, "connecting to '" + resourceUri + "'");
     Connection conn;
     if (username == null || password == null) conn = DriverManager.getConnection(resourceUri);

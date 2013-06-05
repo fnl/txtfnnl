@@ -118,12 +118,13 @@ public class TestJdbcGazetteerResource {
     assertEquals(1, gr.match("dabc 123").size());
   }
 
-//  @Test
-//  public void testCharsetRegex() throws SQLException, UIMAException, IOException {
-//    builder.setCharsetRegex("[0-9]+");
-//    GazetteerResource gr = newGazetteer("0A1B2C3");
-//    assertEquals(1, gr.match("0ABC9").size());
-//    assertEquals(1, gr.match(" A1B2C ").size());
-//    assertEquals(0, gr.match("A B C").size());
-//  }
+  @Test
+  public void testVariantMatchingResult() throws SQLException, UIMAException, IOException {
+    builder.generateVariants();
+    GazetteerResource gr = newGazetteer("ABC 123", "123-ABC");
+    assertEquals(0, gr.match("dABC123").size());
+    assertEquals(1, gr.match("dAbc-123").size());
+    assertEquals(1, gr.match("dABC 123").size());
+    assertEquals(1, gr.match("d123ABC").size());
+  }
 }

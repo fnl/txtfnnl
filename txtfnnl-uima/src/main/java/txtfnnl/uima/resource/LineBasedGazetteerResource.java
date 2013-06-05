@@ -2,25 +2,26 @@
  * Copyright 2013. All rights reserved. */
 package txtfnnl.uima.resource;
 
+import org.apache.uima.resource.DataResource;
+import org.apache.uima.resource.ResourceInitializationException;
+import org.uimafit.descriptor.ConfigurationParameter;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.regex.Pattern;
 
-import org.apache.uima.resource.DataResource;
-import org.apache.uima.resource.ResourceInitializationException;
-
-import org.uimafit.descriptor.ConfigurationParameter;
-
 /**
- * The LineBasedGazetteerResource uses an input stream from some URL to retrieve the ID, name
- * values used to populate its Gazetteer. The ID, name fields can be separated by anything that can
- * be recognized by a regular expression (<code>String.spit(regex, 2)</code>).
- * 
+ * The LineBasedGazetteerResource uses an input stream from any URL to retrieve the ID, name values
+ * used to populate its Gazetteer. The ID, name fields can be {@link
+ * LineBasedGazetteerResource#PARAM_SEPARATOR separated} by anything that can be recognized by a
+ * regular expression (using <code>String.spit(regex, 2)</code>).
+ *
  * @author Florian Leitner
  */
-public class LineBasedGazetteerResource extends AbstractGazetteerResource {
+public
+class LineBasedGazetteerResource extends ExactGazetteerResource {
   /**
    * The field separator to use. May be a regular expression and defaults to a tab. Input lines are
    * split into ID, name pairs.
@@ -29,13 +30,16 @@ public class LineBasedGazetteerResource extends AbstractGazetteerResource {
   @ConfigurationParameter(name = PARAM_SEPARATOR, mandatory = false, defaultValue = "\t")
   protected String separator;
 
-  public static class Builder extends AbstractGazetteerResource.Builder {
-    public Builder(String url) {
+  public static
+  class Builder extends ExactGazetteerResource.Builder {
+    public
+    Builder(String url) {
       super(LineBasedGazetteerResource.class, url);
     }
 
-    /** Any regular expression that can be used to split the input lines in two. */
-    public Builder setSeparator(String regex) {
+    /** Any regular expression that can be used to split the Gazetteer input lines in two. */
+    public
+    Builder setSeparator(String regex) {
       setOptionalParameter(PARAM_SEPARATOR, regex);
       return this;
     }
@@ -43,27 +47,31 @@ public class LineBasedGazetteerResource extends AbstractGazetteerResource {
 
   /**
    * Configure a Gazetteer from a line-based data stream.
-   * <p>
+   * <p/>
    * In the simplest case, this could be just a flat-file.
-   * 
+   *
    * @param resourceUri where a line-based data stream can be fetched
    */
-  public static Builder configure(String resourceUri) {
+  public static
+  Builder configure(String resourceUri) {
     return new Builder(resourceUri);
   }
 
   @Override
-  public synchronized void load(DataResource dataResource) throws ResourceInitializationException {
+  public synchronized
+  void load(DataResource dataResource) throws ResourceInitializationException {
     super.load(dataResource);
   }
 
   /**
    * Compile the DFA.
-   * 
+   *
    * @throws ResourceInitializationException
+   *
    */
   @Override
-  public void afterResourcesInitialized() {
+  public
+  void afterResourcesInitialized() {
     Pattern pattern = Pattern.compile(separator);
     String line = null;
     InputStream inStr = null;
@@ -79,8 +87,10 @@ public class LineBasedGazetteerResource extends AbstractGazetteerResource {
     } catch (final IOException e) {
       throw new RuntimeException(e.getLocalizedMessage() + " while loading " + resourceUri);
     } catch (IndexOutOfBoundsException e) {
-      throw new RuntimeException("received an illegal line from " + resourceUri + ": '" + line +
-          "'");
+      throw new RuntimeException(
+          "received an illegal line from " + resourceUri + ": '" + line +
+          "'"
+      );
     } finally {
       if (inStr != null) {
         try {
