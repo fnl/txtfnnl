@@ -312,7 +312,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
   boolean expandAlternateVersion(Map<Offset, List<String>> hits, CharSequence span, Offset pos) {
     CharSequence suffix = span.subSequence(pos.end(), span.length());
     Matcher m = ALTERNATE_EXPANSION.matcher(suffix);
-    if (m.find()) {
+    if (m.find() && m.group(1).length() < pos.end() - pos.start()) {
       List<String> alts = Arrays.asList(m.group(1));
       Offset off = new Offset(pos.start(), pos.end() + m.end(1));
       expandHits(
