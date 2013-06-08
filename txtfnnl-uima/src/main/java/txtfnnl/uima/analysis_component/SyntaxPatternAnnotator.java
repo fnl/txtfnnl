@@ -44,7 +44,7 @@ import es.fnl.fsm.Pattern;
  * <p>
  * See {@link txtfnnl.uima.pattern.SyntaxPattern} for a description of the pattern language. This
  * AE provides a regular expression language for UIMA that can be used to annotate pattern-based
- * {@link RelationshipAnntation relationships} between {@link SemanticAnnotation semantic entities}.
+ * {@link RelationshipAnnotation relationships} between {@link SemanticAnnotation semantic entities}.
  * <p>
  * Matching patterns and any capture groups within the patterns are {@link SemanticAnnotation
  * semantically annotated} using the namespace and identifier values defined in the
