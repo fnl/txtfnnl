@@ -4,3 +4,5 @@ profile
 target
 txtfnnl-*/.*
 txtfnnl-*/target
+patterns.txt
+*.iml
