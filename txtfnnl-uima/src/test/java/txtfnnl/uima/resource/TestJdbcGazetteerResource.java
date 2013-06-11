@@ -121,10 +121,15 @@ public class TestJdbcGazetteerResource {
   @Test
   public void testVariantMatchingResult() throws SQLException, UIMAException, IOException {
     builder.generateVariants();
-    GazetteerResource gr = newGazetteer("ABC 123", "123-ABC");
-    assertEquals(0, gr.match("dABC123").size());
-    assertEquals(1, gr.match("dAbc-123").size());
-    assertEquals(1, gr.match("dABC 123").size());
+    GazetteerResource gr = newGazetteer("123-ABC", "XYZ123", "ABC 123");
+    assertEquals(1, gr.match("d123-ABC").size());
+    assertEquals(1, gr.match("d123 ABC").size());
     assertEquals(1, gr.match("d123ABC").size());
+    assertEquals(1, gr.match("dXYZ-123").size());
+    assertEquals(1, gr.match("dXYZ 123").size());
+    assertEquals(1, gr.match("dXYZ123").size());
+    assertEquals(1, gr.match("dABC 123").size());
+    assertEquals(1, gr.match("dABC-123").size());
+    assertEquals(0, gr.match("dABC123").size());
   }
 }

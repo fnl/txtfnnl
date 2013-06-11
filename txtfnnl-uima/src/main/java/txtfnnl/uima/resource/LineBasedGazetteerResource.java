@@ -10,6 +10,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -78,11 +80,17 @@ class LineBasedGazetteerResource extends ExactGazetteerResource {
     try {
       inStr = getInputStream();
       final BufferedReader reader = new BufferedReader(new InputStreamReader(inStr));
+      Set<String> knownKeys = new HashSet<String>();
+      String lastId = null;
       while ((line = reader.readLine()) != null) {
         line = line.trim();
         if (line.length() == 0) continue;
         String[] keyVal = pattern.split(line, 2);
-        put(keyVal[0], keyVal[1]);
+        if (!keyVal[0].equals(lastId)) {
+          knownKeys = new HashSet<String>();
+          lastId = keyVal[0];
+        }
+        put(keyVal[0], keyVal[1], knownKeys);
       }
     } catch (final IOException e) {
       throw new RuntimeException(e.getLocalizedMessage() + " while loading " + resourceUri);

@@ -109,14 +109,20 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
       Statement stmt = conn.createStatement();
       logger.log(Level.INFO, "running SQL query: ''{0}''", querySql);
       ResultSet result = stmt.executeQuery(querySql);
+      Set<String> knownKeys = new HashSet<String>();
+      String lastId = null;
       while (result.next()) {
         final String geneId = result.getString(1);
         final String taxId = result.getString(2);
         final String name = result.getString(3);
-        put(geneId, name);
+        if (!geneId.equals(lastId)) {
+          knownKeys = new HashSet<String>();
+          lastId = geneId;
+        }
+        put(geneId, name, knownKeys);
         if (!disableGreekMapping) {
           final String nameWithGreekLetters = mapLatinNamesOfGreekLetters(name);
-          if (nameWithGreekLetters != null) put(geneId, nameWithGreekLetters);
+          if (nameWithGreekLetters != null) put(geneId, nameWithGreekLetters, knownKeys);
         }
         taxonMap.put(geneId, taxId);
       }
@@ -241,7 +247,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
   }
 
   private static final Pattern NUMERIC_EXPANSION = Pattern.compile("^\\s?\\-\\s?([0-9]+)");
-  private static final Pattern NUMERIC_PREFIX = Pattern.compile("([0-9]+)$");
+  private static final Pattern NUMERIC_PREFIX = Pattern.compile(".*([0-9]+)$");
 
   /**
    * Expand numeric lists of the general form "base 1-10" to detect "base 2" etc..
@@ -275,7 +281,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
 
   private static final Pattern ALPHABETIC_EXPANSION = Pattern
       .compile("^\\s?\\-\\s?([\\p{InGreek}\\p{Alpha}])(?:\\w|$)");
-  private static final Pattern ALPHABETIC_PREFIX = Pattern.compile("([\\p{InGreek}\\p{Alpha}])$");
+  private static final Pattern ALPHABETIC_PREFIX = Pattern.compile(".*([\\p{InGreek}\\p{Alpha}])$");
 
   /**
    * Expand alphabetic lists of the general form "base A-Z" to detect "base B" etc..
@@ -323,7 +329,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
   boolean expandAlternateVersion(Map<Offset, List<String>> hits, CharSequence span, Offset pos) {
     CharSequence suffix = span.subSequence(pos.end(), span.length());
     Matcher m = ALTERNATE_EXPANSION.matcher(suffix);
-    if (m.find() && m.group(1).length() < pos.end() - pos.start()) {
+    if (m.lookingAt() && m.group(1).length() < pos.end() - pos.start()) {
       List<String> alts = Arrays.asList(m.group(1));
       Offset off = new Offset(pos.start(), pos.end() + m.end(1));
       expandHits(
@@ -333,6 +339,34 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
     } else {
       return false;
     }
+  }
+
+  /**
+   * Detect an expansion of entity at pos in str by checking if the suffix matches the suffix
+   * pattern and the entity contains the entity pattern.
+   *
+   * @return a 4-element array consisting of the "base" string of the entity, the original value in
+   *         the entity, the expansion value in the suffix and the matched suffix string; if no
+   *         expansion was found, <code>null</code> is returned.
+   */
+  private
+  String[] findExpansion(CharSequence str, Offset pos, CharSequence entity, Pattern entityPattern,
+                         CharSequence suffix, Pattern suffixPattern) {
+    Matcher m = suffixPattern.matcher(suffix);
+    String[] expansions = null;
+    if (m.lookingAt()) {
+      expansions = new String[4];
+      expansions[2] = m.group(1);
+      expansions[3] = m.group();
+      m = entityPattern.matcher(entity);
+      if (m.matches()) {
+        expansions[0] = str.subSequence(pos.start(), pos.start() + m.start(1)).toString();
+        expansions[1] = m.group(1);
+      } else {
+        expansions = null;
+      }
+    }
+    return expansions;
   }
 
   /**
@@ -360,33 +394,5 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
         }
       }
     }
-  }
-
-  /**
-   * Detect an expansion of entity at pos in str by checking if the suffix matches the suffix
-   * pattern and the entity contains the entity pattern.
-   *
-   * @return a 4-element array consisting of the "base" string of the entity, the original value in
-   *         the entity, the expansion value in the suffix and the matched suffix string; if no
-   *         expansion was found, <code>null</code> is returned.
-   */
-  private
-  String[] findExpansion(CharSequence str, Offset pos, CharSequence entity, Pattern entityPattern,
-                         CharSequence suffix, Pattern suffixPattern) {
-    Matcher m = suffixPattern.matcher(suffix);
-    String[] expansions = null;
-    if (m.find()) {
-      expansions = new String[4];
-      expansions[2] = m.group(1);
-      expansions[3] = m.group();
-      m = entityPattern.matcher(entity);
-      if (m.find()) {
-        expansions[0] = str.subSequence(pos.start(), pos.start() + m.start(1)).toString();
-        expansions[1] = m.group(1);
-      } else {
-        expansions = null;
-      }
-    }
-    return expansions;
   }
 }

@@ -27,15 +27,15 @@ import java.io.InputStream;
 import java.util.*;
 
 /**
- * The ExactGazetteerResource implements matching without a defined way to do the initial
- * loading of the ID, name value pairs used to populate the Gazetteer. The matches are made
- * independent of (Unicode-) case, although it is possible to optionally enable {@link
- * ExactGazetteerResource#PARAM_CASE_MATCHING exact case matching}. Also, it is possible to
- * define if the {@link ExactGazetteerResource#PARAM_ID_MATCHING IDs should be matched},
- * too. Third, matches may be limited to matches if the region begins and ends with a {@link
- * ExactGazetteerResource#PARAM_BOUNDARY_MATCH token boundary}. Finally, it is possible to
- * generate {@link ExactGazetteerResource#PARAM_GENERATE_VARIANTS variants} of the standard
- * separators (space, hyphen, or not separated) to join a name's tokens to the matching process.
+ * The ExactGazetteerResource implements matching without a defined way to do the initial loading of
+ * the ID, name value pairs used to populate the Gazetteer. The matches are made independent of
+ * (Unicode-) case, although it is possible to optionally enable {@link
+ * ExactGazetteerResource#PARAM_CASE_MATCHING exact case matching}. Also, it is possible to define
+ * if the {@link ExactGazetteerResource#PARAM_ID_MATCHING IDs should be matched}, too. Third,
+ * matches may be limited to matches if the region begins and ends with a {@link
+ * ExactGazetteerResource#PARAM_BOUNDARY_MATCH token boundary}. Finally, it is possible to generate
+ * {@link ExactGazetteerResource#PARAM_GENERATE_VARIANTS variants} of the standard separators
+ * (space, hyphen, or not separated) to join a name's tokens to the matching process.
  * <p/>
  * Names are tokenized at letter-digit boundaries, at spaces and hyphens, and at lower-to-upper-case
  * transitions: "MeToo3-Go agAin" is split into "Me", "Too", "3", "Go", "ag", "Ain", and all
@@ -43,11 +43,10 @@ import java.util.*;
  * probed by the matcher. The only restriction is that two tokens that were originally separated by
  * a space, the empty separator ("") will not be used.
  * <p/>
- * The {@link ExactGazetteerResource#get(String) get} method returns a set of matching DB
- * IDs for any existing key, the {@link ExactGazetteerResource#size() size} reports the
- * <b>total</b> number of IDs, while {@link ExactGazetteerResource#iterator() iterator}
- * provides a way to access all IDs. If case-insensitve matching is used, all names are
- * lower-cased.
+ * The {@link ExactGazetteerResource#get(String) get} method returns a set of matching DB IDs for
+ * any existing key, the {@link ExactGazetteerResource#size() size} reports the <b>total</b> number
+ * of IDs, while {@link ExactGazetteerResource#iterator() iterator} provides a way to access all
+ * IDs. If case-insensitve matching is used, all names are lower-cased.
  *
  * @author Florian Leitner
  */
@@ -163,9 +162,9 @@ class ExactGazetteerResource implements GazetteerResource, ExternalResourceAware
 
   // == Methods for building a pattern from the name-id pairs ==
 
-  /** Add an ID, name mapping to the Gazetteer. */
+  /** Add an ID, name mapping to the Gazetteer, unless it is in the known keys for that ID. */
   protected
-  void put(final String id, final String name) {
+  void put(final String id, final String name, Set<String> knownKeys) {
     if (id == null) throw new IllegalArgumentException("id == null for name '" + name + "'");
     if (name == null) throw new IllegalArgumentException("name == null for ID '" + id + "'");
     String[] mapped = names.get(id);
@@ -182,24 +181,27 @@ class ExactGazetteerResource implements GazetteerResource, ExternalResourceAware
       logger.log(Level.WARNING, id + "=\"" + name + "\" has no content characters");
       return;
     }
-    if (generateVariants) putVariants(id, name);
-    put(trie, id, key);
-    if (idMatching) {
-      put(trie, id, makeKey(id));
-      if (!ArrayUtils.contains(mapped, id)) {
-        mapped = Arrays.copyOf(mapped, mapped.length + 1);
-        mapped[mapped.length - 1] = id;
-        names.put(id, mapped);
+    if (!knownKeys.contains(key)) {
+      knownKeys.add(key);
+      if (generateVariants) putVariants(id, name, knownKeys);
+      put(trie, id, key);
+      if (idMatching) {
+        put(trie, id, makeKey(id));
+        if (!ArrayUtils.contains(mapped, id)) {
+          mapped = Arrays.copyOf(mapped, mapped.length + 1);
+          mapped[mapped.length - 1] = id;
+          names.put(id, mapped);
+        }
       }
     }
   }
 
   /**
-   * Calculate and {@link ExactGazetteerResource#put(txtfnnl.utils.PatriciaTree, String,
-   * String) put} all possible variants into the trie.
+   * Calculate and {@link ExactGazetteerResource#put(txtfnnl.utils.PatriciaTree, String, String)
+   * put} all possible variants into the trie.
    */
   private
-  void putVariants(String id, String name) {
+  void putVariants(String id, String name, Set<String> knownKeys) {
     List<String> tokens = new LinkedList<String>();
     int last = 0;
     int len = name.length() - 1;
@@ -223,6 +225,7 @@ class ExactGazetteerResource implements GazetteerResource, ExternalResourceAware
         }
       }
     }
+    // NB: the last token has not yet been added to the tokens List!
     int num = tokens.size();
     if (num != 0) {
       int i = 0;
@@ -240,7 +243,11 @@ class ExactGazetteerResource implements GazetteerResource, ExternalResourceAware
             variant[i * 2 + 1] = choices.getValue(i);
           }
         }
-        put(trie, id, makeKey(StringUtils.join(variant)));
+        String variantKey = makeKey(StringUtils.join(variant));
+        if (!knownKeys.contains(variantKey)) {
+          put(trie, id, variantKey);
+          knownKeys.add(variantKey);
+        }
       }
     }
 

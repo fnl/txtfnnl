@@ -9,6 +9,8 @@ import org.uimafit.component.ExternalResourceAware;
 import org.uimafit.descriptor.ConfigurationParameter;
 
 import java.sql.*;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * The JdbcGazetteerResource uses a {@link JdbcConnectionResourceImpl#PARAM_DRIVER_CLASS JDBC
@@ -158,10 +160,16 @@ class JdbcGazetteerResource extends ExactGazetteerResource implements
       Statement stmt = conn.createStatement();
       logger.log(Level.INFO, "running SQL query: ''{0}''", querySql);
       ResultSet result = stmt.executeQuery(querySql);
+      Set<String> knownKeys = new HashSet<String>();
+      String lastId = null;
       while (result.next()) {
         final String dbId = result.getString(1);
         final String name = result.getString(2);
-        put(dbId, name);
+        if (!dbId.equals(lastId)) {
+          knownKeys = new HashSet<String>();
+          lastId = dbId;
+        }
+        put(dbId, name, knownKeys);
       }
       conn.close();
     } catch (SQLException e) {

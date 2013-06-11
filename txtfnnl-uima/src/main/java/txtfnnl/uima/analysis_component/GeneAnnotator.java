@@ -93,7 +93,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
    * 
    * @param entityNamespace to use for the {@link SemanticAnnotation SemanticAnnotations} of the
    *        entity DB IDs
-   * @param geneGazetteerResourceDescription a pre-configured {@link GeneGazetteerResource}
+   * @param geneGazetteerResourceDescription a pre-configured {@link GnamedGazetteerResource}
    *        description.
    */
   public static Builder configure(String entityNamespace,
