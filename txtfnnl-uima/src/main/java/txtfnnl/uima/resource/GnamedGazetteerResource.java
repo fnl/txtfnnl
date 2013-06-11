@@ -20,8 +20,8 @@ import java.util.regex.Pattern;
  * The <code>gnamed</code> gene name gazetteer uses a {@link JdbcGazetteerResource#PARAM_DRIVER_CLASS
  * JDBC database} to retrieve gene ID, tax ID, gene names/symbols triplets for populating the
  * matcher. It can use any user-defined {@link GnamedGazetteerResource#PARAM_QUERY_SQL SQL query}
- * that selects these values and uses (mostly) {@link ExactGazetteerResource exact matching}
- * to detect the gene names/symbols.
+ * that selects these values and uses (mostly) {@link ExactGazetteerResource exact matching} to
+ * detect the gene names/symbols.
  * <p/>
  * In addition the the inherited matching options, the <code>gnamed</code> gazetteer can map the
  * Latin representations of Greek letter in the gene names/symbols (such as "alpha", "Gamma". or
@@ -198,6 +198,10 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
     throw new IllegalArgumentException("unknown Greek letter name " + latin);
   }
 
+  private static final Pattern ANY_EXPANSION = Pattern.compile(
+      "\\s?\\-\\s?[\\p{Alnum}\\p{InGreek}][0-9]*\\b|\\/[\\p{Alnum}\\p{InGreek}]+"
+  );
+
   /**
    * Extended matching using alphanumeric and alternate expansions. <p> This matches, for example,
    * "name5" in "name1-10", or "nameB" in "nameA/B". It does not match more complex linguistic
@@ -213,17 +217,23 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
   Map<Offset, List<String>> match(final String str, final int start, final int end) {
     Map<Offset, List<String>> hits = super.match(str, start, end);
     if (!disableExpansions) {
-      CharSequence region = str.subSequence(0, Math.min(end, str.length()));
+      int strlen = Math.min(str.length(), end);
+      Matcher m = ANY_EXPANSION.matcher(str);
       // test every hit in this region for expansions
       for (Offset pos : new LinkedList<Offset>(hits.keySet())) {
-        if (expandNumberedLists(hits, region, pos) ||
-            expandAlphabeticLists(hits, region, pos) ||
-            expandAlternateVersion(hits, region, pos)) {
-          CharSequence[] params = new CharSequence[] {
-              str.subSequence(pos.start(), pos.end()),
-              str.subSequence(pos.end(), Math.min(pos.end() + 10, str.length()))
-          };
-          logger.log(Level.FINER, "expanded hit ''{0}'' using ''{1}...''", params);
+        m.region(pos.end(), strlen);
+        if (m.lookingAt()) {
+          // found a hit that most likely can be expanded; try all expansions
+          CharSequence region = str.subSequence(0, strlen);
+          if (expandNumberedLists(hits, region, pos) ||
+              expandAlphabeticLists(hits, region, pos) ||
+              expandAlternateVersion(hits, region, pos)) {
+            CharSequence[] params = new CharSequence[] {
+                str.subSequence(pos.start(), pos.end()),
+                str.subSequence(pos.end(), Math.min(pos.end() + 10, strlen))
+            };
+            logger.log(Level.FINER, "expanded hit ''{0}'' using ''{1}...''", params);
+          }
         }
       }
     }
@@ -264,8 +274,8 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
   }
 
   private static final Pattern ALPHABETIC_EXPANSION = Pattern
-      .compile("^\\s?\\-\\s?([B-Z]([^A-Z]|$))");
-  private static final Pattern ALPHABETIC_PREFIX = Pattern.compile("([A-Z])$");
+      .compile("^\\s?\\-\\s?([\\p{InGreek}\\p{Alpha}])(?:\\w|$)");
+  private static final Pattern ALPHABETIC_PREFIX = Pattern.compile("([\\p{InGreek}\\p{Alpha}])$");
 
   /**
    * Expand alphabetic lists of the general form "base A-Z" to detect "base B" etc..
@@ -297,7 +307,8 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
     }
   }
 
-  private static final Pattern ALTERNATE_EXPANSION = Pattern.compile("^\\/(\\w+)");
+  private static final Pattern ALTERNATE_EXPANSION = Pattern
+      .compile("^\\/([\\p{Alnum}\\p{InGreek}]+)");
 
   /**
    * Expand alternates of the general form "base A/B" to detect "base B".

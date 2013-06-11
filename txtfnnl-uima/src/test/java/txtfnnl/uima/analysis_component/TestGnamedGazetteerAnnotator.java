@@ -123,7 +123,7 @@ public class TestGnamedGazetteerAnnotator {
     AnalysisEngineDescription descriptor = GazetteerAnnotator.configure("ns", gazetteer).create();
     createTable("gene7:tax1", "gene8:tax1", "gene9:tax1", "proteinA:tax2", "proteinB:tax2");
     final AnalysisEngine ae = AnalysisEngineFactory.createPrimitive(descriptor);
-    final JCas jcas = makeJCas(ae, " gene7-9 : gene7/9 and proteinA-B");
+    final JCas jcas = makeJCas(ae, " gene7-9 : gene7/9, proteinB and proteinA-B");
     ae.process(jcas);
     FSIterator<Annotation> it = jcas.getAnnotationIndex(SemanticAnnotation.type).iterator();
     int count = 0;
@@ -143,9 +143,11 @@ public class TestGnamedGazetteerAnnotator {
         else if (ann.getOffset().end() == 18)
           assertEquals(ann.toString(), "2", ann.getIdentifier());
         else fail(ann.toString());
-      } else if (ann.getOffset().start() == 23) {
-        if (ann.getOffset().end() == 31) assertEquals(ann.toString(), "3", ann.getIdentifier());
-        else if (ann.getOffset().end() == 33)
+      } else if (ann.getOffset().start() == 20) {
+        assertEquals(ann.toString(), "4", ann.getIdentifier());
+      } else if (ann.getOffset().start() == 33) {
+        if (ann.getOffset().end() == 41) assertEquals(ann.toString(), "3", ann.getIdentifier());
+        else if (ann.getOffset().end() == 43)
           assertEquals(ann.toString(), "4", ann.getIdentifier());
         else fail(ann.toString());
       } else {
@@ -154,6 +156,6 @@ public class TestGnamedGazetteerAnnotator {
       ++count;
       System.out.println(ann.toString());
     }
-    assertEquals(7, count);
+    assertEquals(8, count);
   }
 }
