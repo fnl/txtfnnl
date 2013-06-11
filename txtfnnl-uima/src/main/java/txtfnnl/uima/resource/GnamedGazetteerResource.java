@@ -265,7 +265,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
     String[] expansions = findExpansion(
         span, pos, entity, NUMERIC_PREFIX, suffix, NUMERIC_EXPANSION
     );
-    if (expansions != null) {
+    if (expansions != null && expansions[0].length() > 0) {
       List<String> alts = new LinkedList<String>();
       int min = Integer.parseInt(expansions[1]) + 1;
       int max = Integer.parseInt(expansions[2]) + 1;
@@ -299,7 +299,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
     String[] expansions = findExpansion(
         span, pos, entity, ALPHABETIC_PREFIX, suffix, ALPHABETIC_EXPANSION
     );
-    if (expansions != null) {
+    if (expansions != null && expansions[0].length() > 0) {
       List<String> alts = new LinkedList<String>();
       char min = (char) (((int) expansions[1].charAt(0)) + 1);
       char max = expansions[2].charAt(0);
