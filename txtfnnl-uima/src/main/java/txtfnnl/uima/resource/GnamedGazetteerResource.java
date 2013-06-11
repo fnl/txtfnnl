@@ -247,7 +247,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
   }
 
   private static final Pattern NUMERIC_EXPANSION = Pattern.compile("^\\s?\\-\\s?([0-9]+)");
-  private static final Pattern NUMERIC_PREFIX = Pattern.compile(".*([0-9]+)$");
+  private static final Pattern NUMERIC_PREFIX = Pattern.compile(".*?([0-9]+)$");
 
   /**
    * Expand numeric lists of the general form "base 1-10" to detect "base 2" etc..
@@ -269,6 +269,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
       List<String> alts = new LinkedList<String>();
       int min = Integer.parseInt(expansions[1]) + 1;
       int max = Integer.parseInt(expansions[2]) + 1;
+      logger.log(Level.FINE, "expansion on a numeric range of %d:%d", new int[] {min, max});
       for (int i = min; i < max; ++i)
         alts.add(Integer.toString(i));
       Offset off = new Offset(pos.start(), pos.end() + expansions[3].length());
@@ -303,6 +304,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
       List<String> alts = new LinkedList<String>();
       char min = (char) (((int) expansions[1].charAt(0)) + 1);
       char max = expansions[2].charAt(0);
+      logger.log(Level.FINE, "expansion on character range of %c:%c", new char[] {min, max});
       for (char i = min; i <= max; ++i)
         alts.add(Character.toString(i));
       Offset off = new Offset(pos.start(), pos.end() + expansions[3].length());
@@ -384,6 +386,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
     for (String exp : expansions) {
       String alt = String.format("%s%s", base, exp);
       if (!exactCaseMatching) alt = alt.toLowerCase();
+      logger.log(Level.FINE, "probing expansion ''{0}''", alt);
       for (KeyValuePair<List<String>> hit : trie.scanForKeyValuePairsAtStartOf(alt)) {
         if (hit.getKey().length() == alt.length()) {
           logger.log(Level.FINE, "alternate hit ''{0}'' detected by expansion", alt);
