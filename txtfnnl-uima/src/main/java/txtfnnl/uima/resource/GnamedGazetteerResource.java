@@ -238,7 +238,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
                 str.subSequence(pos.start(), pos.end()),
                 str.subSequence(pos.end(), Math.min(pos.end() + 10, strlen))
             };
-            logger.log(Level.FINER, "expanded hit ''{0}'' using ''{1}...''", params);
+            logger.log(Level.FINE, "expanded hit ''{0}'' using ''{1}...''", params);
           }
         }
       }
@@ -386,6 +386,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
       if (!exactCaseMatching) alt = alt.toLowerCase();
       for (KeyValuePair<List<String>> hit : trie.scanForKeyValuePairsAtStartOf(alt)) {
         if (hit.getKey().length() == alt.length()) {
+          logger.log(Level.FINE, "alternate hit ''{0}'' detected by expansion", alt);
           if (hits.containsKey(offset)) {
             List<String> ids = hits.get(offset);
             for (String id : hit.getValue())
