@@ -92,7 +92,7 @@ class GeneNormalization extends Pipeline {
         "c", "cutoff-similarity", true, "min. string similarity required to annotate [0.0]"
     );
     // filter options
-    opts.addOption("r", "required-pos-tags", true, "a whitelist (file) of required PoS tags");
+    opts.addOption("p", "pos-tags", true, "a whitelist (file) of required PoS tags");
     opts.addOption("t", "filter-tokens", true, "a two-column (file) list of filter matches");
     opts.addOption("T", "whitelist-tokens", false, "invert token filter to behave as a whitelist");
     // species mapping option
@@ -182,10 +182,10 @@ class GeneNormalization extends Pipeline {
     }
     // Token Surrounding Filter setup
     ConfigurationBuilder<AnalysisEngineDescription> filterSurrounding;
-    if (cmd.hasOption('r') || cmd.hasOption('t')) {
+    if (cmd.hasOption('p') || cmd.hasOption('t')) {
       TokenBasedSemanticAnnotationFilter.Builder tokenFilter = TokenBasedSemanticAnnotationFilter
           .configure();
-      if (cmd.hasOption('r')) tokenFilter.setPosTags(makeList(cmd.getOptionValue('r'), l));
+      if (cmd.hasOption('p')) tokenFilter.setPosTags(makeList(cmd.getOptionValue('p'), l));
       if (cmd.hasOption('t')) {
         if (cmd.hasOption('T')) tokenFilter.whitelist();
         try {

@@ -47,7 +47,7 @@ public class TestPipeline {
     final Options opts = new Options();
     Pipeline.addLogHelpAndInputOptions(opts);
     for (final String o : new String[] { "h", "help", "i", "info", "q", "quiet", "v", "verbose",
-        "R", "recursive", "M", "mime-type" }) {
+        "R", "recursive", "mime" }) {
       Assert.assertNotNull(o, opts.getOption(o));
     }
     Assert.assertNull(opts.getOption("dummy"));
@@ -57,8 +57,8 @@ public class TestPipeline {
   public final void testAddTikaOptions() {
     final Options opts = new Options();
     Pipeline.addTikaOptions(opts);
-    for (final String o : new String[] { "e", "input-encoding", "x", "xml-handler", "g",
-        "normalize-greek", }) {
+    for (final String o : new String[] { "e", "input-encoding", "x", "xml-handler",
+        "normalgreek", }) {
       Assert.assertNotNull(o, opts.getOption(o));
     }
     Assert.assertNull(opts.getOption("dummy"));
