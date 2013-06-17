@@ -246,8 +246,9 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
     return hits;
   }
 
-  private static final Pattern NUMERIC_EXPANSION = Pattern.compile("^\\s?\\-\\s?([0-9]+)");
-  private static final Pattern NUMERIC_PREFIX = Pattern.compile(".*?([0-9]+)$");
+  private static final Pattern NUMERIC_EXPANSION = Pattern
+      .compile("^(\\s?\\-\\s?([0-9]{1,9}))(?:[^0-9]|$)");
+  private static final Pattern NUMERIC_PREFIX = Pattern.compile(".*?[^0-9]([0-9]{1,9})$");
 
   /**
    * Expand numeric lists of the general form "base 1-10" to detect "base 2" etc..
@@ -281,7 +282,7 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
   }
 
   private static final Pattern ALPHABETIC_EXPANSION = Pattern
-      .compile("^\\s?\\-\\s?([\\p{InGreek}\\p{Alpha}])(?:\\w|$)");
+      .compile("^(\\s?\\-\\s?([\\p{InGreek}\\p{Alpha}]))(?:\\w|$)");
   private static final Pattern ALPHABETIC_PREFIX = Pattern.compile(".*([\\p{InGreek}\\p{Alpha}])$");
 
   /**
@@ -358,8 +359,8 @@ class GnamedGazetteerResource extends JdbcGazetteerResource {
     String[] expansions = null;
     if (m.lookingAt()) {
       expansions = new String[4];
-      expansions[2] = m.group(1);
-      expansions[3] = m.group();
+      expansions[2] = m.group(2);
+      expansions[3] = m.group(1);
       m = entityPattern.matcher(entity);
       if (m.matches()) {
         expansions[0] = str.subSequence(pos.start(), pos.start() + m.start(1)).toString();
