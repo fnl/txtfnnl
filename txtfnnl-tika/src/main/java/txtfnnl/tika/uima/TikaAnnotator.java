@@ -4,10 +4,10 @@ import org.xml.sax.ContentHandler;
 
 import org.apache.uima.jcas.JCas;
 
-import org.uimafit.util.JCasUtil;
+//import org.uimafit.util.JCasUtil;
 
 import txtfnnl.tika.sax.UIMAContentHandler;
-import txtfnnl.uima.tcas.DocumentAnnotation;
+//import txtfnnl.uima.tcas.DocumentAnnotation;
 
 /**
  * This Tika-based AE extracts text content from an input view of the CAS and sets this text
@@ -34,12 +34,13 @@ public class TikaAnnotator extends AbstractTikaAnnotator {
     return new Builder();
   }
 
+// TODO: remove the next few lines?
   /** Extract the resource name (set by the Tika annotator) of this SOFA from the CAS. */
-  public static String getResourceName(JCas jcas) {
-    for (final DocumentAnnotation ann : JCasUtil.select(jcas, DocumentAnnotation.class))
-      if ("resourceName".equals(ann.getNamespace())) return ann.getIdentifier();
-    return null;
-  }
+//  public static String getResourceName(JCas jcas) {
+//    for (final DocumentAnnotation ann : JCasUtil.select(jcas, DocumentAnnotation.class))
+//      if ("resourceName".equals(ann.getNamespace())) return ann.getIdentifier();
+//    return null;
+//  }
 
   @Override
   ContentHandler getContentHandler(JCas newJCas) {

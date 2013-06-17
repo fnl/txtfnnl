@@ -15,6 +15,7 @@ import org.uimafit.factory.CollectionReaderFactory;
 import org.uimafit.pipeline.SimplePipeline;
 import txtfnnl.tika.sax.CleanBodyContentHandler;
 import txtfnnl.tika.sax.ElsevierXMLContentHandler;
+import txtfnnl.tika.sax.PubMedCentralXMLContentHandler;
 import txtfnnl.tika.sax.XMLContentHandler;
 import txtfnnl.tika.uima.AbstractTikaAnnotator;
 import txtfnnl.tika.uima.TikaAnnotator;
@@ -114,7 +115,7 @@ class Pipeline {
     opts.addOption("normalgreek", false, "normalize Greek letters in input (to Latin words)");
     opts.addOption(
         "x", "xml-handler", true,
-        "select XML handler: 'default' (Tika), 'clean' (skips whitespaces), or 'elsevier'"
+        "select XML handler: 'default' (Tika), 'clean' (skips whitespaces), 'pmc', or 'elsevier'"
     );
   }
 
@@ -386,6 +387,7 @@ class Pipeline {
     if ("default".equals(handler)) return XmlHandler.DEFAULT;
     else if ("clean".equals(handler)) return XmlHandler.CLEAN;
     else if ("elsevier".equals(handler)) return XmlHandler.ELSEVIER;
+    else if ("pmc".equals(handler)) return XmlHandler.PMC;
     // else: unknown handler
     System.err.print("no such XML handler: ");
     System.err.println(handler);
@@ -708,7 +710,7 @@ class Pipeline {
   // TIKA EXTRACTION
   public
   enum XmlHandler {
-    DEFAULT, CLEAN, ELSEVIER
+    DEFAULT, CLEAN, PMC, ELSEVIER
   }
 
   /**
@@ -750,6 +752,9 @@ class Pipeline {
       break;
     case ELSEVIER:
       tikaConfig.setXmlHandlerClass(ElsevierXMLContentHandler.class);
+      break;
+    case PMC:
+      tikaConfig.setXmlHandlerClass(PubMedCentralXMLContentHandler.class);
       break;
     case DEFAULT:
     default:

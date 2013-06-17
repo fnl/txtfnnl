@@ -51,7 +51,7 @@ public class SentenceLineWriter extends TextWriter {
   // (zero width space)
   // and U+FEFF (zero width no-break space)
   static final Pattern REGEX_SPACES = Pattern
-      .compile("[ \\t\\v\\f\\r\\u00a0\\u2000\\u2001\\u2002\\u2003\\u2004\\u2005\\u2006"
+      .compile("[ \\t\\f\\r\\u000B\\u00a0\\u2000\\u2001\\u2002\\u2003\\u2004\\u2005\\u2006"
           + "\\u2007\\u2008\\u2009\\u200a\\u202f\\u205f\\u3000]+");
   static final Pattern REGEX_LINEBREAK_SPACE = Pattern.compile("(\\r?\\n) ");
   static final Pattern REGEX_SINGLE_LINEBREAK = Pattern.compile("(?<!\\r?\\n)\\r?\\n(?!\\r?\\n)");

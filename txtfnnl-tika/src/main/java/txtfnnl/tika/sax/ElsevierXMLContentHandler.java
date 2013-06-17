@@ -148,10 +148,8 @@ public class ElsevierXMLContentHandler extends HTMLContentHandler {
 
   /* === PUBLIC API === */
   /**
-   * Insert alt, label and title attributes in the character stream, replacing alt values of img
-   * tags that represent a Greek character name with the actual (Greek) character. Special case
-   * handling for TITLE and BR elements: Ignore TITLE elements and their character content and
-   * force adding a newline on BR elements.
+   * Handle the start of elements. Special case for handling VSP and BR elements: adds a newline.
+   * Special case for GLYPH elements: extract and handle the glyph's name.
    * 
    * @see org.xml.sax.ContentHandler#startElement(String, String, String, Attributes)
    */
@@ -198,13 +196,13 @@ public class ElsevierXMLContentHandler extends HTMLContentHandler {
 
   /**
    * Transition to double newline or newline states for block elements, and to whitespace states
-   * otherwise. Special case handling for TITLE and BR elements: ignore them.
+   * otherwise. Special case handling for VSP and BR elements: ignore them.
    * 
    * @see org.xml.sax.ContentHandler#endElement(String, String, String)
    */
   @Override
   public void endElement(String uri, String localName, String name) throws SAXException {
-    if (!"ce:br".equals(name)) {
+    if (!"ce:br".equals(name) || !"ce:vsp".equals(name)) {
       super.endElement(uri, null, name);
       // Transition the parser state
       if (ADD_TWO_LINEBREAKS.contains(name)) {
