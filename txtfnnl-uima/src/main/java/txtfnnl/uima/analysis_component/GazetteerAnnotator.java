@@ -25,6 +25,7 @@ import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
 
 import txtfnnl.uima.AnalysisComponentBuilder;
+import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.resource.GazetteerResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.TextAnnotation;
@@ -307,14 +308,20 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
     String[] officialNames = gazetteer.get(id);
     SemanticAnnotation ann = null;
     if (ArrayUtils.contains(officialNames, match)) {
-      ann = annotate(id, jcas, offset, 1.0);
+      ann = annotate(id, jcas, offset, 1.0, match);
     } else {
-      double conf = 0.0;
-      for (String n : officialNames)
-        conf = Math.max(conf, measure.similarity(n, match));
+      double conf = -1.0;
+      String name = null;
+      for (String n : officialNames) {
+        double sim = measure.similarity(n, match);
+        if (sim > conf) {
+          name = n;
+          conf = sim;
+        }
+      }
       if (conf < minSimilarity) logger.log(Level.FINER,
-          "dropping low-similarity match for {0} on ''{1}''", new String[] { id, match });
-      else ann = annotate(id, jcas, offset, conf);
+          "dropping low-similarity match ''{0}'' for {1} on ''{2}''", new String[] { name, id, match });
+      else ann = annotate(id, jcas, offset, conf, name);
     }
     return ann;
   }
@@ -323,12 +330,17 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
    * Add a {@link SemanticAnnotation semantic annotation} for a DB ID with a given confidence
    * value.
    */
-  protected SemanticAnnotation annotate(String id, JCas jcas, Offset offset, double confidence) {
+  protected SemanticAnnotation annotate(String id, JCas jcas, Offset offset, double confidence,
+                                        String name) {
     SemanticAnnotation entity = new SemanticAnnotation(jcas, offset);
     entity.setAnnotator(URI);
     entity.setConfidence(confidence);
     entity.setIdentifier(id);
     entity.setNamespace(entityNamespace);
+    Property match = new Property(jcas);
+    match.setName("name");
+    match.setValue(name);
+    entity.addProperty(jcas, match);
     count++;
     return entity;
   }

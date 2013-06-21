@@ -201,20 +201,8 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
     Property ref = new Property(jcas);
     ref.setName(refNamespace);
     ref.setValue(refId);
+    ann.addProperty(jcas, ref);
     count++;
-
-    FSArray oldProps = ann.getProperties();
-    FSArray newProps;
-    if (oldProps == null || oldProps.size() == 0) {
-      newProps = new FSArray(jcas, 1);
-      newProps.set(0, ref);
-    } else {
-      newProps = new FSArray(jcas, oldProps.size() + 1);
-      for (int i = 0; i < oldProps.size(); ++i)
-        newProps.set(i, oldProps.get(i));
-      newProps.set(oldProps.size(), ref);
-    }
-    ann.setProperties(newProps);
   }
 
   @Override

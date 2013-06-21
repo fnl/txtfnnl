@@ -157,15 +157,14 @@ public class GeneAnnotator extends GazetteerAnnotator {
 
   /** Expands the parent method, adding a taxon ID property to the annotation. */
   @Override
-  protected SemanticAnnotation annotate(String id, JCas jcas, Offset offset, double confidence) {
-    SemanticAnnotation entity = super.annotate(id, jcas, offset, confidence);
+  protected SemanticAnnotation annotate(String id, JCas jcas, Offset offset, double confidence,
+                                        String name) {
+    SemanticAnnotation entity = super.annotate(id, jcas, offset, confidence, name);
     entity.setAnnotator(URI); // update with static URI
     Property taxId = new Property(jcas);
     taxId.setName(TAX_ID_PROPERTY);
     taxId.setValue(getTaxId(id));
-    FSArray a = new FSArray(jcas, 1);
-    a.set(0, taxId);
-    entity.setProperties(a);
+    entity.addProperty(jcas, taxId);
     return entity;
   }
 

@@ -58,9 +58,9 @@ public class TextAnnotation extends Annotation {
    * 
    * @param typeName of the annotation to constrain to
    * @param jcas to create the constraint for
-   * @param annoatorUri to filter on
-   * @param namespaceStr to filter on
-   * @param identifierStr to filter on
+   * @param annotatorUri to filter on
+   * @param namespace to filter on
+   * @param identifier to filter on
    * @return a particular text annotation constraint
    */
   protected static FSMatchConstraint makeConstraint(String typeName, JCas jcas,
@@ -105,9 +105,9 @@ public class TextAnnotation extends Annotation {
    * Return a specialized filter for this annotation type.
    * 
    * @param jcas to create the constraint for
-   * @param annoatorUri to filter on
-   * @param namespaceStr to filter on
-   * @param identifierStr to filter on
+   * @param annotatorUri to filter on
+   * @param namespace to filter on
+   * @param identifier to filter on
    * @return a particular text annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace,
@@ -120,7 +120,7 @@ public class TextAnnotation extends Annotation {
    * Return a specialized filter for text annotations.
    * 
    * @param jcas to create the constraint for
-   * @param annoatorUri to filter on
+   * @param annotatorUri to filter on
    * @param namespace to filter on
    * @return a particular text annotation constraint
    */
@@ -174,6 +174,21 @@ public class TextAnnotation extends Annotation {
       }
     }
     return offset;
+  }
+
+  public void addProperty(JCas jcas, Property prop) {
+    FSArray oldProps = getProperties();
+    FSArray newProps;
+    if (oldProps == null || oldProps.size() == 0) {
+      newProps = new FSArray(jcas, 1);
+      newProps.set(0, prop);
+    } else {
+      newProps = new FSArray(jcas, oldProps.size() + 1);
+      for (int i = 0; i < oldProps.size(); ++i)
+        newProps.set(i, oldProps.get(i));
+      newProps.set(oldProps.size(), prop);
+    }
+    setProperties(newProps);
   }
 
   @Override

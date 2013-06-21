@@ -220,25 +220,29 @@ public class AnnotationLineWriter extends TextWriter {
           write(ann.getIdentifier());
           write('\t');
         }
+        write(decimals.format(ann.getConfidence()));
         FSArray props = ann.getProperties();
         if (props != null) {
           for (int i = 0; i < props.size(); i++) {
+            write('\t');
             Property p = (Property) props.get(i);
-            if (p.getName().contains(" ")) {
+            text = p.getName();
+            if (text.contains(" ") || text.contains("\"")) {
               write('"');
-              write(p.getName());
+              write(text.replace("\"", "\\\""));
               write('"');
             } else {
-              write(p.getName());
+              write(text);
             }
             write('=');
             write('"');
-            write(replaceNewlines ? p.getValue().replace('\n', ' ') : p.getValue());
+            text = p.getValue().replace("\"", "\\\"");
+            if (replaceTabs) text = text.replace('\t', ' ');
+            if (replaceNewlines) text = text.replace('\n', ' ');
+            write(text);
             write('"');
-            write('\t');
           }
         }
-        write(decimals.format(ann.getConfidence()));
         write(LINEBREAK);
       } catch (final IOException e) {
         throw new AnalysisEngineProcessException(e);
