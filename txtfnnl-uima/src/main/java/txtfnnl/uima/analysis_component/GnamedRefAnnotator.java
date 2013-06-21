@@ -26,6 +26,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
+/**
+ * An AE to map the internal gnamed gene/protein IDs (in the tables genes/proteins, respectively) to
+ * public accessions. By default, gene IDs are mapped to Entrez Gene IDs. The Builder also has a
+ * simple configuration option to quickly switch to mapping protein IDs to UniProt Accessions.
+ */
 public
 class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
   /** The URI of this Annotator. */
@@ -33,7 +38,7 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
   /** The key used for the JdbcConnectionResource. */
   public static final String MODEL_KEY_GNAMED_JDBC_CONNECTOR = "GnamedJdbcConnector";
   @ExternalResource(key = MODEL_KEY_GNAMED_JDBC_CONNECTOR)
-  private JdbcConnectionResource connector;
+  JdbcConnectionResource connector;
   public static final String PARAM_REF_QUERY_BASE = "RefQueryBase";
   @ConfigurationParameter(name = PARAM_REF_QUERY_BASE,
                           description = "SQL query to fetch a list of (entity ID, accession) pairs from entity_refs using target namespace and an entity ID array as parameters",
@@ -65,14 +70,14 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
   class Builder extends AnalysisComponentBuilder {
     protected
     Builder(Class<? extends AnalysisComponent> klass,
-            ExternalResourceDescription gnamedJdbcDescription) {
+            ExternalResourceDescription gnamedJdbcConnection) {
       super(klass);
-      setRequiredParameter(MODEL_KEY_GNAMED_JDBC_CONNECTOR, gnamedJdbcDescription);
+      setRequiredParameter(MODEL_KEY_GNAMED_JDBC_CONNECTOR, gnamedJdbcConnection);
     }
 
     public
-    Builder(ExternalResourceDescription gnamedJdbcDescription) {
-      this(GnamedRefAnnotator.class, gnamedJdbcDescription);
+    Builder(ExternalResourceDescription gnamedJdbcConnection) {
+      this(GnamedRefAnnotator.class, gnamedJdbcConnection);
     }
 
     /** Switch all optional parameters from mapping Entrez genes to UniProt proteins. */
@@ -86,21 +91,33 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
       setOptionalParameter(PARAM_REF_NAMESPACE, "uni");
     }
 
+    /** Set the namespace to map to (i.e., the namespace in the entity_refs table). */
     public
     void setRefNamespace(String ns) {
       setOptionalParameter(PARAM_REF_NAMESPACE, ns);
     }
 
+    /** Optionally, limit the annotations to map to those made by a specific annotator. */
     public
     void setAnnotatorUri(String uri) {
       setOptionalParameter(PARAM_ANNOTATOR_URI, uri);
     }
 
+    /** Set the namespace fo the entity to map (defaults to "gene", could be "protein"). */
     public
     void setEntityNamespace(String ns) {
       setOptionalParameter(PARAM_ENTITY_NAMESPACE, ns);
     }
 
+    /**
+     * Set the SQL query to map the IDs from one namespace to another.
+     * <p/>
+     * The SQL query should <code>SELECT</code> a list of (entity ID, accession) pairs from
+     * <CODE>entity_refs</CODE> using target <CODE>namespace</CODE> and an entity <CODE>id</CODE>
+     * scalar as parameters. An example query: <pre>
+     *   SELECT id, accession FROM gene_refs WHERE namespace = ? AND id = any( ? )
+     * </pre>
+     */
     public
     void setSqlQuery(String query) {
       setOptionalParameter(PARAM_REF_QUERY_BASE, query);
@@ -135,7 +152,7 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
   @Override
   public
   void process(JCas jcas) throws AnalysisEngineProcessException {
-    Map<String, String> mappings = null;
+    Map<String, String> mappings;
     List<SemanticAnnotation> annotations = collect(jcas);
     Set<String> entity_ids = new HashSet<String>();
 
@@ -153,6 +170,7 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
         update(jcas, ann, mappings.get(ann.getIdentifier()));
   }
 
+  /** Collect all annotations that should be mapped. */
   List<SemanticAnnotation> collect(JCas jcas) {
     List<SemanticAnnotation> annotations = new LinkedList<SemanticAnnotation>();
     FSIterator<Annotation> it = SemanticAnnotation.getIterator(jcas);
@@ -162,6 +180,7 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
     return annotations;
   }
 
+  /** Get a mapping for each the source ID to its target ID/accession (<b>if any</b>). */
   Map<String, String> map(Set<String> entity_ids) throws SQLException {
     Map<String, String> mappings = new HashMap<String, String>();
     stmt.setString(1, refNamespace);
@@ -174,6 +193,10 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
     return mappings;
   }
 
+  /**
+   * Append the given target ID to the {@link Property} array of this annotation, using the target
+   * namespace as the Property's {@link txtfnnl.uima.cas.Property#setName(String) name} .
+   */
   void update(JCas jcas, SemanticAnnotation ann, String refId) {
     Property ref = new Property(jcas);
     ref.setName(refNamespace);
