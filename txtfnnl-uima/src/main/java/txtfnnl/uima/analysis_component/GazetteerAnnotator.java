@@ -336,7 +336,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
   @Override
   public void destroy() {
     super.destroy();
-    logger.log(Level.INFO, "detected {0} {1} entities and filtered {2}",
+    logger.log(Level.CONFIG, "detected {0} {1} entities and filtered {2}",
         new String[] { Integer.toString(count), entityNamespace, Integer.toString(filtered) });
   }
 }

@@ -70,14 +70,14 @@ import txtfnnl.utils.StringLengthComparator;
  * names for a given Entity Namespace and ID from the <i>Evidence String Map</i> by executing all
  * <i> {@link #PARAM_QUERIES}</i> provided during AE setup. The Entity Namespace/ID pairs from the
  * <i>Evidence String Map</i> will be used as positional parameters in the DB queries (Entity
- * Namespace first, then ID). For example, the simplest possible SQL query might be configures like
+ * Namespace first, then ID). For example, the simplest possible SQL map might be configures like
  * this:
  * 
  * <pre>
  * SELECT name FROM entities WHERE namespace=? AND identifier=?
  * </pre>
  * 
- * I.e., in this example query, the Entity Name DB would have a table "entities" with three
+ * I.e., in this example map, the Entity Name DB would have a table "entities" with three
  * columns, "name", "namespace", and "identifier". As Entity names might be found in multiple
  * tables, it is possible to configure multiple SQL queries for this AE.
  * 
@@ -97,10 +97,10 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
   /** The key used for the JdbcConnectionResource. */
   public static final String MODEL_KEY_JDBC_CONNECTION = "EntityNameDb";
   @ExternalResource(key = MODEL_KEY_JDBC_CONNECTION)
-  private JdbcConnectionResource connector;
+  JdbcConnectionResource connector;
   private Connection conn;
   /** A separator between entity name tokens. */
-  static final String SEPARATOR = "[^\\p{L}\\p{Nd}\\p{Nl}]{,3}";
+  //static final String SEPARATOR = "[^\\p{L}\\p{Nd}\\p{Nl}]{,3}";
   /* states for the RegEx builder in generateRegex(List, int) */
   private static final int OTHER = 0;
   private static final int UPPER = 1;
@@ -196,7 +196,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
       if (entities.size() > 0) {
         if (logger.isLoggable(Level.FINE)) {
           logger.log(Level.FINE, "case-insensitive matching for {0}",
-              Arrays.toString(entities.toArray(new Entity[] {})));
+              Arrays.toString(entities.toArray(new Entity[entities.size()])));
         }
         matches = annotateEntities(entities, matched, documentId, textCas, CASE_INSENSITIVE);
         if (matches != null) {
@@ -233,7 +233,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
    * @param patternFlags for the Java Pattern
    * @return the number of matches for each Entity in list or <code>null</code> if no matching
    *         could be done
-   * @throws AnalysisEngineProcessException if the SQL query or the JDBC fails
+   * @throws AnalysisEngineProcessException if the SQL map or the JDBC fails
    */
   Map<Entity, Integer> annotateEntities(Set<Entity> entities,
       Map<Offset, Set<Entity>> alreadyMatched, String documentId, JCas textCas, int patternFlags)
@@ -260,7 +260,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
    * 
    * @param entities to create the mapping for
    * @return a Map of name Strings associated to Entity Sets
-   * @throws AnalysisEngineProcessException if the SQL query or JDBC used to fetch the names fails
+   * @throws AnalysisEngineProcessException if the SQL map or JDBC used to fetch the names fails
    */
   Map<String, Set<Entity>> generateNameMap(Set<Entity> entities)
       throws AnalysisEngineProcessException {
@@ -284,7 +284,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
    * 
    * @param entity to fetch names for
    * @return a Set of names
-   * @throws AnalysisEngineProcessException if the SQL query or JDBC fails
+   * @throws AnalysisEngineProcessException if the SQL map or JDBC fails
    */
   private Set<String> getNames(Entity entity) throws AnalysisEngineProcessException {
     final Set<String> names = new HashSet<String>();
@@ -333,7 +333,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
     final boolean caseInsensitiveMatching = (patternFlags == CASE_INSENSITIVE);
     final Map<Entity, Integer> matchCounts = new HashMap<Entity, Integer>(entities.size());
     for (final Entity e : entities) {
-      matchCounts.put(e, Integer.valueOf(0));
+      matchCounts.put(e, 0);
     }
     /* As the regex contained versions of the name where any non- letter
      * or -digit character is allowed in between letter and digit
@@ -401,7 +401,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
    * @return the "compressed" name
    */
   static String compressed(String name) {
-    final StringBuffer compressedName = new StringBuffer();
+    final StringBuilder compressedName = new StringBuilder();
     final int nLen = name.length();
     char c;
     for (int i = 0; i < nLen; i++) {
@@ -445,6 +445,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
       }
       regex.append("\\b|");
     }
+    //noinspection MagicConstant
     return Pattern.compile(regex.substring(0, regex.length() - 1), flags);
   }
 
@@ -516,7 +517,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
   }
 
   private void expandMapWithLowerCase(Map<String, Set<Entity>> map) {
-    for (final String n : map.keySet().toArray(new String[] {})) {
+    for (final String n : map.keySet().toArray(new String[map.keySet().size()])) {
       final String l = n.toLowerCase();
       if (!l.equals(n)) {
         if (!map.containsKey(l)) {
@@ -527,7 +528,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
     }
   }
 
-  private void annotateAll(Set<Entity> list, JCas textCas, Offset span,
+  private void annotateAll(Set<Entity> unused, JCas textCas, Offset span,
       Map<Entity, Integer> matchCount, Set<Entity> alreadyMatched, Set<Entity> entities) {
     for (final Entity e : entities) {
       if (!alreadyMatched.contains(e)) {
@@ -576,6 +577,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
     }
   }
 
+  @SuppressWarnings("ConstantConditions")
   public static File createFromRelationshipMap(File relMap, String separator)
       throws ResourceInitializationException {
     InputStream inStr = null;
@@ -598,7 +600,7 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
         }
         final String[] items = line.split(separator);
         if ((items.length - 1) % 3 != 0) {
-          new ResourceInitializationException(new AssertionError("illegal line: '" + line +
+          throw new ResourceInitializationException(new AssertionError("illegal line: '" + line +
               "' with " + items.length + " fields"));
         }
         final int numEntities = (items.length - 1) / 3;
@@ -620,12 +622,12 @@ public class KnownEntityAnnotator extends KnownEvidenceAnnotator<Set<Entity>> {
       if (inStr != null) {
         try {
           inStr.close();
-        } catch (final IOException e) {}
+        } catch (final IOException ignored) {}
       }
       if (outStr != null) {
         try {
           outStr.close();
-        } catch (final IOException e) {}
+        } catch (final IOException ignored) {}
       }
     }
     return output;

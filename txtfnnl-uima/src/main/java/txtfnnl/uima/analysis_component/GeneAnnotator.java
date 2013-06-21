@@ -55,9 +55,9 @@ public class GeneAnnotator extends GazetteerAnnotator {
   /** A mapping of taxonmic IDs to another. */
   public static final String MODEL_KEY_TAX_ID_MAPPING_RESOURCE = "TaxIdMappingResource";
   @ExternalResource(key = MODEL_KEY_TAX_ID_MAPPING_RESOURCE, mandatory = false)
-  private LineBasedStringMapResource<String> taxIdMapping;
+  LineBasedStringMapResource<String> taxIdMapping;
   /** The name of the property used to set the taxon ID of the matched gene name. */
-  public static final String TAX_ID_PROPERTY = "taxId";
+  public static final String TAX_ID_PROPERTY = "taxon";
 
   public static class Builder extends GazetteerAnnotator.Builder {
     Builder(String entityNamespace, ExternalResourceDescription geneGazetteerResourceDescription) {
