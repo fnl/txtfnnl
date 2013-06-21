@@ -11,7 +11,7 @@ import os
 import sys
 from collections import namedtuple
 
-def ParseLines(filepath, col=6):
+def ParseLines(filepath, col=7):
     for line in open(filepath):
         items = line.split('\t')
         yield tuple(items[0:col]), items[col:]
