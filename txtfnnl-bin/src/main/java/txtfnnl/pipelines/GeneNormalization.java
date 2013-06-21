@@ -13,6 +13,7 @@ import txtfnnl.uima.collection.AnnotationLineWriter;
 import txtfnnl.uima.collection.OutputWriter;
 import txtfnnl.uima.collection.XmiWriter;
 import txtfnnl.uima.resource.GnamedGazetteerResource;
+import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
 import txtfnnl.uima.resource.QualifiedStringResource;
 import txtfnnl.uima.resource.QualifiedStringSetResource;
 
@@ -38,15 +39,12 @@ class GeneNormalization extends Pipeline {
   static final String DEFAULT_JDBC_DRIVER = "org.postgresql.Driver";
   static final String DEFAULT_DB_PROVIDER = "postgresql";
   // default: all known gene and protein symbols
-  static final String SQL_QUERY =
-      "SELECT gr.accession, g.species_id, ps.value " + "FROM gene_refs AS gr " +
-      "NATURAL INNER JOIN genes AS g " +
-      "INNER JOIN genes2proteins AS g2p ON (gr.id = g2p.gene_id) " +
-      "INNER JOIN protein_strings AS ps ON (g2p.protein_id = ps.id) " +
-      "WHERE gr.namespace = 'gi' AND ps.cat = 'symbol' " +
-      "UNION SELECT gr.accession, g.species_id, gs.value " + "FROM gene_refs AS gr " +
-      "NATURAL INNER JOIN genes AS g " + "NATURAL INNER JOIN gene_strings AS gs " +
-      "WHERE gr.namespace = 'gi' AND gs.cat = 'symbol' ";
+  static final String SQL_QUERY = "SELECT g.id, g.species_id, ps.value FROM genes AS g " +
+                                  "INNER JOIN genes2proteins AS g2p ON (g.id = g2p.gene_id) " +
+                                  "INNER JOIN protein_strings AS ps ON (g2p.protein_id = ps.id) " +
+                                  "WHERE ps.cat = 'symbol' " +
+                                  "UNION SELECT g.id, g.species_id, gs.value FROM genes AS g " +
+                                  "INNER JOIN gene_strings AS gs USING (id) WHERE gs.cat = 'symbol' ";
 
   private
   GeneNormalization() {
@@ -121,17 +119,17 @@ class GeneNormalization extends Pipeline {
     final String querySql = cmd.hasOption('Q') ? cmd.getOptionValue('Q') : SQL_QUERY;
     // DB gazetteer resource setup
     final String dbUrl = Pipeline.getJdbcUrl(cmd, l, DEFAULT_DB_PROVIDER, DEFAULT_DATABASE);
-    GnamedGazetteerResource.Builder gazetteer = null;
+    String dbDriverClassName = null;
     try {
-      // create builder
-      gazetteer = GnamedGazetteerResource.configure(
-          dbUrl, Pipeline.getJdbcDriver(cmd, DEFAULT_JDBC_DRIVER), querySql
-      );
+      dbDriverClassName = Pipeline.getJdbcDriver(cmd, DEFAULT_JDBC_DRIVER);
     } catch (final ClassNotFoundException e) {
       System.err.println("JDBC driver class unknown:");
       System.err.println(e.toString());
       System.exit(1); // == EXIT ==
     }
+    GnamedGazetteerResource.Builder gazetteer = null;
+    // create builder
+    gazetteer = GnamedGazetteerResource.configure(dbUrl, dbDriverClassName, querySql);
     if (!cmd.hasOption("boundary")) gazetteer.boundaryMatch();
     if (cmd.hasOption("expansions")) gazetteer.disableExpansions();
     if (cmd.hasOption("mapgreek")) gazetteer.disableGreekMapping();
@@ -208,6 +206,19 @@ class GeneNormalization extends Pipeline {
       // no filter parameters have been specified - nothing to do
       filterSurrounding = NOOPAnnotator.configure();
     }
+    // Gene ID mapping setup
+    GnamedRefAnnotator.Builder entityMapper = null;
+    try {
+      entityMapper = GnamedRefAnnotator.configure(
+          JdbcConnectionResourceImpl.configure(dbUrl, dbDriverClassName).create()
+      );
+    } catch (ResourceInitializationException e) {
+      l.severe(e.toString());
+      System.err.println(e.getLocalizedMessage());
+      e.printStackTrace();
+      System.exit(1); // == EXIT ==
+    }
+    entityMapper.setAnnotatorUri(GeneAnnotator.URI);
     // output
     OutputWriter.Builder writer;
     if (Pipeline.rawXmi(cmd)) {
@@ -221,8 +232,8 @@ class GeneNormalization extends Pipeline {
                        .printPosTag();
     }
     try {
-      // 0:tika, 1:splitter, 2:tokenizer, 3:linnaeus, 4:gazetteer, 5:filter-surrounding
-      final Pipeline gn = new Pipeline(6);
+      // 0:tika, 1:splitter, 2:tokenizer, 3:linnaeus, 4:gazetteer, 5:filter, 6: mapIDs
+      final Pipeline gn = new Pipeline(7);
       gn.setReader(cmd);
       gn.configureTika(cmd);
       gn.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
@@ -236,6 +247,7 @@ class GeneNormalization extends Pipeline {
       gn.set(3, Pipeline.textEngine(linnaeus.create()));
       gn.set(4, Pipeline.textEngine(geneAnnotator.create()));
       gn.set(5, Pipeline.textEngine(filterSurrounding.create()));
+      gn.set(6, Pipeline.textEngine(entityMapper.create()));
       gn.setConsumer(Pipeline.textEngine(writer.create()));
       gn.run();
       gn.destroy();
