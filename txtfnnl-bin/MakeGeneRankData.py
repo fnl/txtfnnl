@@ -7,6 +7,67 @@ import os
 import sys
 from collections import namedtuple
 
+GREEK_ORDINALS = set(range(ord('Α'), ord('ω') + 1))
+
+GREEK_LOWER = {
+    "alpha": "α",
+    "beta": "β",
+    "gamma": "γ",
+    "delta": "δ",
+    "epsilon": "ε",
+    "zeta": "ζ",
+    "eta": "η",
+    "theta": "θ",
+    "iota": "ι",
+    "kappa": "κ",
+    "lambda": "λ",
+    "mu": "μ",
+    "nu": "ν",
+    "xi": "ξ",
+    "omicron": "ο",
+    "pi": "π",
+    "rho": "ρ",
+    "sigma": "σ",
+    "tau": "τ",
+    "upsilon": "υ",
+    "ypsilon": "υ",
+    "phi": "φ",
+    "chi": "χ",
+    "psi": "ψ",
+    "omega": "ω",
+}
+
+GREEK_UPPER = {
+    "Alpha": "Α",
+    "Beta": "Β",
+    "Gamma": "Γ",
+    "Delta": "Δ",
+    "Epsilon": "Ε",
+    "Zeta": "Ζ",
+    "Eta": "Η",
+    "Theta": "Θ",
+    "Iota": "Ι",
+    "Kappa": "Κ",
+    "Lambda": "Λ",
+    "Mu": "Μ",
+    "Nu": "Ν",
+    "Xi": "Ξ",
+    "Omicron": "Ο",
+    "Pi": "Π",
+    "Rho": "Ρ",
+    "Sigma": "Σ",
+    "Tau": "Τ",
+    "Upsilon": "Υ",
+    "Ypsilon": "Υ",
+    "Phi": "Φ",
+    "Chi": "Χ",
+    "Psi": "Ψ",
+    "Omega": "Ω",
+}
+
+GREEK2LATIN = {v: k for k, v in GREEK_UPPER.items()}
+GREEK2LATIN.update({v: k for k, v in GREEK_LOWER.items()})
+
 # 0:before, 1:prefix, 2:match, 3:suffix, 4:after, 5:pos, 6:offset, 7:gid, 8:sim, 9:name, 10:taxon, 11:entrez
 GENE_ITEMS = ["before", "prefix", "match", "suffix", "after", "pos", "offset", "gid", "sim", "name", "taxon", "entrez"]
 OFFSET = 6
@@ -55,7 +116,7 @@ def ParseGold(filepath):
 
 def ParseLinkoutCount(filepath):
     for line in open(filepath):
-        gid, count = line.split('\t')
+        gid, count = line.split()
         yield int(gid), int(count)
 
 def ParseCounters(filepath):
@@ -89,6 +150,7 @@ def JoinData(count, genes, taxa, sentences, gold, links, symbols, references):
     for gid, data in genes.items():
         count_GID = sum(len(m) for m in data.values())
 
+
         for sym, mentions in data.items():
             name = mentions[0].name
             count_SYM = sym_counts[sym]
@@ -97,12 +159,29 @@ def JoinData(count, genes, taxa, sentences, gold, links, symbols, references):
             try:
                 count_sym = symbols[name]
             except KeyError:
-                print('unknown name "{}" in mention "{}"'.format(name, gid))
-                continue
+                if any(ord(i) in GREEK_ORDINALS for i in name):
+                    replaced = []
+                    for i in name:
+                        if i in GREEK2LATIN:
+                            replaced.append(GREEK2LATIN[i])
+                        else:
+                            replaced.append(i)
+                    name = ''.join(replaced)
+                    try:
+                        count_sym = symbols[name]
+                    except KeyError:
+                        print('unknown name "{}" in mention "{}"'.format(name, gid), file=sys.stderr)
+                        continue
+                else:
+                    print('unknown name "{}" in mention "{}"'.format(name, gid), file=sys.stderr)
+                    continue
             try:
                 count_refs = references[gid][name]
             except KeyError:
-                print('unknown gid "{}" and name "{}"'.format(gid, name))
+                if gid not in references:
+                    print('unknown gid "{}" with name "{}"'.format(gid, name), file=sys.stderr)
+                else:
+                    print('unknown name "{}" for gid "{}"'.format(name, gid), file=sys.stderr)
                 continue
             count_tids = 0
             if taxa:
@@ -116,14 +195,30 @@ def JoinData(count, genes, taxa, sentences, gold, links, symbols, references):
                 sent_offsets = taxa_sentences[mentions[0].taxon]
                 for m in mentions:
                     if any(m.offset[0] >= s[0] and m.offset[1] <= s[1] for s in sent_offsets):
+                        print('found taxon "{}" for gene "{}" in a sentence'.format(mentions[0].taxon, name), file=sys.stderr)
                         tid_in_sent = 1
                         break
 
-            yield mentions[0].entrez in gold, count, (mentions[0].sim, count_GID, count_SYM, count_GIDSYM, count_links, count_sym, count_refs, count_tids, tid_in_sent)
+            yield count, [mentions[0].entrez in gold, float(mentions[0].sim), count_GID, count_SYM, count_GIDSYM, count_links, count_sym, count_refs, count_tids, tid_in_sent]
 
 def WriteLines(result_generator):
-    for is_hit, qid, features in result_generator:
-        print(int(is_hit), 'qid:{}'.format(qid), ' '.join('{}:{}'.format(i+1, f) for i, f in enumerate(features)))
+    data = []
+    qid = None
+    for qid, features in result_generator:
+        data.append(features)
+    r0 = data[0]
+    for i, val in enumerate(r0):
+        if type(val) is int:
+            m = max(r[i] for r in data)
+            if m == 0:
+                print("all vaules zero in position", i+1, file=sys.stderr)
+                for r in data:
+                    r[i] = 0.0
+            else:
+                for r in data:
+                    r[i] /= m
+    for r in data:
+        print(int(r[0]), 'qid:{}'.format(qid), ' '.join('{}:{:.8f}'.format(i+1, f) for i, f in enumerate(r[1:])))
 
 def Process(gene_dir, taxon_dir, sentence_dir, gold_file, counter_file, linkoutcount_file):
     gold = {}
@@ -158,7 +253,7 @@ def Process(gene_dir, taxon_dir, sentence_dir, gold_file, counter_file, linkoutc
         article_id = filepath[:filepath.rfind('.')]
 
         if article_id not in gold:
-            print("skipping", article_id, file=sys.stderr)
+            #print("skipping", article_id, file=sys.stderr)
             continue
 
         print("processing", article_id, file=sys.stderr)
