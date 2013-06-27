@@ -110,6 +110,8 @@ public class LinnaeusAnnotator extends JCasAnnotator_ImplBase {
     java.util.logging.Logger l = java.util.logging.Logger.getLogger("Linnaeus");
     l.setLevel(java.util.logging.Level.WARNING);
     linnaeus = EntityTagger.getMatcher(ap, l);
+    if (idMapping != null)
+      logger.log(Level.CONFIG, "loaded {0} ID mappings", idMapping.size());
   }
 
   @Override
@@ -124,9 +126,13 @@ public class LinnaeusAnnotator extends JCasAnnotator_ImplBase {
         idSet.add(ids[i]);
         // Linnaeus sets p to NULL in some cases, so:
         if (probs[i] == null) probs[i] = 1.0 / ((double) probs.length);
-        if (idMapping != null && idMapping.containsKey(ids[i])) annotate(cas, mention,
-            idMapping.get(ids[i]), probs[i]);
-        else annotate(cas, mention, ids[i], probs[i]);
+        if (idMapping != null && idMapping.containsKey(ids[i])) {
+          logger.log(Level.FINE, "mapping taxon {0} to {i}",
+              new String[] { ids[i], idMapping.get(ids[i]) });
+          annotate(cas, mention, idMapping.get(ids[i]), probs[i]);
+        } else {
+          annotate(cas, mention, ids[i], probs[i]);
+        }
       }
     }
     logger.log(Level.FINE, "tagged {0} {1} mentions with {2} IDs", new Object[] { countMentions,
