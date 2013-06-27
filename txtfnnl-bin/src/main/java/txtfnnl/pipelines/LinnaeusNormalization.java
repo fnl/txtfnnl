@@ -33,15 +33,15 @@ public class LinnaeusNormalization extends Pipeline {
     final CommandLineParser parser = new PosixParser();
     final Options opts = new Options();
     CommandLine cmd = null;
-    // standard pipeline options
-    Pipeline.addLogHelpAndInputOptions(opts);
-    Pipeline.addTikaOptions(opts);
-    Pipeline.addOutputOptions(opts);
     opts.addOption("p", "property-file", true,
         "set the Linnaeus property file path with the configuration data");
     opts.addOption("m", "id-map", true,
         "a map of IDs to another that will be applied to all annotations");
     opts.addOption("n", "namespace", true, "a namespace to apply to all annotations");
+    // standard pipeline options
+    Pipeline.addLogHelpAndInputOptions(opts);
+    Pipeline.addTikaOptions(opts);
+    Pipeline.addOutputOptions(opts);
     try {
       cmd = parser.parse(opts, arguments);
     } catch (final ParseException e) {
@@ -52,9 +52,9 @@ public class LinnaeusNormalization extends Pipeline {
         "txtfnnl match [options] -p file.property <directory|files...>\n");
     // Taxon ID mapping resource
     ExternalResourceDescription taxIdMap = null;
-    if (cmd.hasOption('L')) {
+    if (cmd.hasOption('m')) {
       try {
-        taxIdMap = QualifiedStringResource.configure("file:" + cmd.getOptionValue('L')).create();
+        taxIdMap = QualifiedStringResource.configure("file:" + cmd.getOptionValue('m')).create();
       } catch (ResourceInitializationException e) {
         l.severe(e.toString());
         System.err.println(e.getLocalizedMessage());
