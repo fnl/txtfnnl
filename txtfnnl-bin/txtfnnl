@@ -34,6 +34,7 @@ $MAVEN_REPO/dom4j/dom4j/1.6.1/dom4j-1.6.1.jar:\
 $MAVEN_REPO/dk/brics/automaton/automaton/1.11-8/automaton-1.11-8.jar:\
 $MAVEN_REPO/edu/ucar/netcdf/4.2-min/netcdf-4.2-min.jar:\
 $MAVEN_REPO/edu/ucdenver/ccp/biolemmatizer-core/1.1/biolemmatizer-core-1.1.jar:\
+$MAVEN_REPO/edu/umass/ranklib/2.1/ranklib-2.1.jar:\
 $MAVEN_REPO/edu/northwestern/at/morphadorner/2009-04-30/morphadorner-2009-04-30.jar:\
 $MAVEN_REPO/javassist/javassist/3.6.0.GA/javassist-3.6.0.GA.jar:\
 $MAVEN_REPO/jdom/jdom/1.0/jdom-1.0.jar:\
