@@ -143,7 +143,7 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
     }
 
     logger.log(
-        Level.CONFIG, "mapping ''%s'' annotations from %s to ''%s'' IDs", new String[] {
+        Level.CONFIG, "mapping ''{0}'' annotations from {1} to ''{2}'' IDs", new String[] {
         entityNamespace, annotatorUri == null ? "anywhere" : annotatorUri, refNamespace
     }
     );
