@@ -152,7 +152,7 @@ class RankedListAnnotator extends JCasAnnotator_ImplBase {
     rawData.append(qid);
     rawData.append(" ");
     for (int i = 0; i < features.length; i++)
-      rawData.append(String.format("%i:%.8f ", i + 1, features[i]));
+      rawData.append(String.format("%d:%.8f ", i + 1, features[i]));
     rawData.append("# ");
     rawData.append(key);
     return new DataPoint(rawData.toString());
