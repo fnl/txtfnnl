@@ -18,7 +18,7 @@ class StringCounterResource extends LineBasedStringMapResource<Map<String, Integ
 
     public
     Builder(String resourceUrl) {
-      this(EntityStringMapResource.class, resourceUrl);
+      this(StringCounterResource.class, resourceUrl);
     }
   }
 

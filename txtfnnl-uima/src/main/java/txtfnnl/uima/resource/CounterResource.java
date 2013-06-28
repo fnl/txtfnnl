@@ -15,7 +15,7 @@ class CounterResource extends LineBasedStringMapResource<Integer> {
 
     public
     Builder(String resourceUrl) {
-      this(EntityStringMapResource.class, resourceUrl);
+      this(CounterResource.class, resourceUrl);
     }
   }
 
