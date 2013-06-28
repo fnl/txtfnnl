@@ -69,15 +69,15 @@ class GeneNormalization extends Pipeline {
     // query options
     opts.addOption("Q", "query", true, "SQL query that produces gene ID, tax ID, name triplets");
     // gazetteer matching options
-    opts.addOption("boundary", false, "disable matching names at token boundaries only");
-    opts.addOption("expansions", false, "do not allow list expansions ('gene A-Z')");
+    opts.addOption("unbound", false, "disable matching names at token boundaries only");
+    opts.addOption("noexpand", false, "do not process list expansions ('gene A-Z')");
     opts.addOption(
-        "mapgreek", false, "do not map Greek letter names ('alpha' -> '\u03b1')"
+        "nogreekmap", false, "do not map Greek letter names ('alpha' -> '\u03b1')"
     );
     opts.addOption(
-        "separators", false, "do not allow variable token-separators ('', '-', and ' ')"
+        "varsep", false, "allow variable token-separators ('', '-', and ' ')"
     );
-    opts.addOption("idmatch", false, "do not match the IDs of the genes themselves");
+    opts.addOption("idmatch", false, "match the DB IDs of the genes themselves");
     // gene annotator options
     opts.addOption("f", "filter-matches", true, "a blacklist (file) of exact matches");
     opts.addOption(
@@ -99,6 +99,11 @@ class GeneNormalization extends Pipeline {
         "L", "species-map", true,
         "a map of taxonomic IDs to another, applied to both gene and species anntoations"
     );
+    // gene ranking options (all or none required)
+    opts.addOption("rankermodel", true, "file containing the gene ranker's RankLib model");
+    opts.addOption("generefs", true, "file containing the number of references per gene (ID)");
+    opts.addOption("genesymbols", true, "file containing the symbol count per gene (ID)");
+    opts.addOption("symbols", true, "file containing a count per (gene) symbol");
     try {
       cmd = parser.parse(opts, arguments);
     } catch (final ParseException e) {
@@ -127,11 +132,11 @@ class GeneNormalization extends Pipeline {
     GnamedGazetteerResource.Builder gazetteer = null;
     // create builder
     gazetteer = GnamedGazetteerResource.configure(dbUrl, dbDriverClassName, querySql);
-    if (!cmd.hasOption("boundary")) gazetteer.boundaryMatch();
-    if (cmd.hasOption("expansions")) gazetteer.disableExpansions();
-    if (cmd.hasOption("mapgreek")) gazetteer.disableGreekMapping();
-    if (!cmd.hasOption("separators")) gazetteer.generateVariants();
-    if (!cmd.hasOption("idmatch")) gazetteer.idMatching();
+    if (!cmd.hasOption("unbound")) gazetteer.boundaryMatch();
+    if (!cmd.hasOption("noexpand")) gazetteer.disableExpansions();
+    if (!cmd.hasOption("nogreekmap")) gazetteer.disableGreekMapping();
+    if (cmd.hasOption("varsep")) gazetteer.generateVariants();
+    if (cmd.hasOption("idmatch")) gazetteer.idMatching();
     Pipeline.configureAuthentication(cmd, gazetteer);
     // Taxon ID mapping resource
     ExternalResourceDescription taxIdMap = null;
@@ -229,25 +234,40 @@ class GeneNormalization extends Pipeline {
                        .printPosTag();
     }
     // Gene Ranking setup
-    ConfigurationBuilder<AnalysisEngineDescription> ranker;
+    ConfigurationBuilder<AnalysisEngineDescription> ranker = null;
     if (cmd.hasOption("rankermodel")) {
-    try {
-      GeneRankAnnotator.Builder geneRanker = GeneRankAnnotator
-          .configure(RankLibRanker.configure("file:" + cmd.getOptionValue("rankermodel")).create());
-      geneRanker.setGeneLinkCounts(CounterResource.configure("file:" + cmd.getOptionValue("generefs")).create());
-      geneRanker.setGeneSymbolCounts(StringCounterResource.configure("file" + cmd.getOptionValue("genesymbols")).create());
-      geneRanker.setSymbolCounts(CounterResource.configure("file:" + cmd.getOptionValue("symbols")).create());
-      geneRanker.setNamespace(geneAnnotationNamespace);
-      geneRanker.setAnnotatorUri(GeneAnnotator.URI);
-      geneRanker.setTaxaAnnotatorUri(LinnaeusAnnotator.URI);
-      ranker = geneRanker;
-    } catch (ResourceInitializationException e) {
-      ranker = null;
-      l.severe(e.toString());
-      System.err.println(e.getLocalizedMessage());
-      e.printStackTrace();
-      System.exit(1); // == EXIT ==
-    }
+      try {
+        String file = new File("file:" + cmd.getOptionValue("rankermodel")).getCanonicalPath();
+        GeneRankAnnotator.Builder geneRanker = GeneRankAnnotator.configure(
+            RankLibRanker.configure(file).create()
+        );
+        file = new File("file:" + cmd.getOptionValue("generefs")).getCanonicalPath();
+        geneRanker.setGeneLinkCounts(
+            CounterResource.configure(file).create()
+        );
+        file = new File("file:" + cmd.getOptionValue("genesymbols")).getCanonicalPath();
+        geneRanker.setGeneSymbolCounts(
+            StringCounterResource.configure(file).create()
+        );
+        file = new File("file:" + cmd.getOptionValue("symbols")).getCanonicalPath();
+        geneRanker.setSymbolCounts(
+            CounterResource.configure(file).create()
+        );
+        geneRanker.setNamespace(geneAnnotationNamespace);
+        geneRanker.setAnnotatorUri(GeneAnnotator.URI);
+        geneRanker.setTaxaAnnotatorUri(LinnaeusAnnotator.URI);
+        ranker = geneRanker;
+      } catch (ResourceInitializationException e) {
+        l.severe(e.toString());
+        System.err.println(e.getLocalizedMessage());
+        e.printStackTrace();
+        System.exit(1); // == EXIT ==
+      } catch (IOException e) {
+        l.severe(e.toString());
+        System.err.println(e.getLocalizedMessage());
+        e.printStackTrace();
+        System.exit(1); // == EXIT ==
+      }
     } else {
       ranker = NOOPAnnotator.configure();
     }
