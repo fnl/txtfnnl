@@ -36,12 +36,8 @@ class GeneNormalization extends Pipeline {
   static final String DEFAULT_JDBC_DRIVER = "org.postgresql.Driver";
   static final String DEFAULT_DB_PROVIDER = "postgresql";
   // default: all known gene and protein symbols
-  static final String SQL_QUERY = "SELECT g.id, g.species_id, ps.value FROM genes AS g " +
-                                  "INNER JOIN genes2proteins AS g2p ON (g.id = g2p.gene_id) " +
-                                  "INNER JOIN protein_strings AS ps ON (g2p.protein_id = ps.id) " +
-                                  "WHERE ps.cat = 'symbol' " +
-                                  "UNION SELECT g.id, g.species_id, gs.value FROM genes AS g " +
-                                  "INNER JOIN gene_strings AS gs USING (id) WHERE gs.cat = 'symbol' ";
+  static final String SQL_QUERY =
+      "SELECT g.id, g.species_id, ps.value FROM genes AS g INNER JOIN genes2proteins AS g2p ON (g.id = g2p.gene_id) INNER JOIN protein_strings AS ps ON (g2p.protein_id = ps.id) WHERE ps.cat = 'symbol' UNION SELECT g.id, g.species_id, gs.value FROM genes AS g INNER JOIN gene_strings AS gs USING (id) WHERE gs.cat = 'symbol' ";
 
   private
   GeneNormalization() {
@@ -237,21 +233,17 @@ class GeneNormalization extends Pipeline {
     ConfigurationBuilder<AnalysisEngineDescription> ranker = null;
     if (cmd.hasOption("rankermodel")) {
       try {
-        String file = new File("file:" + cmd.getOptionValue("rankermodel")).getCanonicalPath();
         GeneRankAnnotator.Builder geneRanker = GeneRankAnnotator.configure(
-            RankLibRanker.configure(file).create()
+            RankLibRanker.configure("file:" + cmd.getOptionValue("rankermodel")).create()
         );
-        file = new File("file:" + cmd.getOptionValue("generefs")).getCanonicalPath();
         geneRanker.setGeneLinkCounts(
-            CounterResource.configure(file).create()
+            CounterResource.configure("file:" + cmd.getOptionValue("generefs")).create()
         );
-        file = new File("file:" + cmd.getOptionValue("genesymbols")).getCanonicalPath();
         geneRanker.setGeneSymbolCounts(
-            StringCounterResource.configure(file).create()
+            StringCounterResource.configure("file:" + cmd.getOptionValue("genesymbols")).create()
         );
-        file = new File("file:" + cmd.getOptionValue("symbols")).getCanonicalPath();
         geneRanker.setSymbolCounts(
-            CounterResource.configure(file).create()
+            CounterResource.configure("file:" + cmd.getOptionValue("symbols")).create()
         );
         geneRanker.setNamespace(geneAnnotationNamespace);
         geneRanker.setAnnotatorUri(GeneAnnotator.URI);
