@@ -118,7 +118,7 @@ class RankedListAnnotator extends JCasAnnotator_ImplBase {
     Map<String, String> ranks = new HashMap<String, String>();
     for (int i = 0; i < rl.size(); ++i) {
       DataPoint dp = rl.get(i);
-      ranks.put(dp.getDescription(), String.format("%f", dp.getLabel()));
+      ranks.put(dp.getDescription().substring(2), String.format("%f", dp.getLabel()));
     }
     FSIterator<Annotation> it = getAnnotationIterator(jcas);
     while (it.hasNext()) {

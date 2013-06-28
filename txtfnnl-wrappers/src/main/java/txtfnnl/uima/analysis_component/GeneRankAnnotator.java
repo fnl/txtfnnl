@@ -120,7 +120,7 @@ class GeneRankAnnotator extends RankedListAnnotator {
     Map<String, Map<String, String>> ranks = new HashMap<String, Map<String, String>>();
     for (int i = 0; i < rl.size(); ++i) {
       DataPoint dp = rl.get(i);
-      String geneIdName = dp.getDescription();
+      String geneIdName = dp.getDescription().substring(2);
       String geneId = geneIdName.substring(0, geneIdName.indexOf(':'));
       String name = geneIdName.substring(geneIdName.indexOf(':') + 1);
       logger.log(Level.FINE, "ranked geneId=''{0}'' name=''{1}''", new String[] { geneId, name});
