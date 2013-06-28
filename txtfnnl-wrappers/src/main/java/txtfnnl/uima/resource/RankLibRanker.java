@@ -1,5 +1,6 @@
 package txtfnnl.uima.resource;
 
+import ciir.umass.edu.learning.DataPoint;
 import ciir.umass.edu.learning.RankList;
 import ciir.umass.edu.learning.Ranker;
 import ciir.umass.edu.learning.RankerFactory;
@@ -15,9 +16,7 @@ import txtfnnl.uima.SharedResourceBuilder;
 import java.net.URI;
 import java.util.List;
 
-/**
- * A shared, external RankLib Ranker model resource.
- */
+/** A shared, external RankLib Ranker model resource. */
 public
 class RankLibRanker implements RankerResource, ExternalResourceAware {
   @ConfigurationParameter(name = ExternalResourceFactory.PARAM_RESOURCE_NAME)
@@ -78,13 +77,13 @@ class RankLibRanker implements RankerResource, ExternalResourceAware {
   }
 
   public
-  Ranker getRanker() {
-    return ranker;
+  RankList rank(RankList rl) {
+    return ranker.rank(rl);
   }
 
   public
-  RankList rank(RankList rl) {
-    return ranker.rank(rl);
+  double eval(DataPoint dp) {
+    return ranker.eval(dp);
   }
 
   public

@@ -1,7 +1,6 @@
 package txtfnnl.uima.analysis_component;
 
 import ciir.umass.edu.learning.DataPoint;
-import ciir.umass.edu.learning.RankList;
 import org.apache.uima.analysis_component.AnalysisComponent;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
@@ -15,10 +14,7 @@ import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.resource.StringMapResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Created with IntelliJ IDEA. User: fleitner Date: 27/06/2013 Time: 19:05 To change this template
@@ -116,14 +112,13 @@ class GeneRankAnnotator extends RankedListAnnotator {
 
   @Override
   protected
-  void process(JCas jcas, RankList rl) {
+  void process(JCas jcas, List<DataPoint> data) {
     Map<String, Map<String, String>> ranks = new HashMap<String, Map<String, String>>();
-    for (int i = 0; i < rl.size(); ++i) {
-      DataPoint dp = rl.get(i);
+    for (DataPoint dp : data) {
       String geneIdName = dp.getDescription().substring(2);
       String geneId = geneIdName.substring(0, geneIdName.indexOf(':'));
       String name = geneIdName.substring(geneIdName.indexOf(':') + 1);
-      logger.log(Level.FINE, "ranked geneId=''{0}'' name=''{1}''", new String[] { geneId, name});
+      logger.log(Level.FINE, "ranked geneId=''{0}'' name=''{1}''", new String[] {geneId, name});
       if (!ranks.containsKey(geneId)) {
         Map<String, String> nameRanks = new HashMap<String, String>();
         nameRanks.put(name, String.format("%f", dp.getLabel()));
@@ -139,7 +134,7 @@ class GeneRankAnnotator extends RankedListAnnotator {
       String name = ann.getCoveredText();
       Property rank = new Property(jcas);
       rank.setName(RANK_PROPERTY);
-      logger.log(Level.FINE, "annotated geneId=''{0}'' name=''{1}''", new String[] { geneId, name});
+      logger.log(Level.FINE, "annotated geneId=''{0}'' name=''{1}''", new String[] {geneId, name});
       rank.setValue(ranks.get(geneId).get(name));
       ann.addProperty(jcas, rank);
     }
@@ -147,10 +142,10 @@ class GeneRankAnnotator extends RankedListAnnotator {
 
   @Override
   protected
-  RankList getRankedList(JCas jcas, String qid) {
+  List<DataPoint> getDataList(JCas jcas, String qid) {
     FSIterator<Annotation> it = getAnnotationIterator(jcas);
     Set<String> done = new HashSet<String>();
-    RankList rl = new RankList();
+    List<DataPoint> data = new LinkedList<DataPoint>();
     Map<String, Integer> geneIds = new HashMap<String, Integer>();
     Map<String, Integer> names = new HashMap<String, Integer>();
     Map<String, Integer> geneIdNamePairs = new HashMap<String, Integer>();
@@ -268,10 +263,10 @@ class GeneRankAnnotator extends RankedListAnnotator {
             // 8 tax ID counts
             taxIds.get(taxId) / normTaxIds
         };
-        rl.add(makeDataPoint(0.5F, qid, geneIdName, features));
+        data.add(makeDataPoint(qid, geneIdName, features));
       }
     }
-    return rl;
+    return data;
   }
 
   private

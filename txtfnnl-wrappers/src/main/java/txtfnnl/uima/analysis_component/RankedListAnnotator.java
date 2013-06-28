@@ -21,6 +21,7 @@ import txtfnnl.uima.resource.RankerResource;
 import txtfnnl.uima.tcas.TextAnnotation;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public abstract
@@ -103,8 +104,10 @@ class RankedListAnnotator extends JCasAnnotator_ImplBase {
   @Override
   public
   void process(JCas jcas) throws AnalysisEngineProcessException {
-    RankList rl = getRankedList(jcas, "1"); // XXX: could use article ID as QID if useful?
-    process(jcas, ranker.rank(rl));
+    List<DataPoint> data = getDataList(jcas, "1"); // XXX: could use article ID as QID if useful?
+    for (DataPoint d : data)
+      d.setLabel((float) ranker.eval(d));
+    process(jcas, data);
   }
 
   /**
@@ -114,12 +117,10 @@ class RankedListAnnotator extends JCasAnnotator_ImplBase {
    * should be added as a {@link Property}.
    */
   protected
-  void process(JCas jcas, RankList rl) {
+  void process(JCas jcas, List<DataPoint> data) {
     Map<String, String> ranks = new HashMap<String, String>();
-    for (int i = 0; i < rl.size(); ++i) {
-      DataPoint dp = rl.get(i);
+    for (DataPoint dp : data)
       ranks.put(dp.getDescription().substring(2), String.format("%f", dp.getLabel()));
-    }
     FSIterator<Annotation> it = getAnnotationIterator(jcas);
     while (it.hasNext()) {
       TextAnnotation ann = (TextAnnotation) it.next();
@@ -142,13 +143,12 @@ class RankedListAnnotator extends JCasAnnotator_ImplBase {
   }
 
   protected abstract
-  RankList getRankedList(JCas jcas, String qid);
+  List<DataPoint> getDataList(JCas jcas, String qid);
 
   protected
-  DataPoint makeDataPoint(float label, String qid, String key, double... features) {
+  DataPoint makeDataPoint(String qid, String key, double... features) {
     StringBuilder rawData = new StringBuilder();
-    rawData.append(String.format("%f", label));
-    rawData.append(" qid:");
+    rawData.append("0 qid:");
     rawData.append(qid);
     rawData.append(" ");
     for (int i = 0; i < features.length; i++)
