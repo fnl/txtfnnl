@@ -118,7 +118,7 @@ class GeneRankAnnotator extends RankedListAnnotator {
       String geneIdName = dp.getDescription().substring(2);
       String geneId = geneIdName.substring(0, geneIdName.indexOf(':'));
       String name = geneIdName.substring(geneIdName.indexOf(':') + 1);
-      logger.log(Level.FINE, "ranked geneId=''{0}'' name=''{1}''", new String[] {geneId, name});
+      logger.log(Level.FINER, "ranked geneId=''{0}'' name=''{1}''", new String[] {geneId, name});
       if (!ranks.containsKey(geneId)) {
         Map<String, String> nameRanks = new HashMap<String, String>();
         nameRanks.put(name, String.format("%f", dp.getLabel()));
@@ -134,7 +134,7 @@ class GeneRankAnnotator extends RankedListAnnotator {
       String name = ann.getCoveredText();
       Property rank = new Property(jcas);
       rank.setName(RANK_PROPERTY);
-      logger.log(Level.FINE, "annotated geneId=''{0}'' name=''{1}''", new String[] {geneId, name});
+      logger.log(Level.FINER, "annotated geneId=''{0}'' name=''{1}''", new String[] {geneId, name});
       rank.setValue(ranks.get(geneId).get(name));
       ann.addProperty(jcas, rank);
     }
