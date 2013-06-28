@@ -12,10 +12,7 @@ import txtfnnl.uima.analysis_component.opennlp.TokenAnnotator;
 import txtfnnl.uima.collection.AnnotationLineWriter;
 import txtfnnl.uima.collection.OutputWriter;
 import txtfnnl.uima.collection.XmiWriter;
-import txtfnnl.uima.resource.GnamedGazetteerResource;
-import txtfnnl.uima.resource.JdbcConnectionResourceImpl;
-import txtfnnl.uima.resource.QualifiedStringResource;
-import txtfnnl.uima.resource.QualifiedStringSetResource;
+import txtfnnl.uima.resource.*;
 
 import java.io.*;
 import java.util.LinkedList;
@@ -231,9 +228,32 @@ class GeneNormalization extends Pipeline {
                        .setAnnotationNamespace(geneAnnotationNamespace).printSurroundings()
                        .printPosTag();
     }
+    // Gene Ranking setup
+    ConfigurationBuilder<AnalysisEngineDescription> ranker;
+    if (cmd.hasOption("rankermodel")) {
     try {
-      // 0:tika, 1:splitter, 2:tokenizer, 3:linnaeus, 4:gazetteer, 5:filter, 6: mapIDs
-      final Pipeline gn = new Pipeline(7);
+      GeneRankAnnotator.Builder geneRanker = GeneRankAnnotator
+          .configure(RankLibRanker.configure("file:" + cmd.getOptionValue("rankermodel")).create());
+      geneRanker.setGeneLinkCounts(CounterResource.configure("file:" + cmd.getOptionValue("generefs")).create());
+      geneRanker.setGeneSymbolCounts(StringCounterResource.configure("file" + cmd.getOptionValue("genesymbols")).create());
+      geneRanker.setSymbolCounts(CounterResource.configure("file:" + cmd.getOptionValue("symbols")).create());
+      geneRanker.setNamespace(geneAnnotationNamespace);
+      geneRanker.setAnnotatorUri(GeneAnnotator.URI);
+      geneRanker.setTaxaAnnotatorUri(LinnaeusAnnotator.URI);
+      ranker = geneRanker;
+    } catch (ResourceInitializationException e) {
+      ranker = null;
+      l.severe(e.toString());
+      System.err.println(e.getLocalizedMessage());
+      e.printStackTrace();
+      System.exit(1); // == EXIT ==
+    }
+    } else {
+      ranker = NOOPAnnotator.configure();
+    }
+    try {
+      // 0:tika, 1:splitter, 2:tokenizer, 3:linnaeus, 4:gazetteer, 5:filter, 6: mapIDs, 7: rank
+      final Pipeline gn = new Pipeline(8);
       gn.setReader(cmd);
       gn.configureTika(cmd);
       gn.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
@@ -248,6 +268,7 @@ class GeneNormalization extends Pipeline {
       gn.set(4, Pipeline.textEngine(geneAnnotator.create()));
       gn.set(5, Pipeline.textEngine(filterSurrounding.create()));
       gn.set(6, Pipeline.textEngine(entityMapper.create()));
+      gn.set(7, Pipeline.textEngine(ranker.create()));
       gn.setConsumer(Pipeline.textEngine(writer.create()));
       gn.run();
       gn.destroy();
