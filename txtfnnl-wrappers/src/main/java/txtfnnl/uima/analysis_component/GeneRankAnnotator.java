@@ -8,6 +8,7 @@ import org.apache.uima.jcas.JCas;
 import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.resource.ExternalResourceDescription;
+import org.apache.uima.util.Level;
 import org.uimafit.descriptor.ConfigurationParameter;
 import org.uimafit.descriptor.ExternalResource;
 import txtfnnl.uima.cas.Property;
@@ -122,6 +123,7 @@ class GeneRankAnnotator extends RankedListAnnotator {
       String geneIdName = dp.getDescription();
       String geneId = geneIdName.substring(0, geneIdName.indexOf(':'));
       String name = geneIdName.substring(geneIdName.indexOf(':') + 1);
+      logger.log(Level.FINE, "ranked geneId=''{0}'' name=''{1}''", new String[] { geneId, name});
       if (!ranks.containsKey(geneId)) {
         Map<String, String> nameRanks = new HashMap<String, String>();
         nameRanks.put(name, String.format("%f", dp.getLabel()));
@@ -137,6 +139,7 @@ class GeneRankAnnotator extends RankedListAnnotator {
       String name = ann.getCoveredText();
       Property rank = new Property(jcas);
       rank.setName(RANK_PROPERTY);
+      logger.log(Level.FINE, "annotated geneId=''{0}'' name=''{1}''", new String[] { geneId, name});
       rank.setValue(ranks.get(geneId).get(name));
       ann.addProperty(jcas, rank);
     }
