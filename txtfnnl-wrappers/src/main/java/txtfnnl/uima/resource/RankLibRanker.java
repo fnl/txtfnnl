@@ -64,9 +64,11 @@ class RankLibRanker implements RankerResource, ExternalResourceAware {
   public
   void afterResourcesInitialized() {
     RankerFactory rf = new RankerFactory();
-    ranker = rf.loadRanker(resourceUrl);
+    String filename = resourceUrl;
+    if (resourceUrl.startsWith("file:")) filename = resourceUrl.substring(5);
+    ranker = rf.loadRanker(filename);
     if (ranker == null) throw new RuntimeException(
-        "loading ranker model URL '" + resourceUrl + "' failed"
+        "loading ranker model from file '" + filename + "' failed"
     );
   }
 
