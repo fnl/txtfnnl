@@ -254,11 +254,6 @@ class GeneNormalization extends Pipeline {
         System.err.println(e.getLocalizedMessage());
         e.printStackTrace();
         System.exit(1); // == EXIT ==
-      } catch (IOException e) {
-        l.severe(e.toString());
-        System.err.println(e.getLocalizedMessage());
-        e.printStackTrace();
-        System.exit(1); // == EXIT ==
       }
     } else {
       ranker = NOOPAnnotator.configure();
