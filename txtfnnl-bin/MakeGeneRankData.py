@@ -80,7 +80,13 @@ Gene = namedtuple('Gene', GENE_ITEMS)
 def ParseGeneLines(filepath):
     for line in open(filepath):
         items = line.split('\t')
-        start, end = items[OFFSET].split(":")
+        try:
+            start, end = items[OFFSET].split(":")
+        except IndexError:
+            print(filepath, file=sys.stderr)
+            print(line, file=sys.stderr)
+            print("offset:", items[OFFSET], file=sys.stderr)
+            raise
         items[OFFSET] = (int(start), int(end))
         for i in KEYS:
             txt = items[i]
