@@ -134,16 +134,16 @@ def ParseCounters(filepath):
             raise
         yield int(gid), sym, int(refc), int(globc)
 
-def JoinData(count, genes, taxa, entities, gold, links, symbols, references):
+def JoinData(article_id, genes, taxa, entities, gold, links, symbols, references):
     sym_counts = defaultdict(set)
     for gid, data in genes.items():
         for sym, mentions in data.items():
             sym_counts[sym].update(m.offset for m in mentions)
     sym_counts = dict(sym_counts)
+    mention_counts = 0
 
     for gid, data in genes.items():
         count_GID = sum(len(m) for m in data.values())
-
 
         for sym, mentions in data.items():
             name = mentions[0].name
@@ -210,12 +210,12 @@ def JoinData(count, genes, taxa, entities, gold, links, symbols, references):
                     1.0 if entity_type == 'RNA' else 0.0,
                 ]
 
-                # data per SYM
-                yield mention.entrez in gold, count, e[0], e[1], e[2], e[3], e[4], e[5], float(mention.sim), taxon_distance
-                count += 1
+                # (mixed!) data per SYM
+                yield mention.entrez in gold, article_id, e[0], e[1], e[2], e[3], e[4], e[5], float(mention.sim), taxon_distance
+                mention_counts += 1
 
-            # data per GID
-            yield [count - 1, count_GID, count_SYM, count_GIDSYM, count_links, count_sym, count_refs, count_tids]
+            # (integer only!) data per GID
+            yield [mention_counts, count_GID, count_SYM, count_GIDSYM, count_links, count_sym, count_refs, count_tids]
 
 def WriteLines(result_generator):
     sym_data = []
@@ -226,7 +226,7 @@ def WriteLines(result_generator):
         else:
             gid_data.append(features)
 
-    # normalize GID data
+    # normalize GID data (all integers!)
     for i in range(1, len(gid_data[0])):
         m = max(r[i] for r in gid_data)
         if m == 0:
@@ -237,13 +237,12 @@ def WriteLines(result_generator):
             for r in gid_data:
                 r[i] /= m
 
-
     base = len(sym_data[0]) - 1
     gid_iter = iter(gid_data)
     gid_feats = next(gid_iter)
     gid_feats_str = ' '.join('{}:{:.8f}'.format(i+base, f) for i, f in enumerate(gid_feats[1:]))
-    for r in sym_data:
-        while r[1] > gid_feats[0]:
+    for cnt, r in enumerate(sym_data):
+        while cnt >= gid_feats[0]:
             gid_feats = next(gid_iter)
             gid_feats_str = ' '.join('{}:{:.8f}'.format(i+base, f) for i, f in enumerate(gid_feats[1:]))
         print(int(r[0]), 'qid:{}'.format(r[1]), ' '.join('{}:{:.8f}'.format(i+1, f) for i, f in enumerate(r[2:])), gid_feats_str)
@@ -267,7 +266,6 @@ def Process(gene_dir, taxon_dir, ner_dir, gold_file, counter_file, linkout_file)
     print("parsed {} refcount items".format(len(ref_counts)), file=sys.stderr)
     ref_counts = dict(ref_counts)
 
-    count = 1
     for filepath in os.listdir(gene_dir):
         article_id = filepath[:filepath.rfind('.')]
 
@@ -293,8 +291,7 @@ def Process(gene_dir, taxon_dir, ner_dir, gold_file, counter_file, linkout_file)
         taxa = dict(taxa)
 
         entities = dict(ParseNerLines(os.path.join(ner_dir, filepath)))
-        WriteLines(JoinData(count, genes, taxa, entities, gold[article_id], link_counts, sym_counts, ref_counts))
-        count += sum(len(mentions) for mention_group in genes.values() for mentions in mention_group.values())
+        WriteLines(JoinData(article_id, genes, taxa, entities, gold[article_id], link_counts, sym_counts, ref_counts))
 
 
 if __name__ == '__main__':
