@@ -19,6 +19,7 @@ import org.uimafit.descriptor.ConfigurationParameter;
 
 import txtfnnl.subprocess.ReadlineRuntime;
 import txtfnnl.uima.AnalysisComponentBuilder;
+import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.SentenceAnnotation;
 import txtfnnl.uima.tcas.TokenAnnotation;
 
@@ -121,6 +122,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
   public static final String URI = "http://www.nactem.ac.uk/tsujii/GENIA/tagger";
   /** The namespace used for all annotations. */
   public static final String NAMESPACE = "http://nlp2rdf.lod2.eu/schema/doc/sso/";
+  public static final String ENTITY_NAMESPACE = "http://www.nactem.ac.uk/genia/term/";
   /** The identifier used for all annotations. */
   public static final String IDENTIFIER = "Word";
   /**
@@ -197,6 +199,7 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
       int wordOffset = 0;
       int searchOffset = 0;
       int wordLength = 0;
+      int lastOffset = 0;
       try {
         tokens = tagger.process(sentence);
       } catch (final IOException e) {
@@ -213,6 +216,8 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
       }
       TokenAnnotation last = null;
       count += tokens.size();
+      String entityType;
+      SemanticAnnotation entityAnn = null;
       for (final Token t : tokens) {
         wordLength = t.word().length();
         wordOffset = sentence.indexOf(t.word(), searchOffset);
@@ -252,6 +257,32 @@ public class GeniaTaggerAnnotator extends JCasAnnotator_ImplBase {
         default:
           logger.log(Level.SEVERE, "unexpected chunk tag ''{0}''", t.chunk());
           throw new AnalysisEngineProcessException(new RuntimeException("illeagal chunk tag"));
+        }
+        switch (t.entityTag().charAt(0)) {
+        case 'B':
+          if (entityAnn != null) {
+            entityAnn.setEnd(lastOffset);
+            entityAnn.addToIndexes();
+          }
+          entityType = t.entityTag().substring(2);
+          entityAnn = new SemanticAnnotation(jcas);
+          entityAnn.setBegin(sentenceOffset + wordOffset);
+          entityAnn.setAnnotator(URI);
+          entityAnn.setNamespace(ENTITY_NAMESPACE);
+          entityAnn.setIdentifier(entityType);
+          entityAnn.setConfidence(1.0);
+          lastOffset = sentenceOffset + wordOffset + wordLength;
+          break;
+        case 'I':
+          lastOffset = sentenceOffset + wordOffset + wordLength;
+          break;
+        case 'O':
+          if (entityAnn != null) {
+            entityAnn.setEnd(lastOffset);
+            entityAnn.addToIndexes();
+            entityAnn = null;
+          }
+          break;
         }
         tokenAnn.addToIndexes();
         searchOffset = wordOffset + wordLength;
