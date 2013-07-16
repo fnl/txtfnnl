@@ -210,26 +210,43 @@ def JoinData(count, genes, taxa, entities, gold, links, symbols, references):
                     1.0 if entity_type == 'RNA' else 0.0,
                 ]
 
-                yield count, mention.entrez in gold, e[0], e[1], e[2], e[3], e[4], e[5], float(mention.sim), count_GID, count_SYM, count_GIDSYM, count_links, count_sym, count_refs, count_tids, taxon_distance
+                # data per SYM
+                yield mention.entrez in gold, count, e[0], e[1], e[2], e[3], e[4], e[5], float(mention.sim), taxon_distance
                 count += 1
 
+            # data per GID
+            yield [count - 1, count_GID, count_SYM, count_GIDSYM, count_links, count_sym, count_refs, count_tids]
+
 def WriteLines(result_generator):
-    data = []
+    sym_data = []
+    gid_data = []
     for features in result_generator:
-        data.append(features)
-    r0 = data[0]
-    for i, val in enumerate(r0):
-        if type(val) is int and i != 0:
-            m = max(r[i] for r in data)
-            if m == 0:
-                print("all vaules zero in position", i+1, file=sys.stderr)
-                for r in data:
-                    r[i] = 0.0
-            else:
-                for r in data:
-                    r[i] /= m
-    for r in data:
-        print(int(r[1]), 'qid:{}'.format(r[0]), ' '.join('{}:{:.8f}'.format(i+1, f) for i, f in enumerate(r[2:])))
+        if type(features[0]) is bool:
+            sym_data.append(features)
+        else:
+            gid_data.append(features)
+
+    # normalize GID data
+    for i in range(1, len(gid_data[0])):
+        m = max(r[i] for r in gid_data)
+        if m == 0:
+            print("all vaules zero in position", i+1, file=sys.stderr)
+            for r in gid_data:
+                r[i] = 0.0
+        else:
+            for r in gid_data:
+                r[i] /= m
+
+
+    base = len(sym_data[0]) - 1
+    gid_iter = iter(gid_data)
+    gid_feats = next(gid_iter)
+    gid_feats_str = ' '.join('{}:{:.8f}'.format(i+base, f) for i, f in enumerate(gid_feats[1:]))
+    for r in sym_data:
+        while r[1] > gid_feats[0]:
+            gid_feats = next(gid_iter)
+            gid_feats_str = ' '.join('{}:{:.8f}'.format(i+base, f) for i, f in enumerate(gid_feats[1:]))
+        print(int(r[0]), 'qid:{}'.format(r[1]), ' '.join('{}:{:.8f}'.format(i+1, f) for i, f in enumerate(r[2:])), gid_feats_str)
 
 def Process(gene_dir, taxon_dir, ner_dir, gold_file, counter_file, linkout_file):
     gold = defaultdict(set)
