@@ -139,6 +139,7 @@ def JoinData(count, genes, taxa, entities, gold, links, symbols, references):
     for gid, data in genes.items():
         for sym, mentions in data.items():
             sym_counts[sym].update(m.offset for m in mentions)
+    sym_counts = dict(sym_counts)
 
     for gid, data in genes.items():
         count_GID = sum(len(m) for m in data.values())
@@ -235,6 +236,7 @@ def Process(gene_dir, taxon_dir, ner_dir, gold_file, counter_file, linkout_file)
     for article_id, entrez_id in ParseGold(gold_file):
         gold[article_id].add(entrez_id)
     print("parsed {} gold items".format(len(gold)), file=sys.stderr)
+    gold = dict(gold)
 
     link_counts = dict(ParseLinkout(linkout_file))
     print("parsed {} linkout items".format(len(link_counts)), file=sys.stderr)
@@ -246,6 +248,7 @@ def Process(gene_dir, taxon_dir, ner_dir, gold_file, counter_file, linkout_file)
             sym_counts[sym] = symc
         ref_counts[gid][sym] = refc
     print("parsed {} refcount items".format(len(ref_counts)), file=sys.stderr)
+    ref_counts = dict(ref_counts)
 
     count = 1
     for filepath in os.listdir(gene_dir):
@@ -270,6 +273,7 @@ def Process(gene_dir, taxon_dir, ner_dir, gold_file, counter_file, linkout_file)
         taxa = defaultdict(set)
         for tid, offset in ParseTaxonLines(os.path.join(taxon_dir, filepath)):
             taxa[tid].add(offset)
+        taxa = dict(taxa)
 
         entities = dict(ParseNerLines(os.path.join(ner_dir, filepath)))
         WriteLines(JoinData(count, genes, taxa, entities, gold[article_id], link_counts, sym_counts, ref_counts))
