@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Convert txtfnnl output from norm and match to rank data.
+Convert txtfnnl match, bioner, and norm output to RankLib input.
 """
 
 import os
 import sys
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 
 GREEK_ORDINALS = set(range(ord('Α'), ord('ω') + 1))
 
@@ -95,12 +95,12 @@ def ParseGeneLines(filepath):
                 raise
         yield (items[GID], items[MENTION]), Gene(*items)
 
-def ParseSentenceLines(filepath):
-    # 0:match, 1:offset, 2:"Sentence" 3:conf
+def ParseNerLines(filepath):
+    # 0:match, 1:offset, 2:type 3:conf
     for line in open(filepath):
         items = line.split('\t')
         start, end = items[1].split(":")
-        yield int(start), int(end)
+        yield (int(start), int(end)), items[2]
 
 def ParseTaxonLines(filepath):
     # 0:match, 1:offset, 2:tid 3:sim
@@ -114,7 +114,7 @@ def ParseGold(filepath):
         file_id, entrez = line.split('\t')
         yield file_id, int(entrez)
 
-def ParseLinkoutCount(filepath):
+def ParseLinkout(filepath):
     for line in open(filepath):
         gid, count = line.split()
         yield int(gid), int(count)
@@ -128,24 +128,11 @@ def ParseCounters(filepath):
             raise
         yield int(gid), sym, int(refc), int(globc)
 
-def JoinData(count, genes, taxa, sentences, gold, links, symbols, references):
-    sym_counts = {}
+def JoinData(count, genes, taxa, entities, gold, links, symbols, references):
+    sym_counts = defaultdict(set)
     for gid, data in genes.items():
-        for sym , mentions in data.items():
-            if sym not in sym_counts:
-                sym_counts[sym] = len(mentions)
-            else:
-                sym_counts[sym] += len(mentions)
-
-    taxa_sentences = {}
-    for tid, offsets in taxa.items():
-        for toff in offsets:
-            for sent in offsets:
-                if toff[0] >= sent[0] and toff[1] <= sent[1]:
-                    if tid not in taxa_sentences:
-                        taxa_sentences[tid] = [sent]
-                    else:
-                        taxa_sentences[tid].append(sent)
+        for sym, mentions in data.items():
+            sym_counts[sym].update(m.offset for m in mentions)
 
     for gid, data in genes.items():
         count_GID = sum(len(m) for m in data.values())
@@ -153,7 +140,7 @@ def JoinData(count, genes, taxa, sentences, gold, links, symbols, references):
 
         for sym, mentions in data.items():
             name = mentions[0].name
-            count_SYM = sym_counts[sym]
+            count_SYM = len(sym_counts[sym])
             count_GIDSYM = len(mentions)
             count_links = links[gid] if gid in links else 0
             try:
@@ -183,32 +170,49 @@ def JoinData(count, genes, taxa, sentences, gold, links, symbols, references):
                 else:
                     print('unknown name "{}" for gid "{}"'.format(name, gid), file=sys.stderr)
                 continue
-            count_tids = 0
-            if taxa:
-                try:
-                    count_tids = len(taxa[mentions[0].taxon])
-                except KeyError:
-                    print('unknown taxon "{}" in mention "{}"'.format(mentions[0].taxon, gid), file=sys.stderr)
-                    continue
-            tid_in_sent = 0
-            if mentions[0].taxon in taxa_sentences:
-                sent_offsets = taxa_sentences[mentions[0].taxon]
-                for m in mentions:
-                    if any(m.offset[0] >= s[0] and m.offset[1] <= s[1] for s in sent_offsets):
-                        print('found taxon "{}" for gene "{}" in a sentence'.format(mentions[0].taxon, name), file=sys.stderr)
-                        tid_in_sent = 1
+
+            try:
+                count_tids = len(taxa[mentions[0].taxon])
+            except KeyError:
+                print('unknown taxon "{}" in mention "{}"'.format(mentions[0].taxon, gid), file=sys.stderr)
+                continue
+
+            for mention in mentions:
+                offset = mention.offset
+                # distance tid <-> mention as 1/distance
+                taxon_distance = 0
+                for taxon_offset in taxa[mention.taxon]:
+                    taxon_distance = min(taxon_distance,
+                                         min(abs(offset[0] - taxon_offset[1]),
+                                             abs(taxon_offset[0] - offset[1])))
+                taxon_distance = 1.0 / taxon_distance
+
+                # is mention an entity, and which?
+                entity_type = None
+                for entity_offset in entities:
+                    if offset[0] >= entity_offset[0] and offset[1] <= entity_offset[1]:
+                        entity_type = entities[entity_offset]
                         break
 
-            yield count, [mentions[0].entrez in gold, float(mentions[0].sim), count_GID, count_SYM, count_GIDSYM, count_links, count_sym, count_refs, count_tids, tid_in_sent]
+                e = [
+                    1.0 if entity_type is None else 0.0,
+                    1.0 if entity_type == 'cell_line' else 0.0,
+                    1.0 if entity_type == 'cell_type' else 0.0,
+                    1.0 if entity_type == 'DNA' else 0.0,
+                    1.0 if entity_type == 'protein' else 0.0,
+                    1.0 if entity_type == 'RNA' else 0.0,
+                ]
+
+                yield count, mention.entrez in gold, e[0], e[1], e[2], e[3], e[4], e[5], float(mention.sim), count_GID, count_SYM, count_GIDSYM, count_links, count_sym, count_refs, count_tids, taxon_distance
+                count += 1
 
 def WriteLines(result_generator):
     data = []
-    qid = None
-    for qid, features in result_generator:
+    for features in result_generator:
         data.append(features)
     r0 = data[0]
     for i, val in enumerate(r0):
-        if type(val) is int:
+        if type(val) is int and i != 0:
             m = max(r[i] for r in data)
             if m == 0:
                 print("all vaules zero in position", i+1, file=sys.stderr)
@@ -218,37 +222,26 @@ def WriteLines(result_generator):
                 for r in data:
                     r[i] /= m
     for r in data:
-        print(int(r[0]), 'qid:{}'.format(qid), ' '.join('{}:{:.8f}'.format(i+1, f) for i, f in enumerate(r[1:])))
+        print(int(r[1]), 'qid:{}'.format(r[0]), ' '.join('{}:{:.8f}'.format(i+1, f) for i, f in enumerate(r[2:])))
 
-def Process(gene_dir, taxon_dir, sentence_dir, gold_file, counter_file, linkoutcount_file):
-    gold = {}
-
+def Process(gene_dir, taxon_dir, ner_dir, gold_file, counter_file, linkout_file):
+    gold = defaultdict(set)
     for article_id, entrez_id in ParseGold(gold_file):
-        if article_id in gold:
-            gold[article_id].add(entrez_id)
-        else:
-            gold[article_id] = {entrez_id}
-
+        gold[article_id].add(entrez_id)
     print("parsed {} gold items".format(len(gold)), file=sys.stderr)
 
-    link_counts = dict(ParseLinkoutCount(linkoutcount_file))
-
-    print("parsed {} link items".format(len(link_counts)), file=sys.stderr)
+    link_counts = dict(ParseLinkout(linkout_file))
+    print("parsed {} linkout items".format(len(link_counts)), file=sys.stderr)
 
     sym_counts = {}
-    ref_counts = {}
-
+    ref_counts = defaultdict(dict)
     for gid, sym, refc, symc in ParseCounters(counter_file):
         if sym not in sym_counts:
             sym_counts[sym] = symc
-        if gid not in ref_counts:
-            ref_counts[gid] = {sym: refc}
-        else:
-            ref_counts[gid][sym] = refc
-
+        ref_counts[gid][sym] = refc
     print("parsed {} refcount items".format(len(ref_counts)), file=sys.stderr)
-    count = 0
 
+    count = 1
     for filepath in os.listdir(gene_dir):
         article_id = filepath[:filepath.rfind('.')]
 
@@ -257,9 +250,8 @@ def Process(gene_dir, taxon_dir, sentence_dir, gold_file, counter_file, linkoutc
             continue
 
         print("processing", article_id, file=sys.stderr)
-        genes = {}
-        taxa = {}
 
+        genes = {}
         for (gid, mention), gene in ParseGeneLines(os.path.join(gene_dir, filepath)):
             if gid in genes:
                 if mention in genes[gid]:
@@ -269,16 +261,15 @@ def Process(gene_dir, taxon_dir, sentence_dir, gold_file, counter_file, linkoutc
             else:
                 genes[gid] = {mention: [gene]}
 
+        taxa = defaultdict(set)
         for tid, offset in ParseTaxonLines(os.path.join(taxon_dir, filepath)):
-            if tid in taxa:
-                taxa[tid].add(offset)
-            else:
-                taxa[tid] = {offset}
+            taxa[tid].add(offset)
 
-        sentences = list(ParseSentenceLines(os.path.join(sentence_dir, filepath)))
-        count += 1
-        WriteLines(JoinData(count, genes, taxa, sentences, gold[article_id], link_counts, sym_counts, ref_counts))
+        entities = dict(ParseNerLines(os.path.join(ner_dir, filepath)))
+        WriteLines(JoinData(count, genes, taxa, entities, gold[article_id], link_counts, sym_counts, ref_counts))
+        count += sum(len(mentions) for mention_group in genes.values() for mentions in mention_group.values())
+
 
 if __name__ == '__main__':
-    # gene_dir, taxon_dir, sentence_dir, gold_file, counter_file, refcount_file
+    # gene_dir, taxon_dir, ner_dir, gold_file, counter_file, refcount_file
     Process(*sys.argv[1:])
