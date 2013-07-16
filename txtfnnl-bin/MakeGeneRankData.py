@@ -187,7 +187,7 @@ def JoinData(count, genes, taxa, entities, gold, links, symbols, references):
             for mention in mentions:
                 offset = mention.offset
                 # distance tid <-> mention as 1/distance
-                taxon_distance = 0
+                taxon_distance = sys.maxsize
                 for taxon_offset in taxa[mention.taxon]:
                     taxon_distance = min(taxon_distance,
                                          min(abs(offset[0] - taxon_offset[1]),
