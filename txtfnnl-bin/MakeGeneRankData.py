@@ -211,10 +211,12 @@ def JoinData(article_id, genes, taxa, entities, gold, links, symbols, references
                 ]
 
                 # (mixed!) data per SYM
+                # 1=none, 2=cell_line, 3=cell_type, 4=DNA, 5=protein, 6=RNA, 7=sim, 8=tax_distance
                 yield mention.entrez in gold, article_id, e[0], e[1], e[2], e[3], e[4], e[5], float(mention.sim), taxon_distance
                 mention_counts += 1
 
             # (integer only!) data per GID
+            # 9=GIDc, 10=SYMc, 11=GIDSYMc, 12=links, 13=syms, 14=refs, 15=tids
             yield [mention_counts, count_GID, count_SYM, count_GIDSYM, count_links, count_sym, count_refs, count_tids]
 
 def WriteLines(result_generator):
