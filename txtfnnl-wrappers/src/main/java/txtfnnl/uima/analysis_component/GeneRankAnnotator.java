@@ -176,12 +176,14 @@ class GeneRankAnnotator extends RankedListAnnotator {
     Map<String, Integer> links = new HashMap<String, Integer>();
     Map<String, Integer> symbols = new HashMap<String, Integer>();
     Map<String, Integer> geneIdSymbolPairs = new HashMap<String, Integer>();
+    Map<Offset, Integer> ambiguity = new HashMap<Offset, Integer>();
     while (it.hasNext()) {
       SemanticAnnotation ann = (SemanticAnnotation) it.next();
       String geneId = ann.getIdentifier();
       String name = ann.getCoveredText();
       String geneIdName = String.format("%s:%s", geneId, name);
       String symbol = null;
+      Offset off = ann.getOffset();
       FSArray props = ann.getProperties();
       for (int i = 0; i < props.size(); ++i) {
         Property p = (Property) props.get(i);
@@ -229,6 +231,11 @@ class GeneRankAnnotator extends RankedListAnnotator {
         } else {
           geneIdSymbolPairs.put(geneIdSymbol, 0);
         }
+      }
+      if (ambiguity.containsKey(off)) {
+        ambiguity.put(off, ambiguity.get(off) + 1);
+      } else {
+        ambiguity.put(off, 1);
       }
     }
     Map<String, List<Offset>> taxIds = new HashMap<String, List<Offset>>();
@@ -303,19 +310,21 @@ class GeneRankAnnotator extends RankedListAnnotator {
           ann.getConfidence(),
           // 8 taxa distance
           1.0 / distance,
-          // 9 gene ID count
+          // 9 mention ambiguity
+          1.0 / ambiguity.get(offset),
+          // 10 gene ID count
           geneIds.get(geneId) / normGeneIds,
-          // 10 actual name count
+          // 11 actual name count
           names.get(name) / normNames,
-          // 11 actual name, gene ID pair count
+          // 12 actual name, gene ID pair count
           geneIdNamePairs.get(geneIdName) / normGeneIdNamePairs,
-          // 12 gene link count
+          // 13 gene link count
           links.get(geneId) / normLinks,
-          // 13 symbol count
+          // 14 symbol count
           symbols.get(symbol) / normSymbols,
-          // 14 gene symbol counts
+          // 15 gene symbol counts
           geneIdSymbolPairs.get(geneIdSymbol) / normGeneIdSymbolPairs,
-          // 15 tax ID counts
+          // 16 tax ID counts
           taxIds.get(taxId).size() / normTaxIds
       };
       data.add(makeDataPoint(qid, geneIdName, features));
