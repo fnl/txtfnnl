@@ -136,9 +136,13 @@ def ParseCounters(filepath):
 
 def JoinData(article_id, genes, taxa, entities, gold, links, symbols, references):
     sym_counts = defaultdict(set)
+    ambiguity_counts = defaultdict(int)
     for gid, data in genes.items():
         for sym, mentions in data.items():
             sym_counts[sym].update(m.offset for m in mentions)
+            for m in mentions:
+                ambiguity_counts[m.offset] += 1
+
     sym_counts = dict(sym_counts)
     mention_counts = 0
 
@@ -211,12 +215,12 @@ def JoinData(article_id, genes, taxa, entities, gold, links, symbols, references
                 ]
 
                 # (mixed!) data per SYM
-                # 1=none, 2=cell_line, 3=cell_type, 4=DNA, 5=protein, 6=RNA, 7=sim, 8=tax_distance
-                yield mention.entrez in gold, article_id, e[0], e[1], e[2], e[3], e[4], e[5], float(mention.sim), taxon_distance
+                # 1=none, 2=cell_line, 3=cell_type, 4=DNA, 5=protein, 6=RNA, 7=sim, 8=tax_distance, 9=mention_ambiguity
+                yield mention.entrez in gold, article_id, e[0], e[1], e[2], e[3], e[4], e[5], float(mention.sim), taxon_distance, 1.0 / ambiguity_counts[mention.offset]
                 mention_counts += 1
 
             # (integer only!) data per GID
-            # 9=GIDc, 10=SYMc, 11=GIDSYMc, 12=links, 13=syms, 14=refs, 15=tids
+            # 10=GIDc, 11=SYMc, 12=GIDSYMc, 13=links, 14=syms, 15=refs, 16=tids
             yield [mention_counts, count_GID, count_SYM, count_GIDSYM, count_links, count_sym, count_refs, count_tids]
 
 def WriteLines(result_generator):
