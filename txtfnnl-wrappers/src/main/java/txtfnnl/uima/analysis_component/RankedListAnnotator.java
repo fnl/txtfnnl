@@ -69,18 +69,21 @@ class RankedListAnnotator extends JCasAnnotator_ImplBase {
       this(RankedListAnnotator.class, rankerResourceDescription);
     }
 
+    /** Optional identifier of the anntotations to rank. */
     public
     Builder setIdentifier(String id) {
       setOptionalParameter(PARAM_IDENTIFIER, id);
       return this;
     }
 
+    /** Optional namespace of the annotations to rank. */
     public
     Builder setNamespace(String ns) {
       setOptionalParameter(PARAM_NAMESPACE, ns);
       return this;
     }
 
+    /** Optional annotator URI of the annotations to rank. */
     public
     Builder setAnnotatorUri(String uri) {
       setOptionalParameter(PARAM_ANNOTATOR_URI, uri);

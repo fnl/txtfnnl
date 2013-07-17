@@ -248,6 +248,7 @@ class GeneNormalization extends Pipeline {
         geneRanker.setNamespace(geneAnnotationNamespace);
         geneRanker.setAnnotatorUri(GeneAnnotator.URI);
         geneRanker.setTaxaAnnotatorUri(LinnaeusAnnotator.URI);
+        geneRanker.setGeneAnnotatorUri(GeniaTaggerAnnotator.URI);
         ranker = geneRanker;
       } catch (ResourceInitializationException e) {
         l.severe(e.toString());

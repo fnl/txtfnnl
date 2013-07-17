@@ -13,6 +13,7 @@ import org.uimafit.descriptor.ExternalResource;
 import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.resource.StringMapResource;
 import txtfnnl.uima.tcas.SemanticAnnotation;
+import txtfnnl.utils.Offset;
 
 import java.util.*;
 
@@ -45,6 +46,17 @@ class GeneRankAnnotator extends RankedListAnnotator {
                           description = "The NS in which the taxon ID annotations were made.",
                           defaultValue = LinnaeusAnnotator.DEFAULT_NAMESPACE)
   private String taxaNamespace;
+
+  public static final String PARAM_GENE_ANNOTATOR_URI = "GeneAnnotatorUri";
+  @ConfigurationParameter(name = PARAM_GENE_ANNOTATOR_URI,
+                          description = "The annotator URI that made the gene NER annotations.")
+  private String geneAnnotatorUri;
+
+  public static final String PARAM_GENE_NAMESPACE = "GeneNamespace";
+  @ConfigurationParameter(name = PARAM_GENE_NAMESPACE,
+                          description = "The NS in which the gene NER annotations were made.",
+                          defaultValue = GeniaTaggerAnnotator.ENTITY_NAMESPACE)
+  private String geneNamespace;
 
   public static
   class Builder extends RankedListAnnotator.Builder {
@@ -90,17 +102,30 @@ class GeneRankAnnotator extends RankedListAnnotator {
       return this;
     }
 
-    /** Set the annotator URI of taxa annotations to use for filtering annotations. */
+    /** Set the annotator URI of taxon ID annotations. */
     public
     Builder setTaxaAnnotatorUri(String uri) {
       setOptionalParameter(PARAM_TAXA_ANNOTATOR_URI, uri);
       return this;
     }
 
-    /** Set the namespace of taxa annotations to use for filtering annotations. */
+    /** Set the namespace of taxon ID annotations. */
     public
     Builder setTaxaNamespace(String ns) {
       setOptionalParameter(PARAM_TAXA_NAMESPACE, ns);
+      return this;
+    }
+    /** Set the annotator URI of gene NER annotations. */
+    public
+    Builder setGeneAnnotatorUri(String uri) {
+      setOptionalParameter(PARAM_GENE_ANNOTATOR_URI, uri);
+      return this;
+    }
+
+    /** Set the namespace of gene NER annotations. */
+    public
+    Builder setGeneNamespace(String ns) {
+      setOptionalParameter(PARAM_GENE_NAMESPACE, ns);
       return this;
     }
   }
@@ -144,7 +169,6 @@ class GeneRankAnnotator extends RankedListAnnotator {
   protected
   List<DataPoint> getDataList(JCas jcas, String qid) {
     FSIterator<Annotation> it = getAnnotationIterator(jcas);
-    Set<String> done = new HashSet<String>();
     List<DataPoint> data = new LinkedList<DataPoint>();
     Map<String, Integer> geneIds = new HashMap<String, Integer>();
     Map<String, Integer> names = new HashMap<String, Integer>();
@@ -207,7 +231,7 @@ class GeneRankAnnotator extends RankedListAnnotator {
         }
       }
     }
-    Map<String, Integer> taxIds = new HashMap<String, Integer>();
+    Map<String, List<Offset>> taxIds = new HashMap<String, List<Offset>>();
     FSIterator<Annotation> taxIt = jcas.createFilteredIterator(
         SemanticAnnotation.getIterator(jcas),
         SemanticAnnotation.makeConstraint(jcas, taxaAnnotatorUri, taxaNamespace)
@@ -215,11 +239,23 @@ class GeneRankAnnotator extends RankedListAnnotator {
     while (taxIt.hasNext()) {
       SemanticAnnotation ann = (SemanticAnnotation) taxIt.next();
       String taxId = ann.getIdentifier();
+      List<Offset> offsets;
       if (taxIds.containsKey(taxId)) {
-        taxIds.put(taxId, taxIds.get(taxId) + 1);
+        offsets = taxIds.get(taxId);
       } else {
-        taxIds.put(taxId, 1);
+        offsets = new LinkedList<Offset>();
+        taxIds.put(taxId, offsets);
       }
+      offsets.add(ann.getOffset());
+    }
+    Map<Offset, String> geneNers = new HashMap<Offset, String>();
+    FSIterator<Annotation> geneIt = jcas.createFilteredIterator(
+        SemanticAnnotation.getIterator(jcas),
+        SemanticAnnotation.makeConstraint(jcas, geneAnnotatorUri, geneNamespace)
+    );
+    while (geneIt.hasNext()) {
+      SemanticAnnotation ann = (SemanticAnnotation) geneIt.next();
+      geneNers.put(ann.getOffset(), ann.getIdentifier());
     }
     double normGeneIds = getNorm(geneIds);
     double normNames = getNorm(names);
@@ -227,44 +263,62 @@ class GeneRankAnnotator extends RankedListAnnotator {
     double normLinks = getNorm(links);
     double normSymbols = getNorm(symbols);
     double normGeneIdSymbolPairs = getNorm(geneIdSymbolPairs);
-    double normTaxIds = getNorm(taxIds);
+    double normTaxIds = getListNorm(taxIds);
     it.moveToFirst();
     while (it.hasNext()) {
       SemanticAnnotation ann = (SemanticAnnotation) it.next();
       String geneId = ann.getIdentifier();
       String name = ann.getCoveredText();
+      Offset offset = ann.getOffset();
       String geneIdName = String.format("%s:%s", geneId, name);
-      if (!done.contains(geneIdName)) {
-        done.add(geneIdName);
-        String symbol = null;
-        String taxId = null;
-        FSArray props = ann.getProperties();
-        for (int i = 0; i < props.size(); ++i) {
-          Property p = (Property) props.get(i);
-          if (p.getName().equals("name")) symbol = p.getValue();
-          if (p.getName().equals(GeneAnnotator.TAX_ID_PROPERTY)) taxId = p.getValue();
-        }
-        String geneIdSymbol = String.format("%s:%s", geneId, symbol);
-        double[] features = new double[] {
-            // 1 string similarity
-            ann.getConfidence(),
-            // 2 gene ID count
-            geneIds.get(geneId) / normGeneIds,
-            // 3 actual name count
-            names.get(name) / normNames,
-            // 4 actual name, gene ID pair count
-            geneIdNamePairs.get(geneIdName) / normGeneIdNamePairs,
-            // 5 gene link count
-            links.get(geneId) / normLinks,
-            // 6 symbol count
-            symbols.get(symbol) / normSymbols,
-            // 7 gene symbol counts
-            geneIdSymbolPairs.get(geneIdSymbol) / normGeneIdSymbolPairs,
-            // 8 tax ID counts
-            taxIds.get(taxId) / normTaxIds
-        };
-        data.add(makeDataPoint(qid, geneIdName, features));
+      String symbol = null;
+      String taxId = null;
+      FSArray props = ann.getProperties();
+      for (int i = 0; i < props.size(); ++i) {
+        Property p = (Property) props.get(i);
+        if (p.getName().equals("name")) symbol = p.getValue();
+        if (p.getName().equals(GeneAnnotator.TAX_ID_PROPERTY)) taxId = p.getValue();
       }
+      int distance = Integer.MAX_VALUE;
+      for (Offset taxOff : taxIds.get(taxId)) {
+        distance = Math.min(distance, Math.abs(taxOff.start() - offset.end()));
+        distance = Math.min(distance, Math.abs(offset.start() - taxOff.end()));
+      }
+      String geneIdSymbol = String.format("%s:%s", geneId, symbol);
+      String entity_type = geneNers.get(offset);
+      double[] features = new double[] {
+          // 1 no NER
+          entity_type == null ? 1.0 : 0.0,
+          // 2 cell_line
+          "cell_line".equals(entity_type) ? 1.0 : 0.0,
+          // 3 cell_type
+          "cell_type".equals(entity_type) ? 1.0 : 0.0,
+          // 4 DNA
+          "DNA".equals(entity_type) ? 1.0 : 0.0,
+          // 5 protein
+          "protein".equals(entity_type) ? 1.0 : 0.0,
+          // 6 RNA
+          "RNA".equals(entity_type) ? 1.0 : 0.0,
+          // 7 string similarity
+          ann.getConfidence(),
+          // 8 taxa distance
+          1.0 / distance,
+          // 9 gene ID count
+          geneIds.get(geneId) / normGeneIds,
+          // 10 actual name count
+          names.get(name) / normNames,
+          // 11 actual name, gene ID pair count
+          geneIdNamePairs.get(geneIdName) / normGeneIdNamePairs,
+          // 12 gene link count
+          links.get(geneId) / normLinks,
+          // 13 symbol count
+          symbols.get(symbol) / normSymbols,
+          // 14 gene symbol counts
+          geneIdSymbolPairs.get(geneIdSymbol) / normGeneIdSymbolPairs,
+          // 15 tax ID counts
+          taxIds.get(taxId).size() / normTaxIds
+      };
+      data.add(makeDataPoint(qid, geneIdName, features));
     }
     return data;
   }
@@ -274,6 +328,14 @@ class GeneRankAnnotator extends RankedListAnnotator {
     int norm = 0;
     for (int i : counts.values())
       norm = Math.max(norm, i);
+    return (double) norm;
+  }
+
+  private <T>
+  double getListNorm(Map<String, List<T>> counts) {
+    int norm = 0;
+    for (List<T> i : counts.values())
+      norm = Math.max(norm, i.size());
     return (double) norm;
   }
 }
