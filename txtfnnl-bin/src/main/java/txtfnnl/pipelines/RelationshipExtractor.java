@@ -96,7 +96,7 @@ public class RelationshipExtractor extends Pipeline {
         "c", "cutoff-similarity", true, "min. string similarity required to annotate [0.0]"
     );
     // filter options
-    opts.addOption("p", "pos-tags", true, "a whitelist (file) of required PoS tags");
+    opts.addOption("postags", true, "a whitelist (file) of required PoS tags");
     opts.addOption("t", "filter-tokens", true, "a two-column (file) list of filter matches");
     opts.addOption("T", "whitelist-tokens", false, "invert token filter to behave as a whitelist");
     // species mapping option
