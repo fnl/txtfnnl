@@ -72,7 +72,7 @@ public class RelationshipWriter extends TextWriter {
    * of the relationship entities themselves.
    */
   public static final String PARAM_NORMALIZED_ENTITIES = "NormalizedEntities";
-  @ConfigurationParameter(name = PARAM_NORMALIZED_ENTITIES, defaultValue = "false")
+  @ConfigurationParameter(name = PARAM_NORMALIZED_ENTITIES, defaultValue = "true")
   private boolean normalizedEntities;
   private NumberFormat decimals = null;
   private String spaces;
@@ -155,7 +155,7 @@ public class RelationshipWriter extends TextWriter {
           write(String.format("</%s:_%s>", rel.getNamespace(), rel.getIdentifier()));
           write(fieldSeparator);
         } else {
-          write(String.format("%s:_%s#%s", rel.getNamespace(), rel.getIdentifier(),
+          write(String.format("%s:%s#%s", rel.getNamespace(), rel.getIdentifier(),
               decimals.format(rel.getConfidence())));
           writeEntities(entities);
         }

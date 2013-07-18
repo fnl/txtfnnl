@@ -356,7 +356,7 @@ public class RelationshipExtractor extends Pipeline {
           12,
           Pipeline.textEngine(RelationshipFilter.configure()
               .setRelationshipAnnotatorUri(SyntaxPatternAnnotator.URI)
-              .setRelationshipNamespace("event").setRelationshipIdentifier("tre")
+              .setRelationshipNamespace("event")//.setRelationshipIdentifier("tre")
               .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
               .setMappingIdentifier(regulatorNamespace).setEntityAnnotatorUri(GeneAnnotator.URI)
               .setEntityNamespace(regulatorNamespace).create()));
@@ -364,7 +364,7 @@ public class RelationshipExtractor extends Pipeline {
           13,
           Pipeline.textEngine(RelationshipFilter.configure()
               .setRelationshipAnnotatorUri(SyntaxPatternAnnotator.URI)
-              .setRelationshipNamespace("event").setRelationshipIdentifier("tre")
+              .setRelationshipNamespace("event")//.setRelationshipIdentifier("tre")
               .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
               .setMappingIdentifier(targetNamespace).setEntityAnnotatorUri(GeneAnnotator.URI)
               .setEntityNamespace(targetNamespace).create()));
