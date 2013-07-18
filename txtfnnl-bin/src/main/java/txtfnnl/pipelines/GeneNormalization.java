@@ -100,6 +100,7 @@ class GeneNormalization extends Pipeline {
     opts.addOption("generefs", true, "file containing the number of references per gene (ID)");
     opts.addOption("genesymbols", true, "file containing the symbol count per gene (ID)");
     opts.addOption("symbols", true, "file containing a count per (gene) symbol");
+
     try {
       cmd = parser.parse(opts, arguments);
     } catch (final ParseException e) {
@@ -217,18 +218,6 @@ class GeneNormalization extends Pipeline {
       System.exit(1); // == EXIT ==
     }
     entityMapper.setAnnotatorUri(GeneAnnotator.URI);
-    // output
-    OutputWriter.Builder writer;
-    if (Pipeline.rawXmi(cmd)) {
-      writer = Pipeline.configureWriter(
-          cmd, XmiWriter.configure(Pipeline.ensureOutputDirectory(cmd))
-      );
-    } else {
-      writer = Pipeline.configureWriter(cmd, AnnotationLineWriter.configure())
-                       .setAnnotatorUri(GeneAnnotator.URI)
-                       .setAnnotationNamespace(geneAnnotationNamespace).printSurroundings()
-                       .printPosTag();
-    }
     // Gene Ranking setup
     ConfigurationBuilder<AnalysisEngineDescription> ranker = null;
     if (cmd.hasOption("rankermodel")) {
@@ -258,6 +247,18 @@ class GeneNormalization extends Pipeline {
       }
     } else {
       ranker = NOOPAnnotator.configure();
+    }
+    // output
+    OutputWriter.Builder writer;
+    if (Pipeline.rawXmi(cmd)) {
+      writer = Pipeline.configureWriter(
+          cmd, XmiWriter.configure(Pipeline.ensureOutputDirectory(cmd))
+      );
+    } else {
+      writer = Pipeline.configureWriter(cmd, AnnotationLineWriter.configure())
+                       .setAnnotatorUri(GeneAnnotator.URI)
+                       .setAnnotationNamespace(geneAnnotationNamespace).printSurroundings()
+                       .printPosTag();
     }
     try {
       // 0:tika, 1:splitter, 2:tokenizer, 3:linnaeus, 4:gazetteer, 5:filter, 6: mapIDs, 7: rank
