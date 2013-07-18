@@ -54,7 +54,7 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
   private String annotatorUri;
   public static final String PARAM_ENTITY_NAMESPACE = "EntityNamespace";
   @ConfigurationParameter(name = PARAM_ENTITY_NAMESPACE, defaultValue = "gene",
-                          description = "source (annotated) namespace; either 'gene' or 'protein'")
+                          description = "source namespace; commonly, 'gene' or 'protein'")
   private String entityNamespace;
   // === INTERNAL STATE === //
   /** The gnamed DB connection. */
