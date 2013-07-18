@@ -267,8 +267,12 @@ public class RelationshipExtractor extends Pipeline {
     }
     // Gene ID mapping setup
     GnamedRefAnnotator.Builder regulatorMapper = null;
+    GnamedRefAnnotator.Builder targetMapper = null;
     try {
       regulatorMapper = GnamedRefAnnotator.configure(
+          JdbcConnectionResourceImpl.configure(dbUrl, dbDriverClassName).create()
+      );
+      targetMapper = GnamedRefAnnotator.configure(
           JdbcConnectionResourceImpl.configure(dbUrl, dbDriverClassName).create()
       );
     } catch (ResourceInitializationException e) {
@@ -279,17 +283,6 @@ public class RelationshipExtractor extends Pipeline {
     }
     regulatorMapper.setAnnotatorUri(GeneAnnotator.URI);
     regulatorMapper.setEntityNamespace(regulatorNamespace);
-    GnamedRefAnnotator.Builder targetMapper = null;
-    try {
-      targetMapper = GnamedRefAnnotator.configure(
-          JdbcConnectionResourceImpl.configure(dbUrl, dbDriverClassName).create()
-      );
-    } catch (ResourceInitializationException e) {
-      l.severe(e.toString());
-      System.err.println(e.getLocalizedMessage());
-      e.printStackTrace();
-      System.exit(1); // == EXIT ==
-    }
     targetMapper.setAnnotatorUri(GeneAnnotator.URI);
     targetMapper.setEntityNamespace(targetNamespace);
     // Gene Ranking setup
