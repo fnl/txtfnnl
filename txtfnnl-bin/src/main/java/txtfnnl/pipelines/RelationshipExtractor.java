@@ -138,7 +138,7 @@ public class RelationshipExtractor extends Pipeline {
     String regulatorSQL = cmd.hasOption("regulatorsql") ? cmd.getOptionValue("regulatorsql") : REGULATOR_SQL_QUERY;
     try {
       if (!regulatorSQL.trim().startsWith("SELECT"))
-        regulatorSQL = readFile(regulatorSQL, Charset.defaultCharset());
+        regulatorSQL = readFile(regulatorSQL, "UTF-8");
     } catch (final IOException e) {
       System.err.println("regulator SQL parameter neither a SELECT statement or a file:");
       System.err.println(regulatorSQL);
@@ -146,7 +146,7 @@ public class RelationshipExtractor extends Pipeline {
     String targetSQL = cmd.hasOption("targetsql") ? cmd.getOptionValue("targetsql") : TARGET_SQL_QUERY;
     try {
       if (!targetSQL.trim().startsWith("SELECT"))
-        targetSQL = readFile(targetSQL, Charset.defaultCharset());
+        targetSQL = readFile(targetSQL, "UTF-8");
     } catch (final IOException e) {
       System.err.println("target SQL parameter neither a SELECT statement or a file:");
       System.err.println(targetSQL);
@@ -408,7 +408,7 @@ public class RelationshipExtractor extends Pipeline {
     return theList;
   }
 
-  private static String readFile(String path, Charset encoding) throws IOException {
+  private static String readFile(String path, String encoding) throws IOException {
     return IOUtils.toString(new FileInputStream(new File(path)), encoding);
   }
 }
