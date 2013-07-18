@@ -92,20 +92,17 @@ public class RelationshipExtractor extends Pipeline {
     opts.addOption(
         "whitelistmatches", false, "invert filter matches to behave as a whitelist"
     );
-    opts.addOption(
-        "c", "cutoff-similarity", true, "min. string similarity required to annotate [0.0]"
-    );
     // filter options
     opts.addOption("postags", true, "a whitelist (file) of required PoS tags");
-    opts.addOption("t", "filter-tokens", true, "a two-column (file) list of filter matches");
-    opts.addOption("T", "whitelist-tokens", false, "invert token filter to behave as a whitelist");
+    opts.addOption("tokenfilter", true, "a two-column (file) list of filter matches");
+    opts.addOption("whitelisttokens", false, "invert token filter to behave as a whitelist");
     // species mapping option
     opts.addOption(
-        "l", "linnaeus", true,
+        "linnaeus", true,
         "set a Linnaeus property file path to use Linnaeus for species normalization"
     );
     opts.addOption(
-        "L", "species-map", true,
+        "speciesmap", true,
         "a map of taxonomic IDs to another, applied to both gene and species anntoations"
     );
     // gene ranking options (all or none required)
@@ -166,13 +163,13 @@ public class RelationshipExtractor extends Pipeline {
     if (cmd.hasOption("varsep")) targetGazetteer.generateVariants();
     if (cmd.hasOption("idmatch")) targetGazetteer.idMatching();
     Pipeline.configureAuthentication(cmd, targetGazetteer);
-    double cutoff = cmd.hasOption('c') ? Double.parseDouble(cmd.getOptionValue('c')) : 0.0;
-    String[] blacklist = cmd.hasOption('f') ? makeList(cmd.getOptionValue('f'), l) : null;
+    //double cutoff = cmd.hasOption("cutoff") ? Double.parseDouble(cmd.getOptionValue("cutoff")) : 0.0;
+    String[] blacklist = cmd.hasOption("matches") ? makeList(cmd.getOptionValue("matches"), l) : null;
     // Taxon ID mapping resource
     ExternalResourceDescription taxIdMap = null;
-    if (cmd.hasOption('L')) {
+    if (cmd.hasOption("speciesmap")) {
       try {
-        taxIdMap = QualifiedStringResource.configure("file:" + cmd.getOptionValue('L')).create();
+        taxIdMap = QualifiedStringResource.configure("file:" + cmd.getOptionValue("speciesmap")).create();
       } catch (ResourceInitializationException e) {
         l.severe(e.toString());
         System.err.println(e.getLocalizedMessage());
@@ -192,10 +189,10 @@ public class RelationshipExtractor extends Pipeline {
     }
     regulatorAnnotator.setTextNamespace(SentenceAnnotator.NAMESPACE).setTextIdentifier(
         SentenceAnnotator.IDENTIFIER
-    ).setMinimumSimilarity(cutoff);
+    );//.setMinimumSimilarity(cutoff);
     regulatorAnnotator.setTaxIdMappingResource(taxIdMap);
     if (blacklist != null) {
-      if (cmd.hasOption('F')) regulatorAnnotator.setWhitelist(blacklist);
+      if (cmd.hasOption("whitelistmatches")) regulatorAnnotator.setWhitelist(blacklist);
       else regulatorAnnotator.setBlacklist(blacklist);
     }
     // Target Gene Annotator setup
@@ -210,16 +207,16 @@ public class RelationshipExtractor extends Pipeline {
     }
     targetAnnotator.setTextNamespace(SentenceAnnotator.NAMESPACE).setTextIdentifier(
         SentenceAnnotator.IDENTIFIER
-    ).setMinimumSimilarity(cutoff);
+    );//.setMinimumSimilarity(cutoff);
     targetAnnotator.setTaxIdMappingResource(taxIdMap);
     if (blacklist != null) {
-      if (cmd.hasOption('F')) targetAnnotator.setWhitelist(blacklist);
+      if (cmd.hasOption("whitelistmatches")) targetAnnotator.setWhitelist(blacklist);
       else targetAnnotator.setBlacklist(blacklist);
     }
     // Linnaeus setup
     ConfigurationBuilder<AnalysisEngineDescription> linnaeus;
-    if (cmd.hasOption('l')) {
-      linnaeus = LinnaeusAnnotator.configure(new File(cmd.getOptionValue('l')))
+    if (cmd.hasOption("linnaeus")) {
+      linnaeus = LinnaeusAnnotator.configure(new File(cmd.getOptionValue("linnaeus")))
                                   .setIdMappingResource(taxIdMap);
       regulatorAnnotator.setTaxaAnnotatorUri(LinnaeusAnnotator.URI);
       regulatorAnnotator.setTaxaNamespace(LinnaeusAnnotator.DEFAULT_NAMESPACE);
@@ -230,16 +227,16 @@ public class RelationshipExtractor extends Pipeline {
     }
     // Token Surrounding Filter setup
     ConfigurationBuilder<AnalysisEngineDescription> filterSurrounding;
-    if (cmd.hasOption('p') || cmd.hasOption('t')) {
+    if (cmd.hasOption("postags") || cmd.hasOption("tokenfilter")) {
       TokenBasedSemanticAnnotationFilter.Builder tokenFilter = TokenBasedSemanticAnnotationFilter
           .configure();
-      if (cmd.hasOption('p')) tokenFilter.setPosTags(makeList(cmd.getOptionValue('p'), l));
-      if (cmd.hasOption('t')) {
-        if (cmd.hasOption('T')) tokenFilter.whitelist();
+      if (cmd.hasOption("postags")) tokenFilter.setPosTags(makeList(cmd.getOptionValue("postags"), l));
+      if (cmd.hasOption("tokenfilter")) {
+        if (cmd.hasOption("whitelisttokens")) tokenFilter.whitelist();
         try {
           tokenFilter.setSurroundingTokens(
               QualifiedStringSetResource.configure(
-                  "file:" + cmd.getOptionValue('t')
+                  "file:" + cmd.getOptionValue("tokenfilter")
               ).create()
           );
         } catch (ResourceInitializationException e) {
