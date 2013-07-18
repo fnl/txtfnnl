@@ -58,6 +58,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
   LineBasedStringMapResource<String> taxIdMapping;
   /** The name of the property used to set the taxon ID of the matched gene name. */
   public static final String TAX_ID_PROPERTY = "taxon";
+  private int counter = 0;
 
   public static class Builder extends GazetteerAnnotator.Builder {
     Builder(String entityNamespace, ExternalResourceDescription geneGazetteerResourceDescription) {
@@ -107,6 +108,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
     if (taxIdMapping != null && taxIdMapping.size() > 0)
       logger.log(Level.CONFIG, "{0} TaxID mappings provided to {1} Gazetteer", new Object[] {
           taxIdMapping.size(), entityNamespace });
+    counter = 0;
   }
 
   @Override
@@ -142,6 +144,14 @@ public class GeneAnnotator extends GazetteerAnnotator {
     }
     for (SemanticAnnotation ann : buffer)
       ann.addToIndexes();
+    counter += buffer.size();
+  }
+
+  @Override
+  public
+  void destroy() {
+    super.destroy();
+    logger.log(Level.CONFIG, "made {0} gene annoations", counter);
   }
 
   /** Annotate the match if the taxon matches or if there is no taxon filter in use. */

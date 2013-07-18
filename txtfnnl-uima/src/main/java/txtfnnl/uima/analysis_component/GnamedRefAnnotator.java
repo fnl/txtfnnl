@@ -210,7 +210,7 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
   void destroy() {
     super.destroy();
     logger.log(
-        Level.CONFIG, "mapped %i ''%s'' annotations to ''%s'' IDs", new Object[] {
+        Level.CONFIG, "mapped {0} ''{1}'' annotations to ''{2}'' IDs", new Object[] {
         count, entityNamespace, refNamespace
     }
     );

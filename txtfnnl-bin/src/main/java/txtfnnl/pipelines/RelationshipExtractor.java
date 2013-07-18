@@ -266,9 +266,9 @@ public class RelationshipExtractor extends Pipeline {
       filterSurrounding = NOOPAnnotator.configure();
     }
     // Gene ID mapping setup
-    GnamedRefAnnotator.Builder entityMapper = null;
+    GnamedRefAnnotator.Builder regulatorMapper = null;
     try {
-      entityMapper = GnamedRefAnnotator.configure(
+      regulatorMapper = GnamedRefAnnotator.configure(
           JdbcConnectionResourceImpl.configure(dbUrl, dbDriverClassName).create()
       );
     } catch (ResourceInitializationException e) {
@@ -277,7 +277,21 @@ public class RelationshipExtractor extends Pipeline {
       e.printStackTrace();
       System.exit(1); // == EXIT ==
     }
-    entityMapper.setAnnotatorUri(GeneAnnotator.URI);
+    regulatorMapper.setAnnotatorUri(GeneAnnotator.URI);
+    regulatorMapper.setEntityNamespace(regulatorNamespace);
+    GnamedRefAnnotator.Builder targetMapper = null;
+    try {
+      targetMapper = GnamedRefAnnotator.configure(
+          JdbcConnectionResourceImpl.configure(dbUrl, dbDriverClassName).create()
+      );
+    } catch (ResourceInitializationException e) {
+      l.severe(e.toString());
+      System.err.println(e.getLocalizedMessage());
+      e.printStackTrace();
+      System.exit(1); // == EXIT ==
+    }
+    targetMapper.setAnnotatorUri(GeneAnnotator.URI);
+    targetMapper.setEntityNamespace(targetNamespace);
     // Gene Ranking setup
     ConfigurationBuilder<AnalysisEngineDescription> ranker = null;
     if (cmd.hasOption("rankermodel")) {
@@ -321,7 +335,7 @@ public class RelationshipExtractor extends Pipeline {
           "file:" + patterns.getCanonicalPath()).create();
       // 0:tika, 1:splitter, 2:filter, 3:tokenizer, 4:lemmatizer, 5:patternMatcher,
       // 6:regulator gazetteer, 7:target gazetteer, 8:filter regulator 9: filter target
-      final Pipeline rex = new Pipeline(14);
+      final Pipeline rex = new Pipeline(15);
       rex.setReader(cmd);
       rex.configureTika(cmd);
       rex.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
@@ -349,25 +363,27 @@ public class RelationshipExtractor extends Pipeline {
       rex.set(7, Pipeline.textEngine(regulatorAnnotator.create()));
       rex.set(8, Pipeline.textEngine(targetAnnotator.create()));
       rex.set(9, Pipeline.textEngine(filterSurrounding.create()));
-      rex.set(10, Pipeline.textEngine(entityMapper.create()));
-      rex.set(11, Pipeline.textEngine(ranker.create()));
-
-      rex.set(
-          12,
-          Pipeline.textEngine(RelationshipFilter.configure()
-              .setRelationshipAnnotatorUri(SyntaxPatternAnnotator.URI)
-              .setRelationshipNamespace("event")//.setRelationshipIdentifier("tre")
-              .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
-              .setMappingIdentifier(regulatorNamespace).setEntityAnnotatorUri(GeneAnnotator.URI)
-              .setEntityNamespace(regulatorNamespace).create()));
+      rex.set(10, Pipeline.textEngine(regulatorMapper.create()));
+      rex.set(11, Pipeline.textEngine(targetMapper.create()));
+      rex.set(12, Pipeline.textEngine(ranker.create()));
       rex.set(
           13,
-          Pipeline.textEngine(RelationshipFilter.configure()
-              .setRelationshipAnnotatorUri(SyntaxPatternAnnotator.URI)
-              .setRelationshipNamespace("event")//.setRelationshipIdentifier("tre")
-              .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
-              .setMappingIdentifier(targetNamespace).setEntityAnnotatorUri(GeneAnnotator.URI)
-              .setEntityNamespace(targetNamespace).create()));
+          Pipeline.textEngine(
+              RelationshipFilter.configure().setRelationshipAnnotatorUri(SyntaxPatternAnnotator.URI)
+                  .setRelationshipNamespace("event")//.setRelationshipIdentifier("tre")
+                  .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
+                  .setMappingIdentifier(regulatorNamespace).setEntityAnnotatorUri(GeneAnnotator.URI)
+                  .setEntityNamespace(regulatorNamespace).create()
+          ));
+      rex.set(
+          14,
+          Pipeline.textEngine(
+              RelationshipFilter.configure().setRelationshipAnnotatorUri(SyntaxPatternAnnotator.URI)
+                  .setRelationshipNamespace("event")//.setRelationshipIdentifier("tre")
+                  .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
+                  .setMappingIdentifier(targetNamespace).setEntityAnnotatorUri(GeneAnnotator.URI)
+                  .setEntityNamespace(targetNamespace).create()
+          ));
       rex.setConsumer(Pipeline.textEngine(writer.create()));
       rex.run();
       rex.destroy();
