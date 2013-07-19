@@ -73,7 +73,7 @@ public class RelationshipWriter extends TextWriter {
    * of the relationship entities themselves.
    */
   public static final String PARAM_NORMALIZED_ENTITIES = "NormalizedEntities";
-  @ConfigurationParameter(name = PARAM_NORMALIZED_ENTITIES, defaultValue = "true")
+  @ConfigurationParameter(name = PARAM_NORMALIZED_ENTITIES, defaultValue = "false")
   private boolean normalizedEntities;
   private NumberFormat decimals = null;
   private String spaces;

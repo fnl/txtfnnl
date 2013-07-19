@@ -22,9 +22,9 @@ public class SemanticAnnotation extends TextAnnotation {
    * Return a specialized filter for this annotation type.
    * 
    * @param jcas to create the constraint for
-   * @param annoatorUri to filter on
-   * @param namespaceStr to filter on
-   * @param identifierStr to filter on
+   * @param annotatorUri to filter on
+   * @param namespace to filter on
+   * @param identifier to filter on
    * @return a particular semantic annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri, String namespace,
@@ -37,7 +37,7 @@ public class SemanticAnnotation extends TextAnnotation {
    * Return a specialized filter for semantic annotations.
    * 
    * @param jcas to create the constraint for
-   * @param annoatorUri to filter on
+   * @param annotatorUri to filter on
    * @param namespace to filter on
    * @return a particular semantic annotation constraint
    */
@@ -49,7 +49,7 @@ public class SemanticAnnotation extends TextAnnotation {
    * Return a specialized filter for semantic annotations.
    * 
    * @param jcas to create the constraint for
-   * @param annoatorUri to filter on
+   * @param annotatorUri to filter on
    * @return a particular semantic annotation constraint
    */
   public static FSMatchConstraint makeConstraint(JCas jcas, String annotatorUri) {
