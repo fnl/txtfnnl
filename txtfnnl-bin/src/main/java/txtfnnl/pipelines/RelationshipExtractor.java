@@ -1,20 +1,11 @@
 package txtfnnl.pipelines;
 
-import java.io.*;
-import java.util.LinkedList;
-import java.util.logging.Logger;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.cli.PosixParser;
+import org.apache.commons.cli.*;
 import org.apache.commons.io.IOUtils;
 import org.apache.uima.UIMAException;
 import org.apache.uima.analysis_engine.AnalysisEngineDescription;
 import org.apache.uima.resource.ExternalResourceDescription;
 import org.apache.uima.resource.ResourceInitializationException;
-
 import txtfnnl.uima.ConfigurationBuilder;
 import txtfnnl.uima.analysis_component.*;
 import txtfnnl.uima.analysis_component.opennlp.SentenceAnnotator;
@@ -24,34 +15,39 @@ import txtfnnl.uima.collection.RelationshipWriter;
 import txtfnnl.uima.collection.XmiWriter;
 import txtfnnl.uima.resource.*;
 
+import java.io.*;
+import java.util.LinkedList;
+import java.util.logging.Logger;
+
 /**
  * A pattern-based relationship extractor between normalized entities.
- * <p>
+ * <p/>
  * Input files can be read from a directory or listed explicitly, while output lines are written to
  * some directory or to STDOUT. Relationships are written on a single line. A relationship consists
  * of the document URL, the relationship type, the actor entity ID, the target entity ID, and the
  * sentence evidence where the relationship was found, all separated by tabs.
- * <p>
+ * <p/>
  * The default setup assumes gene and/or protein entities found in a <a
  * href="https://github.com/fnl/gnamed">gnamed</a> database.
- * 
+ *
  * @author Florian Leitner
  */
-public class RelationshipExtractor extends Pipeline {
+public
+class RelationshipExtractor extends Pipeline {
   static final String DEFAULT_DATABASE = "gnamed";
   static final String DEFAULT_JDBC_DRIVER = "org.postgresql.Driver";
   static final String DEFAULT_DB_PROVIDER = "postgresql";
   // default entity sets: all human, mouse, and rat gene symbols (roughly 500k symbols)
-  static final String REGULATOR_SQL_QUERY = 
-       "SELECT g.id, g.species_id, ps.value FROM genes AS g INNER JOIN genes2proteins AS g2p ON (g.id = g2p.gene_id) INNER JOIN protein_strings AS ps ON (g2p.protein_id = ps.id) WHERE ps.cat = 'symbol' UNION SELECT g.id, g.species_id, gs.value FROM genes AS g INNER JOIN gene_strings AS gs USING (id) WHERE gs.cat = 'symbol' AND g.species_id IN (9606, 10090, 10116) ";
-  static final String TARGET_SQL_QUERY =
-       "SELECT g.id, g.species_id, ps.value FROM genes AS g INNER JOIN genes2proteins AS g2p ON (g.id = g2p.gene_id) INNER JOIN protein_strings AS ps ON (g2p.protein_id = ps.id) WHERE ps.cat = 'symbol' UNION SELECT g.id, g.species_id, gs.value FROM genes AS g INNER JOIN gene_strings AS gs USING (id) WHERE gs.cat = 'symbol' AND g.species_id IN (9606, 10090, 10116) ";
+  static final String REGULATOR_SQL_QUERY = "SELECT g.id, g.species_id, ps.value FROM genes AS g INNER JOIN genes2proteins AS g2p ON (g.id = g2p.gene_id) INNER JOIN protein_strings AS ps ON (g2p.protein_id = ps.id) WHERE ps.cat = 'symbol' UNION SELECT g.id, g.species_id, gs.value FROM genes AS g INNER JOIN gene_strings AS gs USING (id) WHERE gs.cat = 'symbol' AND g.species_id IN (9606, 10090, 10116) ";
+  static final String TARGET_SQL_QUERY = "SELECT g.id, g.species_id, ps.value FROM genes AS g INNER JOIN genes2proteins AS g2p ON (g.id = g2p.gene_id) INNER JOIN protein_strings AS ps ON (g2p.protein_id = ps.id) WHERE ps.cat = 'symbol' UNION SELECT g.id, g.species_id, gs.value FROM genes AS g INNER JOIN gene_strings AS gs USING (id) WHERE gs.cat = 'symbol' AND g.species_id IN (9606, 10090, 10116) ";
 
-  private RelationshipExtractor() {
+  private
+  RelationshipExtractor() {
     throw new AssertionError("n/a");
   }
 
-  public static void main(String[] arguments) {
+  public static
+  void main(String[] arguments) {
     final CommandLineParser parser = new PosixParser();
     final Options opts = new Options();
     final String regulatorNamespace = "regulator";
@@ -59,8 +55,9 @@ public class RelationshipExtractor extends Pipeline {
     CommandLine cmd = null;
     Pipeline.addLogHelpAndInputOptions(opts);
     Pipeline.addTikaOptions(opts);
-    Pipeline.addJdbcResourceOptions(opts, DEFAULT_JDBC_DRIVER, DEFAULT_DB_PROVIDER,
-        DEFAULT_DATABASE);
+    Pipeline.addJdbcResourceOptions(
+        opts, DEFAULT_JDBC_DRIVER, DEFAULT_DB_PROVIDER, DEFAULT_DATABASE
+    );
     Pipeline.addOutputOptions(opts);
     // sentence splitter options
     Pipeline.addSentenceAnnotatorOptions(opts);
@@ -68,8 +65,9 @@ public class RelationshipExtractor extends Pipeline {
     opts.addOption("sentences", true, "retain sentences using a file of regex matches");
     opts.addOption("removesentences", false, "filter removes sentences with matches");
     // tokenizer options setup
-    opts.addOption("G", "genia", true,
-        "use GENIA (with the dir containing 'morphdic/') instead of OpenNLP");
+    opts.addOption(
+        "G", "genia", true, "use GENIA (with the dir containing 'morphdic/') instead of OpenNLP"
+    );
     // semantic patterns - REQUIRED!
     opts.addOption("p", "patterns", true, "match sentences with semantic patterns");
     // regulator and target ID, name pairs
@@ -115,13 +113,15 @@ public class RelationshipExtractor extends Pipeline {
       System.err.println(e.getLocalizedMessage());
       System.exit(1); // == EXIT ==
     }
-    final Logger l = Pipeline.loggingSetup(cmd, opts,
-        "txtfnnl ginx [options] -p <patterns> <directory|files...>\n");
+    final Logger l = Pipeline.loggingSetup(
+        cmd, opts, "txtfnnl ginx [options] -p <patterns> <directory|files...>\n"
+    );
     // sentence filter
     LineBasedStringArrayResource.Builder sentenceFilterResource = null;
     if (cmd.hasOption("sentences")) {
-      sentenceFilterResource = LineBasedStringArrayResource.configure("file:" +
-          new File(cmd.getOptionValue("sentences")).getAbsolutePath());
+      sentenceFilterResource = LineBasedStringArrayResource.configure(
+          "file:" + new File(cmd.getOptionValue("sentences")).getAbsolutePath()
+      );
     }
     // (GENIA) tokenizer
     final String geniaDir = cmd.getOptionValue('G');
@@ -135,18 +135,18 @@ public class RelationshipExtractor extends Pipeline {
       System.exit(1); // == EXIT ==
     }
     // entity queries
-    String regulatorSQL = cmd.hasOption("regulatorsql") ? cmd.getOptionValue("regulatorsql") : REGULATOR_SQL_QUERY;
+    String regulatorSQL =
+        cmd.hasOption("regulatorsql") ? cmd.getOptionValue("regulatorsql") : REGULATOR_SQL_QUERY;
     try {
-      if (!regulatorSQL.trim().startsWith("SELECT"))
-        regulatorSQL = readFile(regulatorSQL, "UTF-8");
+      if (!regulatorSQL.trim().startsWith("SELECT")) regulatorSQL = readFile(regulatorSQL, "UTF-8");
     } catch (final IOException e) {
       System.err.println("regulator SQL parameter neither a SELECT statement or a file:");
       System.err.println(regulatorSQL);
     }
-    String targetSQL = cmd.hasOption("targetsql") ? cmd.getOptionValue("targetsql") : TARGET_SQL_QUERY;
+    String targetSQL =
+        cmd.hasOption("targetsql") ? cmd.getOptionValue("targetsql") : TARGET_SQL_QUERY;
     try {
-      if (!targetSQL.trim().startsWith("SELECT"))
-        targetSQL = readFile(targetSQL, "UTF-8");
+      if (!targetSQL.trim().startsWith("SELECT")) targetSQL = readFile(targetSQL, "UTF-8");
     } catch (final IOException e) {
       System.err.println("target SQL parameter neither a SELECT statement or a file:");
       System.err.println(targetSQL);
@@ -161,14 +161,16 @@ public class RelationshipExtractor extends Pipeline {
       System.err.println(e.toString());
       System.exit(1); // == EXIT ==
     }
-    GnamedGazetteerResource.Builder regulatorGazetteer = GnamedGazetteerResource.configure(dbUrl, dbDriverClassName, regulatorSQL);
+    GnamedGazetteerResource.Builder regulatorGazetteer = GnamedGazetteerResource
+        .configure(dbUrl, dbDriverClassName, regulatorSQL);
     if (!cmd.hasOption("unbound")) regulatorGazetteer.boundaryMatch();
     if (!cmd.hasOption("noexpand")) regulatorGazetteer.disableExpansions();
     if (!cmd.hasOption("nogreekmap")) regulatorGazetteer.disableGreekMapping();
     if (cmd.hasOption("varsep")) regulatorGazetteer.generateVariants();
     if (cmd.hasOption("idmatch")) regulatorGazetteer.idMatching();
     Pipeline.configureAuthentication(cmd, regulatorGazetteer);
-    GnamedGazetteerResource.Builder targetGazetteer = GnamedGazetteerResource.configure(dbUrl, dbDriverClassName, targetSQL);
+    GnamedGazetteerResource.Builder targetGazetteer = GnamedGazetteerResource
+        .configure(dbUrl, dbDriverClassName, targetSQL);
     if (!cmd.hasOption("unbound")) targetGazetteer.boundaryMatch();
     if (!cmd.hasOption("noexpand")) targetGazetteer.disableExpansions();
     if (!cmd.hasOption("nogreekmap")) targetGazetteer.disableGreekMapping();
@@ -176,12 +178,14 @@ public class RelationshipExtractor extends Pipeline {
     if (cmd.hasOption("idmatch")) targetGazetteer.idMatching();
     Pipeline.configureAuthentication(cmd, targetGazetteer);
     //double cutoff = cmd.hasOption("cutoff") ? Double.parseDouble(cmd.getOptionValue("cutoff")) : 0.0;
-    String[] blacklist = cmd.hasOption("matches") ? makeList(cmd.getOptionValue("matches"), l) : null;
+    String[] blacklist =
+        cmd.hasOption("matches") ? makeList(cmd.getOptionValue("matches"), l) : null;
     // Taxon ID mapping resource
     ExternalResourceDescription taxIdMap = null;
     if (cmd.hasOption("speciesmap")) {
       try {
-        taxIdMap = QualifiedStringResource.configure("file:" + cmd.getOptionValue("speciesmap")).create();
+        taxIdMap = QualifiedStringResource.configure("file:" + cmd.getOptionValue("speciesmap"))
+                                          .create();
       } catch (ResourceInitializationException e) {
         l.severe(e.toString());
         System.err.println(e.getLocalizedMessage());
@@ -242,7 +246,8 @@ public class RelationshipExtractor extends Pipeline {
     if (cmd.hasOption("postags") || cmd.hasOption("tokenfilter")) {
       TokenBasedSemanticAnnotationFilter.Builder tokenFilter = TokenBasedSemanticAnnotationFilter
           .configure();
-      if (cmd.hasOption("postags")) tokenFilter.setPosTags(makeList(cmd.getOptionValue("postags"), l));
+      if (cmd.hasOption("postags"))
+        tokenFilter.setPosTags(makeList(cmd.getOptionValue("postags"), l));
       if (cmd.hasOption("tokenfilter")) {
         if (cmd.hasOption("whitelisttokens")) tokenFilter.whitelist();
         try {
@@ -318,22 +323,25 @@ public class RelationshipExtractor extends Pipeline {
     // output (format)
     OutputWriter.Builder writer;
     if (Pipeline.rawXmi(cmd)) {
-      writer = Pipeline.configureWriter(cmd,
-          XmiWriter.configure(Pipeline.ensureOutputDirectory(cmd)));
+      writer = Pipeline.configureWriter(
+          cmd, XmiWriter.configure(Pipeline.ensureOutputDirectory(cmd))
+      );
     } else {
       writer = Pipeline.configureWriter(cmd, RelationshipWriter.configure());
     }
     try {
       ExternalResourceDescription patternResource = LineBasedStringArrayResource.configure(
-          "file:" + patterns.getCanonicalPath()).create();
+          "file:" + patterns.getCanonicalPath()
+      ).create();
       // 0:tika, 1:splitter, 2:filter, 3:tokenizer, 4:lemmatizer, 5:patternMatcher,
       // 6:regulator gazetteer, 7:target gazetteer, 8:filter regulator 9: filter target
-      final Pipeline rex = new Pipeline(15);
+      final Pipeline rex = new Pipeline(14);
       rex.setReader(cmd);
       rex.configureTika(cmd);
       rex.set(1, Pipeline.textEngine(Pipeline.getSentenceAnnotator(cmd)));
       if (sentenceFilterResource != null) {
-        SentenceFilter.Builder sentenceFilter = SentenceFilter.configure(sentenceFilterResource.create());
+        SentenceFilter.Builder sentenceFilter = SentenceFilter
+            .configure(sentenceFilterResource.create());
         if (cmd.hasOption('F')) sentenceFilter.removeMatches();
         rex.set(2, Pipeline.textEngine(sentenceFilter.create()));
       } else {
@@ -344,14 +352,18 @@ public class RelationshipExtractor extends Pipeline {
         rex.set(4, Pipeline.textEngine(BioLemmatizerAnnotator.configure().create()));
       } else {
         rex.set(
-            3,
-            Pipeline.textEngine(GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir))
-                .create()));
+            3, Pipeline.textEngine(
+            GeniaTaggerAnnotator.configure().setDirectory(new File(geniaDir)).create()
+        )
+        );
         // the GENIA Tagger already lemmatizes; nothing to do
         rex.set(4, Pipeline.multiviewEngine(NOOPAnnotator.configure().create()));
       }
-      SyntaxPatternAnnotator.Builder spab = SyntaxPatternAnnotator.configure(patternResource);
-      rex.set(5, Pipeline.textEngine(spab.removeUnmatched().create()));
+
+      //SyntaxPatternAnnotator.Builder spab = SyntaxPatternAnnotator.configure(patternResource);
+      //rex.set(5, Pipeline.textEngine(spab.removeUnmatched().create()));
+      rex.set(5, Pipeline.textEngine(NOOPAnnotator.configure().create()));
+
       rex.set(6, Pipeline.textEngine(linnaeus.create()));
       rex.set(7, Pipeline.textEngine(regulatorAnnotator.create()));
       rex.set(8, Pipeline.textEngine(targetAnnotator.create()));
@@ -360,23 +372,31 @@ public class RelationshipExtractor extends Pipeline {
       rex.set(11, Pipeline.textEngine(targetMapper.create()));
       rex.set(12, Pipeline.textEngine(ranker.create()));
       rex.set(
-          13,
-          Pipeline.textEngine(
-              RelationshipFilter.configure().setRelationshipAnnotatorUri(SyntaxPatternAnnotator.URI)
-                  .setRelationshipNamespace("event")//.setRelationshipIdentifier("tre")
-                  .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
-                  .setMappingIdentifier(regulatorNamespace).setEntityAnnotatorUri(GeneAnnotator.URI)
-                  .setEntityNamespace(regulatorNamespace).create()
-          ));
-      rex.set(
-          14,
-          Pipeline.textEngine(
-              RelationshipFilter.configure().setRelationshipAnnotatorUri(SyntaxPatternAnnotator.URI)
-                  .setRelationshipNamespace("event")//.setRelationshipIdentifier("tre")
-                  .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
-                  .setMappingIdentifier(targetNamespace).setEntityAnnotatorUri(GeneAnnotator.URI)
-                  .setEntityNamespace(targetNamespace).create()
-          ));
+          13, Pipeline.textEngine(
+          RelationshipAnnotator.configure().setRelationshipIdentifier("tre")
+                               .setSourceAnnotatorUri(GeneAnnotator.URI)
+                               .setSourceNamespace(regulatorNamespace)
+                               .setTargetAnnotatorUri(GeneAnnotator.URI)
+                               .setTargetIdentifier(targetNamespace).create()
+      ));
+//      rex.set(
+//          13,
+//          Pipeline.textEngine(
+//              RelationshipFilter.configure().setRelationshipAnnotatorUri(SyntaxPatternAnnotator.URI)
+//                  .setRelationshipNamespace("event")//.setRelationshipIdentifier("tre")
+//                  .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
+//                  .setMappingIdentifier(regulatorNamespace).setEntityAnnotatorUri(GeneAnnotator.URI)
+//                  .setEntityNamespace(regulatorNamespace).create()
+//          ));
+//      rex.set(
+//          14,
+//          Pipeline.textEngine(
+//              RelationshipFilter.configure().setRelationshipAnnotatorUri(SyntaxPatternAnnotator.URI)
+//                  .setRelationshipNamespace("event")//.setRelationshipIdentifier("tre")
+//                  .setMappingAnnotatorUri(SyntaxPatternAnnotator.URI).setMappingNamespace("actor")
+//                  .setMappingIdentifier(targetNamespace).setEntityAnnotatorUri(GeneAnnotator.URI)
+//                  .setEntityNamespace(targetNamespace).create()
+//          ));
       rex.setConsumer(Pipeline.textEngine(writer.create()));
       rex.run();
       rex.destroy();
@@ -417,7 +437,8 @@ public class RelationshipExtractor extends Pipeline {
     return theList;
   }
 
-  private static String readFile(String path, String encoding) throws IOException {
+  private static
+  String readFile(String path, String encoding) throws IOException {
     return IOUtils.toString(new FileInputStream(new File(path)), encoding);
   }
 }
