@@ -244,7 +244,7 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
     logger.log(Level.FINE, "removing {0} semantic annotations", removalBuffer.size());
     count += removalBuffer.size();
     for (SemanticAnnotation ann : removalBuffer) {
-      logger.log(Level.FINE, "removing {1} on ''{0}''", new Object[] {ann.getCoveredText(), ann});
+      logger.log(Level.FINER, "removing {1} on ''{0}''", new Object[] {ann.getCoveredText(), ann});
       ann.removeFromIndexes();
     }
   }

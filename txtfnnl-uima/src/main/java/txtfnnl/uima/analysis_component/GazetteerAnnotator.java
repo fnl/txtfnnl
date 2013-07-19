@@ -193,7 +193,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
 
     public boolean process(String match) {
       if (allowedMatches.contains(match)) return true;
-      logger.log(Level.FINE, "filtered ''{0}''", match);
+      logger.log(Level.FINER, "filtered ''{0}''", match);
       return false;
     }
   }
@@ -209,7 +209,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
 
     public boolean process(String match) {
       if (!filteredMatches.contains(match)) return true;
-      logger.log(Level.FINE, "filtered ''{0}''", match);
+      logger.log(Level.FINER, "filtered ''{0}''", match);
       return false;
     }
   }
@@ -227,7 +227,7 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
 
     public boolean process(String match) {
       if (allowedMatches.contains(match) && !filteredMatches.contains(match)) return true;
-      logger.log(Level.FINE, "filtered ''{0}''", match);
+      logger.log(Level.FINER, "filtered ''{0}''", match);
       return false;
     }
   }
