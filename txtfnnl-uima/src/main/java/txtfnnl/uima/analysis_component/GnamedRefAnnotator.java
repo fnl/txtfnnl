@@ -32,29 +32,36 @@ import java.util.*;
  */
 public
 class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
+
   /** The URI of this Annotator. */
   public static final String URI = GnamedRefAnnotator.class.getName();
+
   /** The key used for the JdbcConnectionResource. */
   public static final String MODEL_KEY_GNAMED_JDBC_CONNECTOR = "GnamedJdbcConnector";
   @ExternalResource(key = MODEL_KEY_GNAMED_JDBC_CONNECTOR)
   JdbcConnectionResource connector;
+
   public static final String PARAM_REF_QUERY_BASE = "RefQueryBase";
   @ConfigurationParameter(name = PARAM_REF_QUERY_BASE,
                           description = "SQL query to fetch a list of (entity ID, accession) pairs from entity_refs using target namespace and an entity ID array as parameters",
                           defaultValue = "SELECT id, accession FROM gene_refs WHERE namespace = ? AND id = any( ? )")
   private String refQueryBase;
+
   public static final String PARAM_REF_NAMESPACE = "RefNamespace";
   @ConfigurationParameter(name = PARAM_REF_NAMESPACE, description = "target namespace to map to",
                           defaultValue = "gi")
   private String refNamespace;
+
   public static final String PARAM_ANNOTATOR_URI = "AnnotatorUri";
   @ConfigurationParameter(name = PARAM_ANNOTATOR_URI,
                           description = "URI of the gnamed entity annotator")
   private String annotatorUri;
+
   public static final String PARAM_ENTITY_NAMESPACE = "EntityNamespace";
   @ConfigurationParameter(name = PARAM_ENTITY_NAMESPACE, defaultValue = "gene",
                           description = "source namespace; commonly, 'gene' or 'protein'")
   private String entityNamespace;
+
   // === INTERNAL STATE === //
   /** The gnamed DB connection. */
   protected Connection conn;
@@ -182,6 +189,10 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
   /** Get a mapping for each the source ID to its target ID/accession (<b>if any</b>). */
   Map<String, String> map(Set<String> entity_ids) throws SQLException {
     Map<String, String> mappings = new HashMap<String, String>();
+    logger.log(
+        Level.FINE, "mapping {1} into namespace ''{0}''",
+        new String[] {refNamespace, Arrays.toString(entity_ids.toArray())}
+    );
     stmt.setString(1, refNamespace);
     stmt.setArray(2, conn.createArrayOf("bigint", entity_ids.toArray()));
     ResultSet rs = stmt.executeQuery();
