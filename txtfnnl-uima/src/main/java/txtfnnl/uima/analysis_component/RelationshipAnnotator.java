@@ -28,28 +28,37 @@ class RelationshipAnnotator extends JCasAnnotator_ImplBase {
   /** The Annotator's logger instance. */
   protected Logger logger;
   public static final String PARAM_SOURCE_URI = "SourceAnnotatorUri";
-  @ConfigurationParameter(name = PARAM_SOURCE_URI, description = "source annotator URI to detect", mandatory = false)
+  @ConfigurationParameter(name = PARAM_SOURCE_URI, description = "source annotator URI to detect",
+                          mandatory = false)
   private String srcAnnotatorUri = null;
   public static final String PARAM_SOURCE_NAMESPACE = "SourceNamespace";
-  @ConfigurationParameter(name = PARAM_SOURCE_NAMESPACE, description = "source namespace to detect", mandatory = false)
+  @ConfigurationParameter(name = PARAM_SOURCE_NAMESPACE, description = "source namespace to detect",
+                          mandatory = false)
   private String srcNamespace = null;
   public static final String PARAM_SOURCE_IDENTIFIER = "SourceIdentifier";
-  @ConfigurationParameter(name = PARAM_SOURCE_IDENTIFIER, description = "source identifier to detect", mandatory = false)
+  @ConfigurationParameter(name = PARAM_SOURCE_IDENTIFIER,
+                          description = "source identifier to detect", mandatory = false)
   private String srcIdentifier = null;
   public static final String PARAM_TARGET_URI = "TargetAnnotatorUri";
-  @ConfigurationParameter(name = PARAM_TARGET_URI, description = "target annotator URI to detect", mandatory = false)
+  @ConfigurationParameter(name = PARAM_TARGET_URI, description = "target annotator URI to detect",
+                          mandatory = false)
   private String trgtAnnotatorUri = null;
   public static final String PARAM_TARGET_NAMESPACE = "TargetNamespace";
-  @ConfigurationParameter(name = PARAM_TARGET_NAMESPACE, description = "target namespace to detect", mandatory = false)
+  @ConfigurationParameter(name = PARAM_TARGET_NAMESPACE, description = "target namespace to detect",
+                          mandatory = false)
   private String trgtNamespace = null;
   public static final String PARAM_TARGET_IDENTIFIER = "TargetIdentifier";
-  @ConfigurationParameter(name = PARAM_TARGET_IDENTIFIER, description = "target identifier to detect", mandatory = false)
+  @ConfigurationParameter(name = PARAM_TARGET_IDENTIFIER,
+                          description = "target identifier to detect", mandatory = false)
   private String trgtIdentifier = null;
   public static final String PARAM_REL_NAMESPACE = "RelationshipNamespace";
-  @ConfigurationParameter(name = PARAM_REL_NAMESPACE, description = "relationship namespace to set", mandatory = false, defaultValue = "event")
+  @ConfigurationParameter(name = PARAM_REL_NAMESPACE, description = "relationship namespace to set",
+                          mandatory = false, defaultValue = "event")
   private String relNamespace;
   public static final String PARAM_REL_IDENTIFIER = "RelationshipIdentifier";
-  @ConfigurationParameter(name = PARAM_REL_IDENTIFIER, description = "relationship identifier to set", mandatory = false, defaultValue = "relationship")
+  @ConfigurationParameter(name = PARAM_REL_IDENTIFIER,
+                          description = "relationship identifier to set", mandatory = false,
+                          defaultValue = "relationship")
   private String relIdentifier;
 
   public static
@@ -125,7 +134,13 @@ class RelationshipAnnotator extends JCasAnnotator_ImplBase {
   void initialize(UimaContext ctx) throws ResourceInitializationException {
     super.initialize(ctx);
     logger = ctx.getLogger();
-    logger.log(Level.CONFIG, "RelationshipAnnotator initialized");
+    logger.log(
+        Level.CONFIG, "detecting {7}:{8} co-occurrences between {0}@{1}:{2} and {3}@{4}:{5}",
+        new String[] {
+            srcAnnotatorUri, srcNamespace, srcIdentifier, trgtAnnotatorUri, trgtNamespace,
+            trgtIdentifier, relNamespace, relIdentifier
+        }
+    );
   }
 
   @Override
@@ -145,6 +160,7 @@ class RelationshipAnnotator extends JCasAnnotator_ImplBase {
         if (matches(ann, trgtAnnotatorUri, trgtIdentifier, trgtNamespace)) targets.add(ann);
       }
       if (sources.size() > 0 && targets.size() > 0) {
+        logger.log(Level.FINE, "relationship sentence: ''{0}''", sentence.getCoveredText());
         RelationshipAnnotation rel = new RelationshipAnnotation(jcas);
         final FSArray groups = new FSArray(jcas, sources.size() + targets.size());
         int i = 0;
@@ -158,6 +174,8 @@ class RelationshipAnnotator extends JCasAnnotator_ImplBase {
         rel.setSources(sentenceContainer);
         rel.setTargets(groups);
         rel.addToIndexes(jcas);
+      } else {
+        logger.log(Level.FINE, "negative sentence: ''{0}''", sentence.getCoveredText());
       }
     }
   }
