@@ -144,6 +144,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
     }
     for (SemanticAnnotation ann : buffer)
       ann.addToIndexes();
+    logger.log(Level.FINE, "tagged {0} potential genes", buffer.size());
     counter += buffer.size();
   }
 
@@ -151,7 +152,7 @@ public class GeneAnnotator extends GazetteerAnnotator {
   public
   void destroy() {
     super.destroy();
-    logger.log(Level.CONFIG, "made {0} gene annoations", counter);
+    logger.log(Level.CONFIG, "made {0} [potential] gene annoations", counter);
   }
 
   /** Annotate the match if the taxon matches or if there is no taxon filter in use. */

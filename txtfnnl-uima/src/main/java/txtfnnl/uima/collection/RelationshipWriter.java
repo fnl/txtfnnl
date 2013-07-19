@@ -25,6 +25,7 @@ import org.apache.uima.util.Level;
 import org.uimafit.descriptor.ConfigurationParameter;
 
 import txtfnnl.uima.Views;
+import txtfnnl.uima.cas.Property;
 import txtfnnl.uima.tcas.RelationshipAnnotation;
 import txtfnnl.uima.tcas.SemanticAnnotation;
 import txtfnnl.uima.tcas.SentenceAnnotation;
@@ -229,6 +230,27 @@ public class RelationshipWriter extends TextWriter {
       write(fieldSeparator);
       write(String.format("%s:%s#%s", ann.getNamespace(), ann.getIdentifier(),
           decimals.format(ann.getConfidence())));
+      FSArray props = ann.getProperties();
+      if (props != null) {
+        for (int i = 0; i < props.size(); i++) {
+          write('&');
+          Property p = (Property) props.get(i);
+          String text = p.getName();
+          if (text.contains(" ") || text.contains("\"")) {
+            write('"');
+            write(text.replace("\"", "\\\""));
+            write('"');
+          } else {
+            write(text);
+          }
+          write('=');
+          write('"');
+          text = p.getValue().replace("\"", "\\\"");
+          if (replaceNewlines) text = text.replace('\n', ' ');
+          write(text);
+          write('"');
+        }
+      }
     }
   }
 

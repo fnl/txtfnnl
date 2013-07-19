@@ -184,39 +184,51 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
 
   protected static class SelectWhitelist implements FilterStrategy {
     private Set<String> allowedMatches;
+    Logger logger;
 
-    public SelectWhitelist(String[] whitelist) {
+    public SelectWhitelist(String[] whitelist, Logger l) {
       allowedMatches = new HashSet<String>(Arrays.asList(whitelist));
+      logger = l;
     }
 
     public boolean process(String match) {
-      return (allowedMatches.contains(match));
+      if (allowedMatches.contains(match)) return true;
+      logger.log(Level.FINE, "filtered ''{0}''", match);
+      return false;
     }
   }
 
   protected static class FilterBlacklist implements FilterStrategy {
     private Set<String> filteredMatches;
+    Logger logger;
 
-    public FilterBlacklist(String[] blacklist) {
+    public FilterBlacklist(String[] blacklist, Logger l) {
       filteredMatches = new HashSet<String>(Arrays.asList(blacklist));
+      logger = l;
     }
 
     public boolean process(String match) {
-      return (!filteredMatches.contains(match));
+      if (!filteredMatches.contains(match)) return true;
+      logger.log(Level.FINE, "filtered ''{0}''", match);
+      return false;
     }
   }
 
   protected static class SelectAndFilter implements FilterStrategy {
     private Set<String> allowedMatches;
     private Set<String> filteredMatches;
+    Logger logger;
 
-    public SelectAndFilter(String[] whitelist, String[] blacklist) {
+    public SelectAndFilter(String[] whitelist, String[] blacklist, Logger l) {
       allowedMatches = new HashSet<String>(Arrays.asList(whitelist));
       filteredMatches = new HashSet<String>(Arrays.asList(blacklist));
+      logger = l;
     }
 
     public boolean process(String match) {
-      return (allowedMatches.contains(match) && !filteredMatches.contains(match));
+      if (allowedMatches.contains(match) && !filteredMatches.contains(match)) return true;
+      logger.log(Level.FINE, "filtered ''{0}''", match);
+      return false;
     }
   }
 
@@ -236,10 +248,10 @@ public class GazetteerAnnotator extends JCasAnnotator_ImplBase {
         entityNamespace, gazetteer.size() });
     if (whitelist != null && whitelist.length > 0) {
       if (blacklist != null && blacklist.length > 0) filter = new SelectAndFilter(whitelist,
-          blacklist);
-      else filter = new SelectWhitelist(whitelist);
+          blacklist, logger);
+      else filter = new SelectWhitelist(whitelist, logger);
     } else if (blacklist != null && blacklist.length > 0) {
-      filter = new FilterBlacklist(blacklist);
+      filter = new FilterBlacklist(blacklist, logger);
     } else {
       filter = new NoStrategy();
     }
