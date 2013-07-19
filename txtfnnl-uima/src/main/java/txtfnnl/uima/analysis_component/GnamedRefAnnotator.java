@@ -85,7 +85,7 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
       setOptionalParameter(PARAM_ENTITY_NAMESPACE, "protein");
       setOptionalParameter(
           PARAM_REF_QUERY_BASE,
-          "SELECT id, accession FROM protein_refs WHERE namespace = ? AND id IN ?"
+          "SELECT id, accession FROM protein_refs WHERE namespace = ? AND id any( ? )"
       );
       setOptionalParameter(PARAM_REF_NAMESPACE, "uni");
     }
