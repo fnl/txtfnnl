@@ -171,6 +171,7 @@ class CoocurrenceAnnotator extends JCasAnnotator_ImplBase {
         rel.setAnnotator(URI);
         rel.setNamespace(relNamespace);
         rel.setIdentifier(relIdentifier);
+        rel.setConfidence(1.0); // TODO: confidence evaluation?
         rel.setSources(sentenceContainer);
         rel.setTargets(groups);
         rel.addToIndexes(jcas);

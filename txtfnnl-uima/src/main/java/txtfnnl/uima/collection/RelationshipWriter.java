@@ -156,7 +156,7 @@ public class RelationshipWriter extends TextWriter {
           write(String.format("</%s:_%s>", rel.getNamespace(), rel.getIdentifier()));
           write(fieldSeparator);
         } else {
-          write(String.format("%s:%s#%s", rel.getNamespace(), rel.getIdentifier(),
+          write(String.format("%s:%s#c=%s", rel.getNamespace(), rel.getIdentifier(),
               decimals.format(rel.getConfidence())));
           writeEntities(entities);
         }
@@ -228,7 +228,7 @@ public class RelationshipWriter extends TextWriter {
   private void writeEntities(Set<SemanticAnnotation> entities) throws IOException {
     for (SemanticAnnotation ann : entities) {
       write(fieldSeparator);
-      write(String.format("%s:%s#%s", ann.getNamespace(), ann.getIdentifier(),
+      write(String.format("%s/%s#c=%s", ann.getNamespace(), ann.getIdentifier(),
           decimals.format(ann.getConfidence())));
       FSArray props = ann.getProperties();
       if (props != null) {
