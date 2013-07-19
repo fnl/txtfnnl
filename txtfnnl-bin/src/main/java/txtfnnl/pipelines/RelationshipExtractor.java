@@ -377,7 +377,7 @@ class RelationshipExtractor extends Pipeline {
                                .setSourceAnnotatorUri(GeneAnnotator.URI)
                                .setSourceNamespace(regulatorNamespace)
                                .setTargetAnnotatorUri(GeneAnnotator.URI)
-                               .setTargetIdentifier(targetNamespace).create()
+                               .setTargetNamespace(targetNamespace).create()
       ));
 //      rex.set(
 //          13,

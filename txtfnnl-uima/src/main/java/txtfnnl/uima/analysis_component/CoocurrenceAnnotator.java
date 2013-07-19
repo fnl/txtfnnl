@@ -135,7 +135,7 @@ class CoocurrenceAnnotator extends JCasAnnotator_ImplBase {
     super.initialize(ctx);
     logger = ctx.getLogger();
     logger.log(
-        Level.CONFIG, "detecting {7}:{8} co-occurrences between {0}@{1}:{2} and {3}@{4}:{5}",
+        Level.CONFIG, "detecting {6}:{7} co-occurrences between {0}@{1}:{2} and {3}@{4}:{5}",
         new String[] {
             srcAnnotatorUri, srcNamespace, srcIdentifier, trgtAnnotatorUri, trgtNamespace,
             trgtIdentifier, relNamespace, relIdentifier

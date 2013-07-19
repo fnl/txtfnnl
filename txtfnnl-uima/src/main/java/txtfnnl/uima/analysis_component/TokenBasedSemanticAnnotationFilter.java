@@ -241,10 +241,12 @@ public class TokenBasedSemanticAnnotationFilter extends JCasAnnotator_ImplBase {
         autoRemove = true;
       }
     }
-    logger.log(Level.FINE, "removing " + removalBuffer.size() + " semantic annotations");
+    logger.log(Level.FINE, "removing {0} semantic annotations", removalBuffer.size());
     count += removalBuffer.size();
-    for (SemanticAnnotation ann : removalBuffer)
+    for (SemanticAnnotation ann : removalBuffer) {
+      logger.log(Level.FINE, "removing {1} on ''{0}''", new Object[] {ann.getCoveredText(), ann});
       ann.removeFromIndexes();
+    }
   }
 
   private boolean checkAffix(Set<String> aSet, String text) {
