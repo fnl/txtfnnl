@@ -288,6 +288,7 @@ class RelationshipExtractor extends Pipeline {
     }
     regulatorMapper.setAnnotatorUri(GeneAnnotator.URI);
     regulatorMapper.setEntityNamespace(regulatorNamespace);
+    regulatorMapper.proteins();
     targetMapper.setAnnotatorUri(GeneAnnotator.URI);
     targetMapper.setEntityNamespace(targetNamespace);
     // Gene Ranking setup
