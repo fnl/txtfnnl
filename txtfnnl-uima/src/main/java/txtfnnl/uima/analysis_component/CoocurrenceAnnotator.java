@@ -22,9 +22,9 @@ import java.util.LinkedList;
 import java.util.List;
 
 public
-class RelationshipAnnotator extends JCasAnnotator_ImplBase {
+class CoocurrenceAnnotator extends JCasAnnotator_ImplBase {
   /** The URI of this Annotator. */
-  public static final String URI = RelationshipAnnotator.class.getName();
+  public static final String URI = CoocurrenceAnnotator.class.getName();
   /** The Annotator's logger instance. */
   protected Logger logger;
   public static final String PARAM_SOURCE_URI = "SourceAnnotatorUri";
@@ -70,7 +70,7 @@ class RelationshipAnnotator extends JCasAnnotator_ImplBase {
 
     public
     Builder() {
-      this(RelationshipAnnotator.class);
+      this(CoocurrenceAnnotator.class);
     }
 
     public
@@ -191,6 +191,6 @@ class RelationshipAnnotator extends JCasAnnotator_ImplBase {
   public
   void destroy() {
     super.destroy();
-    logger.log(Level.CONFIG, "RelationshipAnnotator destroyed");
+    logger.log(Level.CONFIG, "CoocurrenceAnnotator destroyed");
   }
 }

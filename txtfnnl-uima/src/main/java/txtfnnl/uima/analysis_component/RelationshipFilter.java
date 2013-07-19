@@ -42,7 +42,7 @@ public class RelationshipFilter extends JCasAnnotator_ImplBase {
   /**
    * Only iterate over {@link RelationshipAnnotation relationships} from a particular annotator.
    */
-  public static final String PARAM_RELATIONSHIP_ANNOTATOR = "RelationshipAnnotator";
+  public static final String PARAM_RELATIONSHIP_ANNOTATOR = "CoocurrenceAnnotator";
   @ConfigurationParameter(name = PARAM_RELATIONSHIP_ANNOTATOR)
   private String relationshipAnnotator = null;
   /**

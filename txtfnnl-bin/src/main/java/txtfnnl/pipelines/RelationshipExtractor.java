@@ -373,7 +373,7 @@ class RelationshipExtractor extends Pipeline {
       rex.set(12, Pipeline.textEngine(ranker.create()));
       rex.set(
           13, Pipeline.textEngine(
-          RelationshipAnnotator.configure().setRelationshipIdentifier("tre")
+          CoocurrenceAnnotator.configure().setRelationshipIdentifier("tre")
                                .setSourceAnnotatorUri(GeneAnnotator.URI)
                                .setSourceNamespace(regulatorNamespace)
                                .setTargetAnnotatorUri(GeneAnnotator.URI)
