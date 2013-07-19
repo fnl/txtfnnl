@@ -158,22 +158,25 @@ class GnamedRefAnnotator extends JCasAnnotator_ImplBase {
   @Override
   public
   void process(JCas jcas) throws AnalysisEngineProcessException {
-    Map<String, String> mappings;
     List<SemanticAnnotation> annotations = collect(jcas);
-    Set<String> entity_ids = new HashSet<String>();
 
-    for (SemanticAnnotation ann : annotations)
-      entity_ids.add(ann.getIdentifier());
+    if (annotations.size() > 0) {
+      Map<String, String> mappings;
+      Set<String> entity_ids = new HashSet<String>();
 
-    try {
-      mappings = map(entity_ids);
-    } catch (final SQLException e) {
-      throw new AnalysisEngineProcessException(e);
+      for (SemanticAnnotation ann : annotations)
+        entity_ids.add(ann.getIdentifier());
+
+      try {
+        mappings = map(entity_ids);
+      } catch (final SQLException e) {
+        throw new AnalysisEngineProcessException(e);
+      }
+
+      for (SemanticAnnotation ann : annotations)
+        if (mappings.containsKey(ann.getIdentifier()))
+          update(jcas, ann, mappings.get(ann.getIdentifier()));
     }
-
-    for (SemanticAnnotation ann : annotations)
-      if (mappings.containsKey(ann.getIdentifier()))
-        update(jcas, ann, mappings.get(ann.getIdentifier()));
   }
 
   /** Collect all annotations that should be mapped. */
