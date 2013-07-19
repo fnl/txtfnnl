@@ -162,6 +162,8 @@ public class GeneAnnotator extends GazetteerAnnotator {
       if (annotatedTaxa == null || annotatedTaxa.contains(getTaxId(id))) {
         SemanticAnnotation ann = makeAnnotation(jcas, match, id, offset);
         if (ann != null) buffer.add(ann);
+      } else {
+        logger.log(Level.FINE, "taxon-filtered match ''{0}'' for {1}", new String[] {match, id});
       }
     }
   }

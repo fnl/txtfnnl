@@ -355,7 +355,7 @@ class ExactGazetteerResource implements GazetteerResource, ExternalResourceAware
       }
     }
     logger.log(
-        Level.FINE, "made {1} matches on ''{0}''",
+        Level.FINE, "made {0} matches on ''{1}''",
         new Object[] {results.size(), input.substring(start, end)}
     );
     return results;
