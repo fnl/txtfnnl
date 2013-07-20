@@ -175,7 +175,7 @@ class GeneAnnotator extends GazetteerAnnotator {
         SemanticAnnotation ann = makeAnnotation(jcas, match, id, offset);
         if (ann != null) buffer.add(ann);
       } else {
-        logger.log(Level.FINE, "taxon-filtered match ''{0}'' for {1}", new String[] {match, id});
+        logger.log(Level.FINER, "taxon-filtered match ''{0}'' for {1}", new String[] {match, id});
       }
     }
   }

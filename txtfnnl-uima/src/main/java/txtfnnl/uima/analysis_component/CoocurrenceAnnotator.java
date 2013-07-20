@@ -176,7 +176,7 @@ class CoocurrenceAnnotator extends JCasAnnotator_ImplBase {
         rel.setTargets(groups);
         rel.addToIndexes(jcas);
       } else {
-        logger.log(Level.FINE, "negative sentence: ''{0}''", sentence.getCoveredText());
+        logger.log(Level.FINER, "negative sentence: ''{0}''", sentence.getCoveredText());
       }
     }
   }
