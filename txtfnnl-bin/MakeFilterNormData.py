@@ -229,8 +229,8 @@ for fp in FILES:
     UpdateCounter(COUNT_FI, current_fi)
 
 print('parsed', COUNT_ART, 'GOLD articles', file=sys.stderr)
-LogPerformance(' pre', COUNT_UN)
 LogPerformance('post', COUNT_FI)
+LogPerformance('pre', COUNT_UN)
 
 for field in ('before', 'prefix', 'token', 'suffix', 'after'):
     spec_filter = {
