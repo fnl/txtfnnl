@@ -15,9 +15,9 @@ UNIQUE_ID = -1
 DATABASE = 'gnamed_tmp'
 POSTGRES_HOST = 'padme'
 
-AFFIX_CUTOFF = 5
-WORD_CUTOFF = 8
-TOKEN_CUTOFF = 15
+AFFIX_CUTOFF = 1.1
+WORD_CUTOFF = 1.2
+TOKEN_CUTOFF = 1.2
 
 POS_TAGS = frozenset({'NN', 'JJ', 'NNP', 'NNS', 'DT'})
 
@@ -232,7 +232,7 @@ print('parsed', COUNT_ART, 'GOLD articles', file=sys.stderr)
 LogPerformance('post', COUNT_FI)
 LogPerformance('pre', COUNT_UN)
 
-for field in ('before', 'prefix', 'token', 'suffix', 'after'):
+for field in ('before', 'after', 'prefix', 'suffix', 'token'):
     spec_filter = {
         'before': set(),
         'prefix': set(),
