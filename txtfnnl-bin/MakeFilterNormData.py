@@ -151,24 +151,24 @@ if __name__ == '__main__':
         hits = DEV[article]
         results = parseResults(fp, POS_TAGS)
 
-        for Tokens, ids in results.items():
+        for tokens, ids in results.items():
             i = 0 if any(i in hits for i in ids) else 1
 
-            if Tokens.before not in TOKENS.before:
-                TOKENS.before[Tokens.before] = [0, 0]
-            TOKENS.before[Tokens.before][i] += 1
-            if Tokens.prefix not in TOKENS.prefix:
-                TOKENS.prefix[Tokens.prefix] = [0, 0]
-            TOKENS.prefix[Tokens.prefix][i] += 1
-            if Tokens.token not in TOKENS.token:
-                TOKENS.token[Tokens.token] = [0, 0]
-            TOKENS.token[Tokens.token][i] += 1
-            if Tokens.suffix not in TOKENS.suffix:
-                TOKENS.suffix[Tokens.suffix] = [0, 0]
-            TOKENS.suffix[Tokens.suffix][i] += 1
-            if Tokens.after not in TOKENS.after:
-                TOKENS.after[Tokens.after] = [0, 0]
-            TOKENS.after[Tokens.after][i] += 1
+            if tokens.before not in TOKENS.before:
+                TOKENS.before[tokens.before] = [0, 0]
+            TOKENS.before[tokens.before][i] += 1
+            if tokens.prefix not in TOKENS.prefix:
+                TOKENS.prefix[tokens.prefix] = [0, 0]
+            TOKENS.prefix[tokens.prefix][i] += 1
+            if tokens.token not in TOKENS.token:
+                TOKENS.token[tokens.token] = [0, 0]
+            TOKENS.token[tokens.token][i] += 1
+            if tokens.suffix not in TOKENS.suffix:
+                TOKENS.suffix[tokens.suffix] = [0, 0]
+            TOKENS.suffix[tokens.suffix][i] += 1
+            if tokens.after not in TOKENS.after:
+                TOKENS.after[tokens.after] = [0, 0]
+            TOKENS.after[tokens.after][i] += 1
 
     print('parsed', NUM_ART, 'DEV articles', file=sys.stderr)
 
@@ -199,14 +199,14 @@ if __name__ == '__main__':
         hits = DEV[article]
         results = parseResults(fp, POS_TAGS)
 
-        for Tokens, ids in results.items():
+        for tokens, ids in results.items():
             if not any(i in hits for i in ids):
-                if Tokens.before in FILTER.before or \
-                                Tokens.prefix in FILTER.prefix or \
-                                Tokens.suffix in FILTER.suffix or \
-                                Tokens.after in FILTER.after:
-                    if TOKENS.token[Tokens.token][1] > 0:
-                        TOKENS.token[Tokens.token][1] -= 1
+                if tokens.before in FILTER.before or \
+                   tokens.prefix in FILTER.prefix or \
+                   tokens.suffix in FILTER.suffix or \
+                   tokens.after in FILTER.after:
+                    if TOKENS.token[tokens.token][1] > 0:
+                        TOKENS.token[tokens.token][1] -= 1
 
     # finally, filter "token" TOKENS on their frequency, too
     for tok, (hits, misses) in TOKENS.token.items():
@@ -263,6 +263,6 @@ if __name__ == '__main__':
         logPerformance(field, COUNT)
 
     # print the FILTER tokens
-    for field in FILTER._fields:
+    for field in Tokens._fields:
         for val in getattr(FILTER, field):
             print(field, val, sep='\t')
