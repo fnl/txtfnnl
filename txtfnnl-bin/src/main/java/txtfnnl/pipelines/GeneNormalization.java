@@ -37,7 +37,7 @@ class GeneNormalization extends Pipeline {
   static final String DEFAULT_DB_PROVIDER = "postgresql";
   // default: all known gene and protein symbols
   static final String SQL_QUERY =
-      "SELECT g.id, g.species_id, ps.value FROM genes AS g INNER JOIN genes2proteins AS g2p ON (g.id = g2p.gene_id) INNER JOIN protein_strings AS ps ON (g2p.protein_id = ps.id) WHERE ps.cat = 'symbol' UNION SELECT g.id, g.species_id, gs.value FROM genes AS g INNER JOIN gene_strings AS gs USING (id) WHERE gs.cat = 'symbol' ";
+      "SELECT g.id, g.species_id, ps.value FROM genes AS g INNER JOIN genes2proteins AS g2p ON (g.id = g2p.gene_id) INNER JOIN protein_strings AS ps ON (g2p.protein_id = ps.id) WHERE ps.cat IN ('symbol', 'name', 'accession') UNION SELECT g.id, g.species_id, gs.value FROM genes AS g INNER JOIN gene_strings AS gs USING (id) WHERE gs.cat IN ('symbol', 'name') ";
 
   private
   GeneNormalization() {
