@@ -125,137 +125,144 @@ def logPerformance(kind, count):
     ), file=sys.stderr)
 
 
-try:
-    print('parsing DEV from', sys.argv[1], file=sys.stderr)
-except IndexError:
-    print('usage: {} DEV GOLD FILE...'.format(__file__))
-    sys.exit(0)
+if __name__ == '__main__':
+    # Setup/initialization
+    try:
+        print('parsing DEV from', sys.argv[1], file=sys.stderr)
+    except IndexError:
+        print('usage: {} DEV GOLD FILE...'.format(__file__))
+        sys.exit(0)
 
-DEV = parseStandard(sys.argv[1])
-print('parsing GOLD from', sys.argv[2], file=sys.stderr)
-GOLD = parseStandard(sys.argv[2])
-FILES = sys.argv[3:]
-NUM_ART = 0
-TOKENS = Tokens({}, {}, {}, {}, {})
-COUNT = Counters([], [], [])
-COUNT_FILTERED = Counters([], [], [])
-FILTER = Tokens(set(), set(), set(), set(), set())
-
-for fp in FILES:
-    article = os.path.splitext(os.path.basename(fp))[0]
-    if article not in DEV: continue
-    NUM_ART += 1
-    hits = DEV[article]
-    results = parseResults(fp, POS_TAGS)
-
-    for Tokens, ids in results.items():
-        i = 0 if any(i in hits for i in ids) else 1
-
-        if Tokens.before not in TOKENS.before:
-            TOKENS.before[Tokens.before] = [0, 0]
-        TOKENS.before[Tokens.before][i] += 1
-        if Tokens.prefix not in TOKENS.prefix:
-            TOKENS.prefix[Tokens.prefix] = [0, 0]
-        TOKENS.prefix[Tokens.prefix][i] += 1
-        if Tokens.token not in TOKENS.token:
-            TOKENS.token[Tokens.token] = [0, 0]
-        TOKENS.token[Tokens.token][i] += 1
-        if Tokens.suffix not in TOKENS.suffix:
-            TOKENS.suffix[Tokens.suffix] = [0, 0]
-        TOKENS.suffix[Tokens.suffix][i] += 1
-        if Tokens.after not in TOKENS.after:
-            TOKENS.after[Tokens.after] = [0, 0]
-        TOKENS.after[Tokens.after][i] += 1
-
-print('parsed', NUM_ART, 'DEV articles', file=sys.stderr)
-
-for counts, rel in [(TOKENS.before, 'before'),
-                    (TOKENS.prefix, 'prefix'),
-                    (TOKENS.suffix, 'suffix'),
-                    (TOKENS.after, 'after')]:
-    if rel in ('before', 'after'):
-        cutoff = CUTOFF.WORD
-    elif rel in ('prefix', 'suffix'):
-        cutoff = CUTOFF.AFFIX
-    else:
-        raise RuntimeError('rel ' + rel + ' unknown')
-
-    for tok, (hits, misses) in counts.items():
-        if hits and misses:
-            if misses / hits >= cutoff:
-                getattr(FILTER, rel).add(tok)
-        elif misses >= cutoff:
-            getattr(FILTER, rel).add(tok)
-
-# "uncount" tokens that are filtered by the surrounding
-for fp in FILES:
-    article = os.path.splitext(os.path.basename(fp))[0]
-    if article not in DEV: continue
-    hits = DEV[article]
-    results = parseResults(fp, POS_TAGS)
-
-    for Tokens, ids in results.items():
-        if not any(i in hits for i in ids):
-            if Tokens.before in FILTER.before or \
-                            Tokens.prefix in FILTER.prefix or \
-                            Tokens.suffix in FILTER.suffix or \
-                            Tokens.after in FILTER.after:
-                if TOKENS.token[Tokens.token][1] > 0:
-                    TOKENS.token[Tokens.token][1] -= 1
-
-for tok, (hits, misses) in TOKENS.token.items():
-    if hits and misses:
-        if misses / hits >= CUTOFF.TOKEN:
-            FILTER.token.add(tok)
-    elif misses >= CUTOFF.TOKEN:
-        FILTER.token.add(tok)
-
-NUM_ART = 0
-
-# measure un-/filtered performance on gold articles
-for fp in FILES:
-    article = os.path.splitext(os.path.basename(fp))[0]
-    if article not in GOLD: continue
-    NUM_ART += 1
-    hits = GOLD[article]
-    results = parseResults(fp, POS_TAGS)
-    current = Counters(set(), set(), set(hits))
-    current_filtered = Counters(set(), set(), set(hits))
-
-    for ann, ids in results.items():
-        countHits(any(i in hits for i in ids), ids, current)
-
-        if not isFiltered(ann, FILTER):
-            countHits(any(i in hits for i in ids), ids, current_filtered)
-
-    updateCounter(COUNT, current)
-    updateCounter(COUNT_FILTERED, current_filtered)
-
-print('parsed', NUM_ART, 'GOLD articles', file=sys.stderr)
-logPerformance('post', COUNT_FILTERED)
-logPerformance('pre', COUNT)
-
-# measure performance of each token position of GOLD
-for field in Tokens._fields:
-    spec_filter = Tokens(set(), set(), set(), set(), set())
-    spec_filter = spec_filter._replace(**{field: getattr(FILTER, field)})
+    DEV = parseStandard(sys.argv[1])
+    print('parsing GOLD from', sys.argv[2], file=sys.stderr)
+    GOLD = parseStandard(sys.argv[2])
+    FILES = sys.argv[3:]
+    NUM_ART = 0
+    TOKENS = Tokens({}, {}, {}, {}, {})
     COUNT = Counters([], [], [])
+    COUNT_FILTERED = Counters([], [], [])
+    FILTER = Tokens(set(), set(), set(), set(), set())
 
+    # count how often an Annotation has a GOLD match or not
+    for fp in FILES:
+        article = os.path.splitext(os.path.basename(fp))[0]
+        if article not in DEV: continue
+        NUM_ART += 1
+        hits = DEV[article]
+        results = parseResults(fp, POS_TAGS)
+
+        for Tokens, ids in results.items():
+            i = 0 if any(i in hits for i in ids) else 1
+
+            if Tokens.before not in TOKENS.before:
+                TOKENS.before[Tokens.before] = [0, 0]
+            TOKENS.before[Tokens.before][i] += 1
+            if Tokens.prefix not in TOKENS.prefix:
+                TOKENS.prefix[Tokens.prefix] = [0, 0]
+            TOKENS.prefix[Tokens.prefix][i] += 1
+            if Tokens.token not in TOKENS.token:
+                TOKENS.token[Tokens.token] = [0, 0]
+            TOKENS.token[Tokens.token][i] += 1
+            if Tokens.suffix not in TOKENS.suffix:
+                TOKENS.suffix[Tokens.suffix] = [0, 0]
+            TOKENS.suffix[Tokens.suffix][i] += 1
+            if Tokens.after not in TOKENS.after:
+                TOKENS.after[Tokens.after] = [0, 0]
+            TOKENS.after[Tokens.after][i] += 1
+
+    print('parsed', NUM_ART, 'DEV articles', file=sys.stderr)
+
+    # filter TOKENS depending on their frequency they were missed vs. hit
+    for counts, rel in [(TOKENS.before, 'before'),
+                        (TOKENS.prefix, 'prefix'),
+                        (TOKENS.suffix, 'suffix'),
+                        (TOKENS.after, 'after')]:
+        if rel in ('before', 'after'):
+            cutoff = CUTOFF.WORD
+        elif rel in ('prefix', 'suffix'):
+            cutoff = CUTOFF.AFFIX
+        else:
+            raise RuntimeError('rel ' + rel + ' unknown')
+
+        for tok, (hits, misses) in counts.items():
+            if hits and misses:
+                if misses / hits >= cutoff:
+                    getattr(FILTER, rel).add(tok)
+            elif misses >= cutoff: # never hit; require "cutoff" number of misses
+                getattr(FILTER, rel).add(tok)
+
+    # uncount missed "token" TOKENS that can be filtered by any other, surrounding TOKENS already
+    # i.e., minimize the number of blacklisted "token" TOKENS
+    for fp in FILES:
+        article = os.path.splitext(os.path.basename(fp))[0]
+        if article not in DEV: continue
+        hits = DEV[article]
+        results = parseResults(fp, POS_TAGS)
+
+        for Tokens, ids in results.items():
+            if not any(i in hits for i in ids):
+                if Tokens.before in FILTER.before or \
+                                Tokens.prefix in FILTER.prefix or \
+                                Tokens.suffix in FILTER.suffix or \
+                                Tokens.after in FILTER.after:
+                    if TOKENS.token[Tokens.token][1] > 0:
+                        TOKENS.token[Tokens.token][1] -= 1
+
+    # finally, filter "token" TOKENS on their frequency, too
+    for tok, (hits, misses) in TOKENS.token.items():
+        if hits and misses:
+            if misses / hits >= CUTOFF.TOKEN:
+                FILTER.token.add(tok)
+        elif misses >= CUTOFF.TOKEN:
+            FILTER.token.add(tok)
+
+    NUM_ART = 0
+
+    # measure un-/filtered performance on gold articles
     for fp in FILES:
         article = os.path.splitext(os.path.basename(fp))[0]
         if article not in GOLD: continue
+        NUM_ART += 1
         hits = GOLD[article]
         results = parseResults(fp, POS_TAGS)
         current = Counters(set(), set(), set(hits))
+        current_filtered = Counters(set(), set(), set(hits))
 
         for ann, ids in results.items():
-            if not isFiltered(ann, spec_filter):
-                countHits(any(i in hits for i in ids), ids, current)
+            countHits(any(i in hits for i in ids), ids, current)
+
+            if not isFiltered(ann, FILTER):
+                countHits(any(i in hits for i in ids), ids, current_filtered)
 
         updateCounter(COUNT, current)
+        updateCounter(COUNT_FILTERED, current_filtered)
 
-    logPerformance(field, COUNT)
+    print('parsed', NUM_ART, 'GOLD articles', file=sys.stderr)
+    logPerformance('post', COUNT_FILTERED)
+    logPerformance('pre', COUNT)
 
-for field in FILTER._fields:
-    for val in getattr(FILTER, field):
-        print(field, val, sep='\t')
+    # measure the individual performance of each token filter on GOLD
+    for field in Tokens._fields:
+        spec_filter = Tokens(set(), set(), set(), set(), set())
+        spec_filter = spec_filter._replace(**{field: getattr(FILTER, field)})
+        COUNT = Counters([], [], [])
+
+        for fp in FILES:
+            article = os.path.splitext(os.path.basename(fp))[0]
+            if article not in GOLD: continue
+            hits = GOLD[article]
+            results = parseResults(fp, POS_TAGS)
+            current = Counters(set(), set(), set(hits))
+
+            for ann, ids in results.items():
+                if not isFiltered(ann, spec_filter):
+                    countHits(any(i in hits for i in ids), ids, current)
+
+            updateCounter(COUNT, current)
+
+        logPerformance(field, COUNT)
+
+    # print the FILTER tokens
+    for field in FILTER._fields:
+        for val in getattr(FILTER, field):
+            print(field, val, sep='\t')
